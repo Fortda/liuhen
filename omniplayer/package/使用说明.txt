@@ -1,0 +1,33 @@
+========================================
+  OmniTrace / OmniPlayer 使用说明
+========================================
+
+一、这是什么
+  自用采集（WinRecorder）+ 回放 / 仪表盘 / 流式笔记。
+  数据在仓库里的 OmniDatabase，不打进本程序目录。
+
+二、日常怎么开（稳定版）
+  桌面「OmniTrace」快捷方式，或
+  %LOCALAPPDATA%\OmniTrace\OmniPlayer.exe
+  不要用仓库里的「打开 OmniTrace.bat」当日常入口——那是开发（tauri dev），改代码时会卡住。
+
+三、怎么更新
+  1. 开发侧编好新包后运行 omniplayer\package.ps1（或 scripts\install-stable.ps1）
+  2. 打开稳定版 → 关于 →「更新」
+     会优先用 incoming 或仓库 dist\OmniPlayer\OmniPlayer.exe
+     找不到再手选 exe
+  只换程序文件，不碰 OmniDatabase。
+
+四、数据在哪
+  安装目录旁 data_root.json 指向仓库 OmniDatabase\
+  ├── EventData\    （.bin 物理流：鼠标键盘）
+  ├── ModuleData\   （各模组 jsonl：焦点/窗口等）
+  ├── notes\        （流式笔记卡片、日志、配置；密钥仅在本机）
+  └── control\      （采集器心跳等控制面）
+
+五、开发入口（可选）
+  仓库根「打开 OmniTrace.bat」→ tauri dev，与稳定版互不影响（采集仍单实例）。
+
+六、卸载
+  应用和功能里的 OmniTrace，或跑安装目录 uninstall.ps1
+  不会删除 OmniDatabase。

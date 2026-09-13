@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Align OmniPlayer light shell (:root in omniplayer/index.html). -->
+    <color name="bg">#EBE8E4</color>
+    <color name="panel">#F7F5F2</color>
+    <color name="chrome">#DDD8D2</color>
+    <color name="line">#D0CBC3</color>
+    <color name="fg">#2A2A2A</color>
+    <color name="muted">#6A6560</color>
+    <color name="accent">#1F6F5B</color>
+    <color name="on_accent">#F3F0EA</color>
+    <color name="danger">#B33B3B</color>
+    <color name="card_bg">#FFFFFF</color>
+    <color name="card_stroke">#C4BEB4</color>
+    <color name="nav_bar">@color/chrome</color>
+    <color name="nav_ripple">#331F6F5B</color>
+    <color name="player_bg">#000000</color>
+    <color name="timeline_standby">#A8A29A</color>
+    <color name="timeline_screen">#5B8DEF</color>
+    <color name="timeline_audio">#C9A227</color>
+    <color name="tick">#332A2A2A</color>
+    <color name="now_line">#2A2A2A</color>
+    <color name="chrome_scrim">#E6EBE8E4</color>
+    <color name="timeline_nofocus">#668A8580</color>
+</resources>

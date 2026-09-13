@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.OmniTrace.Base" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/chrome</item>
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:colorBackground">@color/bg</item>
+        <item name="android:textColor">@color/fg</item>
+        <item name="colorPrimary">@color/accent</item>
+        <item name="colorPrimaryVariant">@color/accent</item>
+        <item name="colorOnPrimary">@color/on_accent</item>
+        <item name="colorSecondary">@color/accent</item>
+        <item name="colorOnSecondary">@color/on_accent</item>
+        <item name="colorSurface">@color/card_bg</item>
+        <item name="colorOnSurface">@color/fg</item>
+        <item name="colorOnBackground">@color/fg</item>
+        <item name="colorControlActivated">@color/accent</item>
+        <item name="colorError">@color/danger</item>
+    </style>
+
+    <style name="Theme.OmniTrace" parent="Theme.OmniTrace.Base">
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

@@ -1,0 +1,30 @@
+/target
+/dev-logs/
+
+# Runtime data (never commit)
+OmniDatabase/
+
+# Prompt originals — private, never publish
+versions/**/PROMPT.md
+
+# Secrets
+.env
+.env.*
+*.pem
+
+# Dependencies & build output
+**/node_modules/
+**/dist/
+/dist/
+
+# Local debug / bench noise
+debug-*.log
+omniplayer/perf-bench-last.json
+
+# Local capture / vendor (never publish)
+/config.json
+providers.json
+recordings/
+cache/
+tools/
+__pycache__/

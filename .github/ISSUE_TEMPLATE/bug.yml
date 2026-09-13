@@ -1,0 +1,25 @@
+name: Bug
+description: 软件坏了 / Something is broken
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 你期望怎样、实际怎样。
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 怎么复现
+      description: 尽量逐步写。
+  - type: input
+    id: version
+    attributes:
+      label: OmniTrace 版本
+      placeholder: "0.1.2"
+  - type: markdown
+    attributes:
+      value: 不要贴 API Key、Cookie、或 OmniDatabase 里的私人记录。

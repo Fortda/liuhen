@@ -1,0 +1,38 @@
+---
+description: Git 用 Conventional Commits；发版写 Keep a Changelog；禁止把对话原文写进 commit
+alwaysApply: true
+---
+
+# Git 维护协议
+
+本仓库用 **Git** 做版本历史。不要再写 `change_journal/`。
+
+公开仓库走常见开源习惯：**短提交说明 + `CHANGELOG.md`**。不要把聊天原文、Cookie、token 写进 commit message。
+
+## 每次改完代码
+
+1. 用户明确要求提交、或本仓库协议要求提交时：`git add` 相关文件 + `git commit`。用户说先别提交则不要提交。
+2. 说明用 **[Conventional Commits](https://www.conventionalcommits.org/)** 一行标题（必要时加简短正文）：
+   - `feat:` / `fix:` / `docs:` / `refactor:` / `chore:` …
+3. **发版**（打 tag、做 GitHub Release）时更新根目录 [`CHANGELOG.md`](../../CHANGELOG.md)，格式见 [Keep a Changelog](https://keepachangelog.com/)（`Added` / `Changed` / `Fixed` / `Removed` …）。日常小提交不必每条都改 changelog。
+4. 不要提交：`config.json`（可能含 Cookie）、`OmniDatabase/`、`recordings/`、`cache/`、`tools/`（本地 ffmpeg）、`__pycache__/`、`target/`、`versions/**/PROMPT.md`（提示词原文）、含 API Key 的文件。
+5. 提交前看 `git status` / `git diff`，确认没有密钥或录像。
+
+## 不要再做的事
+
+- 不要在 commit message 里粘贴完整对话（旧的 `## 对话归档` 模板已废止）。
+- 不要为归档去改系统时钟，也不必上网查 UTC 写进 message。
+- 不要把本机带对话全文的旧 `master` 历史直接 `push` 到公开 GitHub。公开初版用 **orphan 提交**（见 [`docs/releasing.md`](../../docs/releasing.md)）。
+
+## PR 分支（Pull Request，可选）
+
+**PR** = 功能分支改完再合并回主线。详见 `docs/adr/0002-git-pr-branch-ask.md`。
+
+- **默认**：在用户当前分支上改。不要自行 `checkout -b`，不要自行推远程 / `gh pr create`。
+- **非琐碎任务**（新模组、新目录、架构向改动、多文件功能）：动手前问要不要开 PR 分支。用户说开再开；已点名分支或「就在这改」则不问。
+- 文案/错别字/蓝图一句等琐碎改动不必每轮都问。
+
+## 和 AI 的分工
+
+- AI：改业务代码；用 Conventional Commits 写说明；发版时改 `CHANGELOG.md`。
+- Git：存历史、可回退；不要靠 AI 手搓第二套备份目录。

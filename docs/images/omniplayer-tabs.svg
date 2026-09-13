@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 56" role="img" aria-labelledby="t">
+  <title id="t">OmniPlayer tab highlight loop (schematic, not a product demo)</title>
+  <rect width="520" height="56" rx="8" fill="#efe8dc"/>
+  <rect x="16" y="14" width="488" height="28" rx="14" fill="#e2ddd5"/>
+  <rect x="20" y="16" width="118" height="24" rx="12" fill="#2c2a27">
+    <animate attributeName="x" values="20;138;256;374;20" keyTimes="0;0.25;0.5;0.75;1" dur="8s" repeatCount="indefinite" calcMode="discrete"/>
+  </rect>
+  <g font-family="Segoe UI, sans-serif" font-size="12" font-weight="600" text-anchor="middle">
+    <text x="79" y="33" fill="#f3f0ea">
+      &#x8bbe;&#x7f6e;
+      <animate attributeName="fill" values="#f3f0ea;#6a6560;#6a6560;#6a6560;#f3f0ea" keyTimes="0;0.25;0.5;0.75;1" dur="8s" repeatCount="indefinite" calcMode="discrete"/>
+    </text>
+    <text x="197" y="33" fill="#6a6560">
+      &#x64ad;&#x653e;&#x5668;
+      <animate attributeName="fill" values="#6a6560;#f3f0ea;#6a6560;#6a6560;#6a6560" keyTimes="0;0.25;0.5;0.75;1" dur="8s" repeatCount="indefinite" calcMode="discrete"/>
+    </text>
+    <text x="315" y="33" fill="#6a6560">
+      &#x4eea;&#x8868;&#x76d8;
+      <animate attributeName="fill" values="#6a6560;#6a6560;#f3f0ea;#6a6560;#6a6560" keyTimes="0;0.25;0.5;0.75;1" dur="8s" repeatCount="indefinite" calcMode="discrete"/>
+    </text>
+    <text x="421" y="33" fill="#6a6560">
+      &#x7b14;&#x8bb0;
+      <animate attributeName="fill" values="#6a6560;#6a6560;#6a6560;#f3f0ea;#6a6560" keyTimes="0;0.25;0.5;0.75;1" dur="8s" repeatCount="indefinite" calcMode="discrete"/>
+    </text>
+  </g>
+</svg>

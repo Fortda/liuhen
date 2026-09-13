@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Align OmniPlayer dark shell (html[data-theme=dark]). -->
+    <color name="bg">#1C1B19</color>
+    <color name="panel">#252320</color>
+    <color name="chrome">#161513</color>
+    <color name="line">#3D3A35</color>
+    <color name="fg">#ECEAE6</color>
+    <color name="muted">#9A958C</color>
+    <color name="accent">#5AAE96</color>
+    <color name="on_accent">#1A1917</color>
+    <color name="danger">#E07070</color>
+    <color name="card_bg">#2C2A27</color>
+    <color name="card_stroke">#4A463F</color>
+    <color name="nav_bar">@color/chrome</color>
+    <color name="nav_ripple">#335AAE96</color>
+    <color name="player_bg">#000000</color>
+    <color name="timeline_standby">#5A564F</color>
+    <color name="timeline_screen">#5B8DEF</color>
+    <color name="timeline_audio">#C9A227</color>
+    <color name="tick">#33ECEAE6</color>
+    <color name="now_line">#ECEAE6</color>
+    <color name="chrome_scrim">#E61C1B19</color>
+    <color name="timeline_nofocus">#996E6A64</color>
+</resources>

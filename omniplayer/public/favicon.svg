@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <style>
+    .sclera { fill: #f7f5f2; }
+    .lid, .lash, .crease { stroke: #3a1818; fill: none; }
+    .lid-lower { stroke: #3a1818; fill: none; opacity: 0.35; }
+    .crease { opacity: 0.55; }
+    .caruncle { fill: #c47870; }
+    .pupil { fill: #1a0808; }
+    @media (prefers-color-scheme: dark) {
+      .sclera { fill: #252320; }
+      .lid, .lash, .crease, .lid-lower { stroke: #6a4040; }
+      .caruncle { fill: #a56a64; }
+    }
+  </style>
+  <defs>
+    <clipPath id="eye-open">
+      <path d="M3.7 12.25C6.2 7.7 17.9 7.5 20.6 12.1C18.3 15.7 6 15.85 3.7 12.25Z"/>
+    </clipPath>
+    <radialGradient id="iris-grad" cx="46%" cy="40%" r="62%">
+      <stop offset="0%" stop-color="#3a1010"/>
+      <stop offset="38%" stop-color="#6b1f1c"/>
+      <stop offset="78%" stop-color="#8a322c"/>
+      <stop offset="100%" stop-color="#5c1818"/>
+    </radialGradient>
+  </defs>
+  <path class="sclera" d="M3.7 12.25C6.2 7.7 17.9 7.5 20.6 12.1C18.3 15.7 6 15.85 3.7 12.25Z"/>
+  <g clip-path="url(#eye-open)">
+    <circle cx="12.15" cy="11.55" r="5.5" fill="url(#iris-grad)"/>
+    <circle class="pupil" cx="12.15" cy="11.5" r="1.62"/>
+    <ellipse cx="10.35" cy="10.05" rx="1.22" ry="1.02" fill="#fff"/>
+    <ellipse class="caruncle" cx="4.55" cy="12.4" rx="0.78" ry="0.5"/>
+  </g>
+  <path class="crease" d="M6.2 9.85Q12 8.15 18.2 10.05" stroke-width="0.38" stroke-linecap="round"/>
+  <path class="lid" d="M3.35 12.05Q12 7.05 20.9 11.95" stroke-width="1.12" stroke-linecap="round"/>
+  <path class="lid-lower" d="M5.4 14.45Q12 15.35 18.8 14.35" stroke-width="0.42" stroke-linecap="round"/>
+  <path class="lash" d="M20.4 11.55l1.05 0.22M20.55 11.95l1.15 0.45" stroke-width="0.72" stroke-linecap="round"/>
+</svg>

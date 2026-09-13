@@ -1,0 +1,14 @@
+把手机 OmniDatabase 拉到电脑旁路根。
+
+1. 打开开发者选项 / USB 调试，用数据线连电脑。
+2. 在仓库根执行：
+
+   powershell -File omnitrace_android/package/pull-to-sidecar.ps1
+
+3. 数据会出现在 OmniDatabase/sources/android_<型号>_<android_id>/
+   里面仍是 EventData / ModuleData / control / manifest.json。
+
+也可以在 App 设置页用「导出到所选文件夹」。
+
+禁止把 imu_DD.bin 写进或合并到 Windows 的 EventData/.../trace_DD.bin。
+OmniPlayer 这一期还不播放手机源。

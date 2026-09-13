@@ -1,0 +1,12 @@
+name: 想法
+description: 功能或产品想法 / Idea
+title: "[idea] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: 想法
+      description: 想做什么、为什么有用。
+    validations:
+      required: true

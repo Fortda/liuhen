@@ -1,0 +1,70 @@
+[package]
+name = "omnitrace_input"
+version = "0.2.0"
+edition = "2024"
+description = "OmniTrace recorder with pluggable modules"
+default-run = "omnitrace_input"
+
+[lib]
+name = "omnitrace"
+path = "src/lib.rs"
+
+[[bin]]
+name = "omnitrace_input"
+path = "src/main.rs"
+
+[[bin]]
+name = "win_context"
+path = "src/bin/win_context.rs"
+
+[[bin]]
+name = "decoder"
+path = "src/bin/decoder.rs"
+
+[[bin]]
+name = "module_host"
+path = "src/bin/module_host.rs"
+
+[dependencies]
+active-win-pos-rs = "0.8.3"
+rdev = "0.5.3"
+chrono = "0.4.38"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Accessibility",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_PropertiesSystem",
+  "Win32_Graphics_Dwm",
+  "Win32_Graphics_Gdi",
+  "Win32_Graphics_Dxgi",
+  "Win32_System_Threading",
+  "Win32_System_ProcessStatus",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Registry",
+  "Win32_System_SystemInformation",
+  "Win32_System_SystemServices",
+  "Win32_System_Console",
+  "Win32_System_Shutdown",
+  "Win32_System_Power",
+  "Win32_System_Performance",
+  "Win32_NetworkManagement_IpHelper",
+  "Win32_NetworkManagement_Ndis",
+  "Win32_NetworkManagement_WiFi",
+  "Win32_Networking_WinSock",
+  "Win32_Devices_DeviceAndDriverInstallation",
+  "Win32_Devices_Bluetooth",
+  "Win32_Devices_Display",
+  "Win32_Devices_FunctionDiscovery",
+  "Win32_Devices_Properties",
+  "Win32_Media_Audio",
+  "Win32_Storage_FileSystem"
+] }
+image = { version = "0.25", default-features = false, features = ["png"] }

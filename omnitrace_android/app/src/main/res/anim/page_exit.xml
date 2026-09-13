@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shareInterpolator="false">
+    <translate
+        android:duration="340"
+        android:fromXDelta="0"
+        android:interpolator="@interpolator/omni_emphasized"
+        android:toXDelta="-24%p" />
+    <alpha
+        android:duration="340"
+        android:fromAlpha="1"
+        android:interpolator="@interpolator/omni_emphasized"
+        android:toAlpha="0.88" />
+</set>

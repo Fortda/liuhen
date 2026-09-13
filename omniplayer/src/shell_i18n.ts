@@ -1,0 +1,606 @@
+/** 壳层界面语言：中文 / English。笔记脚注等读 `<html lang>`。 */
+
+import { ABOUT_EN, ABOUT_ZH } from "./shell_i18n_about";
+import {
+  applyCaliberPlainButton,
+  initCaliberPlainToggle,
+  resolveCaliberI18nKey,
+} from "./shell_caliber_plain";
+import type { StringTable } from "./shell_i18n_tables";
+
+export const LANG_STORAGE_KEY = "omnitrace.shell.lang";
+
+export type LangChoice = "zh-CN" | "en";
+
+const ZH: StringTable = {
+  "nav.settings": "设置",
+  "nav.player": "播放器",
+  "nav.dashboard": "仪表盘",
+  "nav.notes": "笔记",
+  "shell.about": "关于",
+  "shell.feedback": "反馈",
+  "shell.aboutTitle": "关于 OmniTrace",
+  "shell.feedbackTitle": "反馈",
+  "win.min": "最小化",
+  "win.max": "最大化",
+  "win.close": "关闭",
+  "dlg.close": "关闭",
+  "dlg.about.title": "关于",
+  "dlg.feedback.title": "反馈",
+  "dlg.feedback.copy": "复制到剪贴板",
+  "dlg.feedback.issue": "在 GitHub 提交 Issue",
+  "dlg.feedback.issueTitle": "打开仓库的 New Issue 页",
+  "dlg.feedback.issueFail": "打不开浏览器，请从关于页复制仓库地址。",
+  "settings.title": "设置",
+  "settings.sub":
+    "WinRecorder 采集、开机行为、语言模型与外观。健康与统计见「仪表盘」。",
+  "settings.recorder.label": "WinRecorder 录制",
+  "settings.recorder.desc":
+    "打开后在后台采集键鼠与窗口环境（input / focus / win_map）。关闭即停止进程。开关会随进程检测自动同步，已在运行时不会重复启动。",
+  "settings.recorder.switchTitle": "录制开关",
+  "settings.recorder.meta.loading": "状态读取中…",
+  "settings.recorder.meta.multi": "检测到 {n} 个采集进程，请只保留一个",
+  "settings.recorder.meta.running": "采集中",
+  "settings.recorder.meta.runningPid": "采集中 · PID {pid}",
+  "settings.recorder.meta.stopped": "已停止",
+  "settings.recorder.meta.desiredOffSync":
+    "上次为开启，但当前未检测到采集进程（可再点开关启动）",
+  "settings.autostart.label": "开机自启动 WinRecorder",
+  "settings.autostart.desc":
+    "登录 Windows 后自动开始录制（写入当前用户「启动」文件夹快捷方式）。",
+  "settings.autostart.switchTitle": "开机自启",
+  "settings.autostart.meta.on": "登录 Windows 后自动开录",
+  "settings.autostart.meta.off": "仅手动开录",
+  "settings.appearance.label": "外观",
+  "settings.appearance.desc":
+    "标题栏、导航、设置、仪表盘与播放器时间轴跟随浅色或深色。仅舞台黑底。",
+  "settings.appearance.aria": "外观",
+  "settings.theme.system": "跟随系统",
+  "settings.theme.light": "浅色",
+  "settings.theme.dark": "深色",
+  "settings.lang.label": "语言",
+  "settings.lang.desc": "界面文字语言。笔记脚注等指标说明随此项切换。",
+  "settings.lang.aria": "语言",
+  "settings.lang.zh": "中文",
+  "settings.lang.en": "English",
+  "settings.cost.label": "笔记费用显示",
+  "settings.cost.desc":
+    "卡片脚注与价表按美元牌价计，可改显示为人民币。默认 1 美元 = 7.2 人民币（可改，非实时汇率）。",
+  "settings.cost.aria": "费用显示货币",
+  "settings.cost.cny": "人民币",
+  "settings.cost.usd": "美元",
+  "settings.cost.rateLabel": "美元兑人民币",
+  "settings.cost.rateHint": "仅用于界面换算，不向模型或上游请求汇率。",
+  "settings.llm.label": "语言模型",
+  "settings.llm.desc":
+    "服务商、API Key、LiteLLM 转发器与上游代理。笔记里只选本轮模型。",
+  "settings.llm.aria": "打开语言模型设置",
+  "settings.llm.title": "语言模型",
+  "settings.llm.back": "← 设置",
+  "settings.llm.backNotes": "← 笔记",
+  "settings.llm.import": "导入 AI Studio / Gemini 导出…",
+  "toast.recorder.start": "采集器已启动",
+  "toast.recorder.stop": "采集器已停止",
+  "toast.autostart.on": "开机自启已开启",
+  "toast.autostart.off": "开机自启已关闭",
+  "feedback.copyEmpty": "请先写下内容再复制。",
+  "feedback.copyOk": "已复制到剪贴板。",
+  "feedback.copyFail": "复制失败，请在文本框内 Ctrl+C。",
+  "shell.loading": "加载模块…",
+  "shell.loading.player": "加载播放器…",
+  "shell.loading.dashboard": "加载仪表盘…",
+  "shell.loading.notes": "加载笔记…",
+  "shell.apps.show": "显示应用栏",
+  "shell.apps.hide": "隐藏应用栏",
+  "shell.apps.title": "应用",
+  "shell.apps.add": "添加面板",
+  "shell.apps.empty": "点 + 添加对话窗、线索板、浏览器、终端等面板（可同时多个）",
+  "shell.apps.closePane": "关闭面板",
+  "shell.apps.menuSearch": "搜索面板…",
+  "shell.apps.menuEmpty": "无匹配项",
+  "shell.apps.clueMoved": "线索板已在右侧应用栏打开",
+  "shell.apps.chatMoved": "流式笔记已在右侧应用栏打开",
+  "shell.apps.kind.chat": "对话窗",
+  "shell.apps.kind.chatHint": "悬停选择连线存档，作为标签打开",
+  "shell.apps.kind.clue": "线索板",
+  "shell.apps.kind.clueHint": "悬停选择线索板，作为标签打开",
+  "shell.apps.clue.pickerSearch": "搜索线索板…",
+  "shell.apps.clue.pickerEmpty": "无匹配线索板",
+  "shell.apps.clue.newBoard": "+ 新建线索板",
+  "shell.apps.clue.tabMenu": "切换线索板",
+  "shell.apps.chat.tabMenu": "切换连线存档",
+  "shell.apps.chat.pickerSearch": "搜索连线存档…",
+  "shell.apps.chat.pickerEmpty": "暂无连线存档",
+  "shell.apps.chat.saveThread": "保存当前组合",
+  "shell.apps.chat.saveName": "连线存档名称",
+  "shell.apps.chat.currentThread": "当前绿线",
+  "shell.apps.chat.hideNonGreen": "仅绿线",
+  "shell.apps.chat.hideNonGreenHint": "隐藏未接到当前绿线的卡片",
+  "shell.apps.kind.canvas": "Canvas",
+  "shell.apps.kind.canvasHint": "轻量便签画布（MVP）",
+  "shell.apps.kind.browser": "Browser",
+  "shell.apps.kind.browserHint": "预览 PDF/图片/文本；Office 走系统打开",
+  "shell.apps.kind.terminal": "Terminal",
+  "shell.apps.kind.terminalHint": "简易 PowerShell（非交互）",
+  "shell.apps.kind.file": "File",
+  "shell.apps.kind.fileHint": "可展开的文件树；点文件可在 Browser 预览",
+  "shell.apps.canvas.badge": "Canvas · 轻量草稿",
+  "shell.apps.canvas.placeholder": "随手记、大纲、粘贴片段…（仅本机 localStorage）",
+  "shell.apps.browser.open": "打开文件",
+  "shell.apps.browser.system": "系统打开",
+  "shell.apps.browser.noFile": "未选择文件",
+  "shell.apps.browser.empty": "打开 PDF / 图片 / HTML / 文本预览；Word/表格用系统程序。",
+  "shell.apps.browser.previewFail": "内嵌预览失败：",
+  "shell.apps.browser.officeTip": "此类文件不适合内嵌预览，请用系统默认程序打开。",
+  "shell.apps.terminal.badge": "Terminal · 简易（非交互 PTY）",
+  "shell.apps.terminal.welcome": "PowerShell 单次命令。超时约 12s。\n",
+  "shell.apps.terminal.placeholder": "例如：Get-Date",
+  "shell.apps.terminal.run": "运行",
+  "shell.apps.terminal.external": "外部终端",
+  "shell.apps.file.openFolder": "打开文件夹",
+  "shell.apps.file.pickDir": "打开文件夹",
+  "shell.apps.file.noDir": "未选根目录",
+  "shell.apps.file.empty": "尚未打开文件夹。点「打开文件夹」设根，或使用默认工作区。",
+  "shell.apps.file.emptyDir": "（空目录）",
+  "shell.apps.file.listFail": "列出失败",
+  "notes.title": "笔记",
+  "notes.mode.aria": "笔记模式",
+  "notes.mode.stream": "流式笔记",
+  "notes.mode.clue": "线索板",
+  "notes.mode.timeline": "时间轴",
+  "notes.settingsGear": "笔记 LLM 设置",
+  "notes.addApi": "管理连接…",
+  "notes.model.refresh": "刷新模型",
+  "notes.model.edit": "编辑模型",
+  "notes.model.editorTitle": "模型",
+  "notes.model.editorSearch": "搜索模型",
+  "notes.model.addProvider": "添加提供方...",
+  "settings.llm.nav.all": "全部",
+  "settings.llm.nav.enabled": "已启用",
+  "settings.llm.nav.disabled": "未启用",
+  "settings.llm.nav.search": "搜索服务商",
+  "settings.llm.add": "+ 添加服务商",
+  "settings.llm.save": "保存",
+  "settings.llm.delete": "删除",
+  "settings.llm.check": "连通性检查",
+  "settings.llm.checkRun": "检测",
+  "settings.llm.models": "模型列表",
+  "settings.llm.models.search": "搜索模型",
+  "settings.llm.models.fetch": "获取模型列表",
+  "notes.undock": "↗ 摘出",
+  "notes.undockTitle": "摘出为独立窗口",
+  "notes.dock": "↙ 收回",
+  "notes.dockTitle": "收回到主窗口",
+  "notes.undocked.hint": "笔记已在独立窗口中打开。",
+  "notes.undocked.focus": "显示笔记窗口",
+  "notes.sidecar.idle": "未连接",
+  "notes.clue.add": "+ 添加线索",
+  "notes.clue.clearLinks": "清除选中连线",
+  "notes.clue.deleteEdge": "删除连线",
+  "notes.clue.ctx.newNote": "新建便签",
+  "notes.clue.ctx.deleteEdge": "删除这条线",
+  "notes.clue.resetView": "框住全部便签",
+  "notes.clue.empty": "添加第一条线索，用圆点连起疑点。",
+  "notes.clue.panTuner.title": "平移惯性",
+  "notes.clue.panTuner.damping": "阻尼",
+  "notes.clue.panTuner.velocity": "速度",
+  "notes.clue.panTuner.time": "时间",
+  "notes.clue.panTuner.hint": "拖动中间圆柄改衰减曲线；阻尼越大停得越快。",
+  "notes.clue.boards.aria": "线索板列表",
+  "notes.clue.boards.title": "线索板",
+  "notes.clue.boards.new": "+ 新建线索板",
+  "notes.clue.boards.untitled": "未命名",
+  "notes.clue.boards.delete": "删除",
+  "notes.clue.boards.deleteConfirm": "确定删除此线索板？此操作不可撤销。",
+  "notes.clue.boards.renameHint": "双击重命名；右键详情或删除",
+  "notes.groupMeta.details": "详情",
+  "notes.groupMeta.delete": "删除",
+  "notes.groupMeta.created": "创建时间",
+  "notes.groupMeta.modified": "最近修改",
+  "notes.groupMeta.unknownTime": "未知",
+  "notes.preset.aria": "连线存档",
+  "notes.preset.title": "连线存档",
+  "notes.preset.new": "+ 新建存档",
+  "notes.preset.saveCurrent": "保存当前组合",
+  "notes.preset.empty": "暂无存档。点下方「新建存档」开始，或用「保存当前组合」写入绿线。",
+  "notes.preset.untitled": "未命名存档",
+  "notes.preset.noNote": "（无备注）",
+  "notes.preset.edgeCount": "{n} 条连线",
+  "notes.preset.noEdges": "当前没有连线，无法保存。",
+  "notes.preset.generatingNote": "生成备注…",
+  "notes.preset.saveName": "名称",
+  "notes.preset.saveNote": "备注",
+  "notes.preset.saveNamePh": "例如：调研主线",
+  "notes.preset.saveNotePh": "可选手写；留空且开启 AI 时自动生成",
+  "notes.preset.saveCommit": "保存",
+  "notes.preset.saveCancel": "取消",
+  "notes.preset.itemHint": "左键恢复；右键详情或删除",
+  "notes.preset.deleteConfirm": "删除存档「{name}」？",
+  "notes.clue.undo": "撤销",
+  "notes.clue.redo": "重做",
+  "notes.clue.history.toggle": "历史",
+  "notes.clue.history.title": "操作历史",
+  "notes.clue.history.empty": "暂无历史记录",
+  "notes.clue.history.initial": "初始状态",
+  "notes.clue.history.addNode": "添加便签",
+  "notes.clue.history.deleteNode": "删除便签",
+  "notes.clue.history.moveNode": "移动便签",
+  "notes.clue.history.resizeNode": "调整大小",
+  "notes.clue.history.addEdge": "添加连线",
+  "notes.clue.history.deleteEdge": "删除连线",
+  "notes.clue.history.editText": "编辑文本",
+  "notes.clue.history.switchBoard": "切换线索板",
+  "notes.clue.history.newBoard": "新建线索板",
+  "notes.clue.history.deleteBoard": "删除线索板",
+  "notes.clue.history.renameBoard": "重命名线索板",
+  "notes.clue.history.rollback": "回退版本",
+  "notes.clue.history.actorHuman": "人",
+  "notes.clue.history.actorAi": "AI",
+  "notes.clue.history.rollbackHint": "点击回退到此版本",
+  "notes.log.title": "协议日志",
+  "notes.log.close": "关闭",
+  "notes.log.plainBtn": "人话",
+  "notes.log.plainBtnTitle": "切换为通俗说明",
+  "notes.log.plainBtnAria": "人话模式",
+  "notes.log.envelopeBtn": "输入信封",
+  "notes.log.envelopeBtnTitle": "查看对面服务器收到的请求信封",
+  "notes.log.envelopeBtnAria": "输入信封视图",
+  "notes.log.envelopeTitle": "输入信封",
+  "notes.card.timeJustNow": "刚刚",
+  "notes.card.timeSeconds": "{n} 秒前",
+  "notes.card.timeMinutes": "{n} 分钟前",
+  "notes.card.timeHours": "{n} 小时前",
+  "notes.card.timeDays": "{n} 天前",
+  "notes.card.userExpand": "展开",
+  "notes.card.userCollapse": "收起",
+  ...ABOUT_ZH,
+};
+
+const EN: StringTable = {
+  "nav.settings": "Settings",
+  "nav.player": "Player",
+  "nav.dashboard": "Dashboard",
+  "nav.notes": "Notes",
+  "shell.about": "About",
+  "shell.feedback": "Feedback",
+  "shell.aboutTitle": "About OmniTrace",
+  "shell.feedbackTitle": "Feedback",
+  "win.min": "Minimize",
+  "win.max": "Maximize",
+  "win.close": "Close",
+  "dlg.close": "Close",
+  "dlg.about.title": "About",
+  "dlg.feedback.title": "Feedback",
+  "dlg.feedback.copy": "Copy to clipboard",
+  "dlg.feedback.issue": "Open a GitHub Issue",
+  "dlg.feedback.issueTitle": "Open New Issue in the repository",
+  "dlg.feedback.issueFail": "Could not open a browser. Copy the repo URL from About.",
+  "settings.title": "Settings",
+  "settings.sub":
+    "WinRecorder capture, startup, language models, and appearance. Health and stats are on Dashboard.",
+  "settings.recorder.label": "WinRecorder capture",
+  "settings.recorder.desc":
+    "When on, captures keyboard, mouse, and window context (input / focus / win_map) in the background. Turning off stops the process. The switch syncs with process detection and will not start a duplicate if already running.",
+  "settings.recorder.switchTitle": "Capture toggle",
+  "settings.recorder.meta.loading": "Reading status…",
+  "settings.recorder.meta.multi":
+    "Detected {n} capture processes — keep only one",
+  "settings.recorder.meta.running": "Capturing",
+  "settings.recorder.meta.runningPid": "Capturing · PID {pid}",
+  "settings.recorder.meta.stopped": "Stopped",
+  "settings.recorder.meta.desiredOffSync":
+    "Was on last time, but no capture process detected (toggle to start)",
+  "settings.autostart.label": "Start WinRecorder at login",
+  "settings.autostart.desc":
+    "Automatically start capture after Windows sign-in (shortcut in the current user Startup folder).",
+  "settings.autostart.switchTitle": "Start at login",
+  "settings.autostart.meta.on": "Auto-start after Windows sign-in",
+  "settings.autostart.meta.off": "Manual start only",
+  "settings.appearance.label": "Appearance",
+  "settings.appearance.desc":
+    "Title bar, navigation, settings, dashboard, and player timeline follow light or dark. Only the stage stays black.",
+  "settings.appearance.aria": "Appearance",
+  "settings.theme.system": "System",
+  "settings.theme.light": "Light",
+  "settings.theme.dark": "Dark",
+  "settings.lang.label": "Language",
+  "settings.lang.desc":
+    "UI language. Notes footnotes and metric hints follow this setting.",
+  "settings.lang.aria": "Language",
+  "settings.lang.zh": "中文",
+  "settings.lang.en": "English",
+  "settings.cost.label": "Notes cost display",
+  "settings.cost.desc":
+    "Card footers and price lists use USD list prices. You can show them in CNY. Default 1 USD = 7.2 CNY (editable, not a live FX feed).",
+  "settings.cost.aria": "Cost display currency",
+  "settings.cost.cny": "CNY",
+  "settings.cost.usd": "USD",
+  "settings.cost.rateLabel": "USD to CNY",
+  "settings.cost.rateHint": "UI conversion only — no live FX request to models or upstream APIs.",
+  "settings.llm.label": "Language models",
+  "settings.llm.desc":
+    "Providers, API keys, LiteLLM sidecar, and upstream proxy. Notes only pick the model for this turn.",
+  "settings.llm.aria": "Open language model settings",
+  "settings.llm.title": "Language models",
+  "settings.llm.back": "← Settings",
+  "settings.llm.backNotes": "← Notes",
+  "settings.llm.import": "Import AI Studio / Gemini export…",
+  "toast.recorder.start": "Capture started",
+  "toast.recorder.stop": "Capture stopped",
+  "toast.autostart.on": "Start at login enabled",
+  "toast.autostart.off": "Start at login disabled",
+  "feedback.copyEmpty": "Write something before copying.",
+  "feedback.copyOk": "Copied to clipboard.",
+  "feedback.copyFail": "Copy failed — use Ctrl+C in the text box.",
+  "shell.loading": "Loading module…",
+  "shell.loading.player": "Loading player…",
+  "shell.loading.dashboard": "Loading dashboard…",
+  "shell.loading.notes": "Loading notes…",
+  "shell.apps.show": "Show apps panel",
+  "shell.apps.hide": "Hide apps panel",
+  "shell.apps.title": "Apps",
+  "shell.apps.add": "Add pane",
+  "shell.apps.empty": "Use + to add Conversation, Clue Board, Browser, Terminal… (multiple at once)",
+  "shell.apps.closePane": "Close pane",
+  "shell.apps.menuSearch": "Search panes…",
+  "shell.apps.menuEmpty": "No matches",
+  "shell.apps.clueMoved": "Clue Board is open in the apps column",
+  "shell.apps.chatMoved": "Stream notes are open in the apps column",
+  "shell.apps.kind.chat": "Conversation",
+  "shell.apps.kind.chatHint": "Hover to pick a thread archive as a tab",
+  "shell.apps.kind.clue": "Clue Board",
+  "shell.apps.kind.clueHint": "Hover to pick a board as a tab",
+  "shell.apps.clue.pickerSearch": "Search boards…",
+  "shell.apps.clue.pickerEmpty": "No matching boards",
+  "shell.apps.clue.newBoard": "+ New board",
+  "shell.apps.clue.tabMenu": "Switch board",
+  "shell.apps.chat.tabMenu": "Switch thread archive",
+  "shell.apps.chat.pickerSearch": "Search thread archives…",
+  "shell.apps.chat.pickerEmpty": "No thread archives",
+  "shell.apps.chat.saveThread": "Save current wires",
+  "shell.apps.chat.saveName": "Archive name",
+  "shell.apps.chat.currentThread": "Current thread",
+  "shell.apps.chat.hideNonGreen": "Green only",
+  "shell.apps.chat.hideNonGreenHint": "Hide cards not on the current green thread",
+  "shell.apps.kind.canvas": "Canvas",
+  "shell.apps.kind.canvasHint": "Lightweight scratch canvas (MVP)",
+  "shell.apps.kind.browser": "Browser",
+  "shell.apps.kind.browserHint": "Preview PDF/images/text; Office via system",
+  "shell.apps.kind.terminal": "Terminal",
+  "shell.apps.kind.terminalHint": "Simple PowerShell (non-interactive)",
+  "shell.apps.kind.file": "File",
+  "shell.apps.kind.fileHint": "Expandable file tree; open files in Browser",
+  "shell.apps.canvas.badge": "Canvas · scratch",
+  "shell.apps.canvas.placeholder": "Notes, outlines, paste… (localStorage only)",
+  "shell.apps.browser.open": "Open file",
+  "shell.apps.browser.system": "Open in system",
+  "shell.apps.browser.noFile": "No file selected",
+  "shell.apps.browser.empty": "Open PDF / image / HTML / text; Word/sheets use the system app.",
+  "shell.apps.browser.previewFail": "Inline preview failed: ",
+  "shell.apps.browser.officeTip": "This file type isn't inlined — open with the system default app.",
+  "shell.apps.terminal.badge": "Terminal · simple (no PTY)",
+  "shell.apps.terminal.welcome": "One-shot PowerShell. ~12s timeout.\n",
+  "shell.apps.terminal.placeholder": "e.g. Get-Date",
+  "shell.apps.terminal.run": "Run",
+  "shell.apps.terminal.external": "External",
+  "shell.apps.file.openFolder": "Open folder",
+  "shell.apps.file.pickDir": "Open folder",
+  "shell.apps.file.noDir": "No root folder",
+  "shell.apps.file.empty": "No folder yet. Use Open folder, or the default workspace.",
+  "shell.apps.file.emptyDir": "(empty)",
+  "shell.apps.file.listFail": "List failed",
+  "notes.title": "Notes",
+  "notes.mode.aria": "Notes mode",
+  "notes.mode.stream": "Stream notes",
+  "notes.mode.clue": "Clue board",
+  "notes.mode.timeline": "Timeline",
+  "notes.settingsGear": "Notes LLM settings",
+  "notes.addApi": "Manage connections…",
+  "notes.model.refresh": "Refresh models",
+  "notes.model.edit": "Edit models",
+  "notes.model.editorTitle": "Models",
+  "notes.model.editorSearch": "Search models",
+  "notes.model.addProvider": "Add provider...",
+  "settings.llm.nav.all": "All",
+  "settings.llm.nav.enabled": "Enabled",
+  "settings.llm.nav.disabled": "Disabled",
+  "settings.llm.nav.search": "Search providers",
+  "settings.llm.add": "+ Add provider",
+  "settings.llm.save": "Save",
+  "settings.llm.delete": "Delete",
+  "settings.llm.check": "Connectivity",
+  "settings.llm.checkRun": "Test",
+  "settings.llm.models": "Models",
+  "settings.llm.models.search": "Search models",
+  "settings.llm.models.fetch": "Fetch models",
+  "notes.undock": "↗ Undock",
+  "notes.undockTitle": "Open in a separate window",
+  "notes.dock": "↙ Dock",
+  "notes.dockTitle": "Return to main window",
+  "notes.undocked.hint": "Notes are open in a separate window.",
+  "notes.undocked.focus": "Show notes window",
+  "notes.sidecar.idle": "Not connected",
+  "notes.clue.add": "+ Add clue",
+  "notes.clue.clearLinks": "Clear links for selection",
+  "notes.clue.deleteEdge": "Delete link",
+  "notes.clue.ctx.newNote": "New note",
+  "notes.clue.ctx.deleteEdge": "Delete this link",
+  "notes.clue.resetView": "Fit all notes",
+  "notes.clue.empty": "Add your first clue, then link ports with red string.",
+  "notes.clue.panTuner.title": "Pan inertia",
+  "notes.clue.panTuner.damping": "Damping",
+  "notes.clue.panTuner.velocity": "Velocity",
+  "notes.clue.panTuner.time": "Time",
+  "notes.clue.panTuner.hint": "Drag the middle handles to shape decay; higher damping stops sooner.",
+  "notes.clue.boards.aria": "Clue boards",
+  "notes.clue.boards.title": "Clue boards",
+  "notes.clue.boards.new": "+ New board",
+  "notes.clue.boards.untitled": "Untitled",
+  "notes.clue.boards.delete": "Delete",
+  "notes.clue.boards.deleteConfirm": "Delete this clue board? This cannot be undone.",
+  "notes.clue.boards.renameHint": "Double-click to rename. Right-click for details or delete.",
+  "notes.groupMeta.details": "Details",
+  "notes.groupMeta.delete": "Delete",
+  "notes.groupMeta.created": "Created",
+  "notes.groupMeta.modified": "Last modified",
+  "notes.groupMeta.unknownTime": "Unknown",
+  "notes.preset.aria": "Wire presets",
+  "notes.preset.title": "Wire presets",
+  "notes.preset.new": "+ New preset",
+  "notes.preset.saveCurrent": "Save current wires",
+  "notes.preset.empty": "No presets yet. Use “New preset” below, or save your green wires with “Save current wires”.",
+  "notes.preset.untitled": "Untitled preset",
+  "notes.preset.noNote": "(no note)",
+  "notes.preset.edgeCount": "{n} wires",
+  "notes.preset.noEdges": "No wires on canvas — nothing to save.",
+  "notes.preset.generatingNote": "Generating note…",
+  "notes.preset.saveName": "Name",
+  "notes.preset.saveNote": "Note",
+  "notes.preset.saveNamePh": "e.g. Research thread",
+  "notes.preset.saveNotePh": "Optional; auto-generated when AI note is on and left blank",
+  "notes.preset.saveCommit": "Save",
+  "notes.preset.saveCancel": "Cancel",
+  "notes.preset.itemHint": "Left-click to restore. Right-click for details or delete.",
+  "notes.preset.deleteConfirm": "Delete preset “{name}”?",
+  "notes.clue.undo": "Undo",
+  "notes.clue.redo": "Redo",
+  "notes.clue.history.toggle": "History",
+  "notes.clue.history.title": "History",
+  "notes.clue.history.empty": "No history yet",
+  "notes.clue.history.initial": "Initial state",
+  "notes.clue.history.addNode": "Add note",
+  "notes.clue.history.deleteNode": "Delete note",
+  "notes.clue.history.moveNode": "Move note",
+  "notes.clue.history.resizeNode": "Resize note",
+  "notes.clue.history.addEdge": "Add link",
+  "notes.clue.history.deleteEdge": "Delete link",
+  "notes.clue.history.editText": "Edit text",
+  "notes.clue.history.switchBoard": "Switch board",
+  "notes.clue.history.newBoard": "New board",
+  "notes.clue.history.deleteBoard": "Delete board",
+  "notes.clue.history.renameBoard": "Rename board",
+  "notes.clue.history.rollback": "Rollback",
+  "notes.clue.history.actorHuman": "Human",
+  "notes.clue.history.actorAi": "AI",
+  "notes.clue.history.rollbackHint": "Click to restore this version",
+  "notes.log.title": "Protocol log",
+  "notes.log.close": "Close",
+  "notes.log.plainBtn": "Plain",
+  "notes.log.plainBtnTitle": "Switch to plain-language log",
+  "notes.log.plainBtnAria": "Plain language mode",
+  "notes.log.envelopeBtn": "Envelopes",
+  "notes.log.envelopeBtnTitle": "Show request envelopes the server received",
+  "notes.log.envelopeBtnAria": "Input envelopes view",
+  "notes.log.envelopeTitle": "Input envelopes",
+  "notes.card.timeJustNow": "just now",
+  "notes.card.timeSeconds": "{n}s ago",
+  "notes.card.timeMinutes": "{n} min ago",
+  "notes.card.timeHours": "{n} h ago",
+  "notes.card.timeDays": "{n} d ago",
+  "notes.card.userExpand": "Expand",
+  "notes.card.userCollapse": "Collapse",
+  ...ABOUT_EN,
+};
+
+const TABLES: Record<LangChoice, StringTable> = {
+  "zh-CN": ZH,
+  en: EN,
+};
+
+function isLang(v: string | null): v is LangChoice {
+  return v === "zh-CN" || v === "en";
+}
+
+export function readLangChoice(): LangChoice {
+  try {
+    const raw = localStorage.getItem(LANG_STORAGE_KEY);
+    if (isLang(raw)) return raw;
+  } catch {
+    /* private mode */
+  }
+  const doc = document.documentElement.lang || navigator.language || "zh-CN";
+  return doc.toLowerCase().startsWith("zh") ? "zh-CN" : "en";
+}
+
+export function shellT(
+  key: string,
+  vars?: Record<string, string | number>
+): string {
+  const table = TABLES[readLangChoice()];
+  let s = table[key] ?? TABLES["zh-CN"][key] ?? key;
+  if (vars) {
+    for (const [k, v] of Object.entries(vars)) {
+      s = s.split(`{${k}}`).join(String(v));
+    }
+  }
+  return s;
+}
+
+function applyDomStrings(lang: LangChoice) {
+  const table = TABLES[lang];
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    const key = el.getAttribute("data-i18n");
+    if (!key) return;
+    const resolved = resolveCaliberI18nKey(key, table);
+    if (!table[resolved]) return;
+    el.textContent = table[resolved];
+  });
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => {
+    const key = el.getAttribute("data-i18n-title");
+    if (!key) return;
+    const resolved = resolveCaliberI18nKey(key, table);
+    if (!table[resolved]) return;
+    el.setAttribute("title", table[resolved]);
+  });
+  document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
+    const key = el.getAttribute("data-i18n-aria");
+    if (!key) return;
+    const resolved = resolveCaliberI18nKey(key, table);
+    if (!table[resolved]) return;
+    el.setAttribute("aria-label", table[resolved]);
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+    const key = el.getAttribute("data-i18n-placeholder");
+    if (!key) return;
+    const resolved = resolveCaliberI18nKey(key, table);
+    if (!table[resolved]) return;
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+      el.placeholder = table[resolved];
+    }
+  });
+  document.querySelectorAll("[data-i18n-html]").forEach((el) => {
+    const key = el.getAttribute("data-i18n-html");
+    if (!key) return;
+    const resolved = resolveCaliberI18nKey(key, table);
+    if (!table[resolved]) return;
+    el.innerHTML = table[resolved];
+  });
+}
+
+export function applyLang(choice: LangChoice = readLangChoice()): LangChoice {
+  document.documentElement.lang = choice;
+  try {
+    localStorage.setItem(LANG_STORAGE_KEY, choice);
+  } catch {
+    /* ignore */
+  }
+  applyDomStrings(choice);
+  applyCaliberPlainButton();
+  document.querySelectorAll(".lang-seg [data-lang]").forEach((btn) => {
+    const el = btn as HTMLElement;
+    el.classList.toggle("active", el.dataset.lang === choice);
+  });
+  window.dispatchEvent(new Event("omnitrace-lang"));
+  return choice;
+}
+
+export function initLang() {
+  applyLang(readLangChoice());
+  initCaliberPlainToggle(() => applyLang(readLangChoice()));
+  document.querySelectorAll(".lang-seg [data-lang]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const lang = (btn as HTMLElement).dataset.lang ?? "";
+      if (isLang(lang)) applyLang(lang);
+    });
+  });
+}

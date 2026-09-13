@@ -1,0 +1,90 @@
+---
+description: 清缓存/新会话必读 .cursor；Git 标签与架构蓝图维护协议
+alwaysApply: true
+---
+
+# 会话启动与知识落盘协议
+
+## 每次清空缓存 / 新开长会话时（强制）
+
+1. **先通读本仓库 `.cursor/`**（至少：`rules/*.mdc` + `ARCHITECTURE_BLUEPRINT.md`），再动手改代码。
+2. 不要假设上一轮对话还在；以 `.cursor` + 当前代码 + Git 归档为准。
+3. 读完蓝图后，再按需打开具体源文件；禁止只凭模糊记忆改架构。
+
+## 知识落盘（公开仓库）
+
+| 种类 | 放哪 |
+|------|------|
+| **给人看的发版说明** | 根目录 `CHANGELOG.md`（Keep a Changelog） |
+| **给人看的架构** | `docs/architecture/`（总览 `OVERVIEW.md`） |
+| **架构决策** | `docs/adr/`（为什么） |
+| **给 AI 的契约蓝图** | `.cursor/ARCHITECTURE_*.md`（每次会话必读） |
+| **里程碑决策摘要** | `versions/**/DECISIONS.md`（可选） |
+| **提示词原文** | **不要进 Git**（`versions/**/PROMPT.md` 已 gitignore）；只留在本机 |
+
+提交遵守 `git-commits.mdc`：**Conventional Commits**，禁止把对话原文写进 commit message。
+
+## 架构蓝图（每次必读的「当前整体叙述」）
+
+- **每次必读总览**：`.cursor/ARCHITECTURE_BLUEPRINT.md`（契约级；进程/数据/模组/协议/页面边界/播放不变量/归档/非目标）。
+- **给人看的总览**：`docs/architecture/OVERVIEW.md`（契约变更时与 `.cursor` 同步）。
+- **专门蓝图**（按需深读，非每次全文）：`ARCHITECTURE_NOTES.md`、`ARCHITECTURE_DASHBOARD.md`、`ARCHITECTURE_ANDROID.md`——UI/实现百科下沉于此；主文件只提一句 + 指针。公开对应 `docs/architecture/{notes,dashboard,android}.md`。
+- 只写**此刻**架构；禁止堆历史翻案、禁止变成第二份源码说明书。
+
+### 契约级完整（标准）
+
+目标：读完能建立**正确总体认识**并知道去哪打开文件；细节以代码为准。
+
+**必须写清（不可省）**
+
+1. 进程模型与单实例/启停关系  
+2. 数据双轨与根目录契约（`OmniDatabase`、Century/Year/Month、控制面文件）  
+3. 模组清单：谁默认启用、各写什么、关键共享钩子/时钟不变量  
+4. 对外协议要点（bin 标记语义、ModuleEvent 信封字段）；不必贴字段百科  
+5. 壳层页面职责边界（设置/播放器/仪表盘；「唯一开关在哪」这类产品边界）  
+6. 播放/直播/缓存的关键不变量（分块、针与黄条、直播=tail）  
+7. 归档指针（CHANGELOG / `docs/adr` / `docs/architecture` / 本 `.cursor`；不要把对话原文当契约）  
+8. 明确非目标（防 AI 加戏）
+
+**应当省略或极压缩（臃肿时优先砍）**
+
+- 具体 CSS/像素/文案、函数名逐一罗列、每个 kind 的 payload 全表  
+- UI 微交互逐步说明（保留「能干什么」一句即可）  
+- 已删除的旧方案长文对比  
+- 可从目录名一眼看出的重复废话  
+
+**体积预算（token，中英混排粗估）**
+
+| 档位 | 预算 | 含义 |
+|------|------|------|
+| 甜区 | **约 2.5k–4k** | 必读蓝图默认目标 |
+| 软上限 | **约 5k** | 可接受；再涨先砍「应当省略」 |
+| 硬警戒 | **>6k** | 必须瘦身后再当 always-read；细节下沉到代码/`versions` |
+
+改完自检：能否用半页纸画出进程+数据流；新人 AI 能否说出「别碰的契约」。行数不是 KPI，**契约是否闭环**才是。
+
+### 默认增量修补
+
+只改 AI 判断过时、与代码冲突、或新契约必须补上的段落；删已死陈述。不要为改而从零重写；不要在文末堆更新日志。
+
+「契约级完整」= 文件整体应覆盖上面那些主题。缺了就补一节，不是每次重写全文。
+
+### 何时整份重写
+
+仅当：局部补丁会自相矛盾、体积超过硬警戒必须瘦身、或用户明确要求重写。纯文案/小 UI/无契约变化不必动蓝图。
+
+## 和 AI 的分工（再强调）
+
+- 清缓存 → 读 `.cursor` → 读蓝图 → 再改代码。
+- 要考古决策 → 读 `docs/architecture/`、`docs/adr/`、蓝图、`CHANGELOG.md`、`versions/**/DECISIONS.md`。不要把旧 commit 里的对话归档当公开真相。
+- 改架构 → 改代码 **并增量修补** `.cursor/ARCHITECTURE_BLUEPRINT.md` **与** `docs/architecture/OVERVIEW.md`（UI/实现百科下沉到对应 `ARCHITECTURE_*.md` 与 `docs/architecture/{notes,dashboard,android}.md`），再按 `git-commits.mdc` 提交。
+
+## 统计口径（改数字定义时强制）
+
+仪表盘统计的**清洗规则 / AFK 判定 / 开关语义 / 格长等常数**一变，必须在同一轮改动里同步：
+
+1. `.cursor/ARCHITECTURE_BLUEPRINT.md` §5.5（契约一句）+ `.cursor/ARCHITECTURE_DASHBOARD.md`（常数细节）
+2. `omniplayer/index.html` `#about-caliber`（关于对话框内统计口径正文 + 对照表 + 文末注意）
+3. 统计图上的按钮文案与 hint（`omniplayer/src/dashboard.ts` `applyStatsReport`）
+
+禁止只改算法或只改 UI 开关、不改口径说明。口径区已写「口径随代码」；以后的 AI 以主蓝图契约句 + 关于页 + 图上文案同时更新为准（常数细节写进 DASHBOARD 专门蓝图）。
