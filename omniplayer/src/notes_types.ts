@@ -70,6 +70,14 @@ export type NotesCardSummary = {
   wire_preset_note?: string | null;
   wire_preset_created_at?: number | null;
   user_images?: string[];
+  /** 用户打字色温字形（击键间隔）；缺省=无色温带。 */
+  user_glyphs?: Array<{
+    ch: string;
+    dt_ms?: number;
+    dtMs?: number;
+    deleted?: boolean;
+    ts?: number | null;
+  }>;
   error?: string | null;
   stream_status?: string | null;
   /** 流式/MCP 回合活动（落盘 `mcp_activity`；列表摘要带回，结束后仍展示）。 */

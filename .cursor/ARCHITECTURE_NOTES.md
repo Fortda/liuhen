@@ -16,7 +16,7 @@
 - 内嵌 AI **非 coding agent**：工具白名单（只读数据/蓝图、ADR 草稿、仪表盘三页 UI 前端、线索板含建板/加边/历史回退、按设置搜索、artifacts）；**禁止**自动改 `.cursor/ARCHITECTURE_BLUEPRINT.md` 与采集/`dashboard_ctl`。
 - **有 MCP 时** `notes_send_turn` 最多 8 轮 tool 循环 + 协议日志（请求只记摘要，不落整包 messages）；无 MCP 则原单轮。Enter 发送，Shift/Ctrl/Cmd+Enter 换行。
 - **工具调用契约**：优先 OpenAI `message.tool_calls`。若模型把 DeepSeek DSML（含 `<｜DSML｜…>` / 双竖线变体 / `calls` / `tool_calls` 块）或常见 `<tool_call>{json}</tool_call>` 写进 **content**（含 8 轮后的**最终流式**正文），Rust 会解析并转成同等 `tool_calls` 再执行；解析失败且正文仍像工具标记时不直接当终答展示。**MCP 活动面板只负责展示**已进入循环的工具回合，不替代本解析。
-- **暂缓（勿当本轮做）**：接地阅读器，见主蓝图 §7。
+- **尚未实现**：接地阅读器，见主蓝图 §7。
 
 ---
 

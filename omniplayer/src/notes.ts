@@ -117,6 +117,15 @@ import {
   leaveClueBoardMode,
   scheduleDrawClueWires,
 } from "./notes_clue_board";
+import {
+  closeColorTempPopoverOnLeave,
+  fillUserTextEl,
+  initColorTempUi,
+  onComposerInput,
+  paintComposerTape,
+  resetLiveGlyphs,
+  snapshotGlyphsForSend,
+} from "./notes_color_temp";
 import { initNotesAistudioImport } from "./notes_import";
 import type { ResearchMeta } from "./notes_research";
 import {
@@ -488,6 +497,7 @@ function autoGrowNotesInput() {
   input.style.height = "auto";
   const next = Math.min(input.scrollHeight, 160);
   input.style.height = `${Math.max(next, 22)}px`;
+  paintComposerTape();
   scheduleDrawWires();
 }
 
@@ -1069,6 +1079,7 @@ function renderCard(c: NotesCardSummary): HTMLElement {
   const userText = document.createElement("div");
   userText.className = "notes-card-user-text";
   userText.textContent = c.user_text;
+  fillUserTextEl(userText, c.user_text, c.user_glyphs);
   const userFade = document.createElement("div");
   userFade.className = "notes-card-user-fade";
   userFade.setAttribute("aria-hidden", "true");
@@ -1240,6 +1251,12 @@ function upsertCard(summary: NotesCardSummary) {
       summary.stream_activity ??
       (summary.status === "streaming" ? prevAct : finalizeActivityForDone(prevAct)) ??
       null,
+    user_glyphs:
+      summary.user_glyphs && summary.user_glyphs.length
+        ? summary.user_glyphs
+        : i >= 0
+          ? cards[i].user_glyphs
+          : summary.user_glyphs,
   };
   if (i >= 0) cards[i] = merged;
   else cards.push(merged);
@@ -2200,6 +2217,7 @@ async function handleSend() {
   const text = input.value.trim();
   const imagePaths = getComposerImagePaths();
   if (!text && !imagePaths.length) return;
+  const userGlyphs = snapshotGlyphsForSend(text);
   if (!currentModelKey) {
     currentModelKey = NONE_MODEL_KEY;
   }
@@ -2212,7 +2230,7 @@ async function handleSend() {
 
     if (currentModelKey === NONE_MODEL_KEY) {
       showCompactTask("保存用户话…");
-      const start = await saveUserOnlyCard(text, imagePaths);
+      const start = await saveUserOnlyCard(text, imagePaths, userGlyphs);
       if (composerIsLive()) rewireComposerAfterSend(start.card_id);
       else if (historyIds.length) {
         const sorted = [...cards]
@@ -2229,6 +2247,7 @@ async function handleSend() {
         user_text: text,
         assistant_text: "",
         user_images: imagePaths.length ? [...imagePaths] : undefined,
+        user_glyphs: userGlyphs.length ? userGlyphs : undefined,
         timings_delta_s: {},
         usage: {},
         cost: { priced: false, currency: "USD", total_usd: 0, input_usd: 0, output_usd: 0, cache_read_usd: 0, cache_write_usd: 0, thinking_usd: 0 },
@@ -2240,6 +2259,8 @@ async function handleSend() {
       });
       renderFeed();
       input.value = "";
+      resetLiveGlyphs();
+      paintComposerTape();
       clearComposerImages();
       autoGrowNotesInput();
       showCompactTask("已保存", 100, "ok");
@@ -2259,6 +2280,7 @@ async function handleSend() {
         wire_context: wireContext,
         mcp: mcpTurnOpts(),
         image_paths: imagePaths,
+        user_glyphs: userGlyphs.length ? userGlyphs : undefined,
       },
       history
     );
@@ -2279,6 +2301,7 @@ async function handleSend() {
       assistant_text: "",
       stream_status: "等待服务器响应…",
       user_images: imagePaths.length ? [...imagePaths] : undefined,
+      user_glyphs: userGlyphs.length ? userGlyphs : undefined,
       timings_delta_s: {},
       usage: {},
       cost: { priced: false, currency: "USD", total_usd: 0, input_usd: 0, output_usd: 0, cache_read_usd: 0, cache_write_usd: 0, thinking_usd: 0 },
@@ -2290,6 +2313,8 @@ async function handleSend() {
     });
     renderFeed();
     input.value = "";
+    resetLiveGlyphs();
+    paintComposerTape();
     clearComposerImages();
     autoGrowNotesInput();
   } catch (e) {
@@ -2346,6 +2371,14 @@ export function initNotes() {
   });
   initForwarderPrefsUi();
   initComposerAttachUi();
+  initColorTempUi({
+    onDisplayChange: () => {
+      for (const c of cards) {
+        const el = document.getElementById(`notes-user-text-${c.id}`);
+        if (el) fillUserTextEl(el, c.user_text, c.user_glyphs);
+      }
+    },
+  });
   initLlmSettingsHost({
     isBusy: () => progressBusy,
     setBusy: (v) => {
@@ -2382,7 +2415,10 @@ export function initNotes() {
     e.preventDefault();
     void handleSend();
   });
-  $("notes-input")?.addEventListener("input", () => autoGrowNotesInput());
+  $("notes-input")?.addEventListener("input", () => {
+    onComposerInput();
+    autoGrowNotesInput();
+  });
   $("notes-model-btn")?.addEventListener("click", (e) => {
     e.stopPropagation();
     if (modelPopoverOpen) closeModelSheet();
@@ -2632,6 +2668,7 @@ export function leaveNotesPage() {
   closeCtxPopover();
   closeMcpPopoverOnLeave();
   closeForwarderPopoverOnLeave();
+  closeColorTempPopoverOnLeave();
   closeComposerAttachPopover();
   closeLogDrawer();
   cancelWireDrag();

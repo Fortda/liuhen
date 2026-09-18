@@ -4996,6 +4996,7 @@
     }
     .notes-mcp-btn,
     .notes-params-btn,
+    .notes-color-temp-btn,
     .notes-ctx-ring-btn {
       flex: none;
       height: 26px;
@@ -5019,7 +5020,8 @@
     .notes-ctx-ring-btn {
       width: 26px;
     }
-    .notes-params-btn {
+    .notes-params-btn,
+    .notes-color-temp-btn {
       width: auto;
       min-width: 26px;
       padding: 0 7px;
@@ -5032,6 +5034,11 @@
     .notes-params-btn:hover,
     .notes-params-btn:focus-visible,
     .notes-params-btn[aria-expanded="true"],
+    .notes-color-temp-btn:hover,
+    .notes-color-temp-btn:focus-visible,
+    .notes-color-temp-btn[aria-expanded="true"],
+    .notes-color-temp-btn.is-active,
+    .notes-color-temp-btn[aria-pressed="true"],
     .notes-ctx-ring-btn:hover,
     .notes-ctx-ring-btn:focus-visible,
     .notes-ctx-ring-btn[aria-expanded="true"] {
@@ -5145,6 +5152,64 @@
       background: color-mix(in srgb, var(--accent) 55%, var(--line));
     }
     .notes-fwd-switch.is-mixed::after { transform: translateX(6px); }
+    .notes-temp-legend {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .notes-temp-legend-bar {
+      flex: 1;
+      height: 6px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgb(210, 62, 42), rgb(50, 90, 210));
+    }
+    .notes-composer-input-wrap {
+      position: relative;
+      width: 100%;
+      min-width: 0;
+      flex: none;
+    }
+    #notes-temp-live {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+      font: 13px var(--font-sans);
+      line-height: 1.45;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      color: var(--text);
+    }
+    .notes-composer.is-color-temp #notes-temp-live {
+      display: block;
+    }
+    .notes-composer.is-color-temp:not(.is-ime) #notes-input {
+      position: relative;
+      z-index: 1;
+      color: transparent;
+      caret-color: var(--text);
+    }
+    .notes-temp-tape .temp-ch {
+      font-weight: inherit;
+    }
+    .notes-card-user-text.notes-temp-tape {
+      white-space: pre-wrap;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .notes-fwd-switch,
+      .notes-fwd-switch::after,
+      .notes-color-temp-btn,
+      .notes-mcp-btn,
+      .notes-params-btn {
+        transition-duration: 0.01ms;
+      }
+    }
     .notes-fwd-effort-wrap,
     .notes-fwd-num-row {
       padding: 6px 12px 8px;
@@ -7169,7 +7234,10 @@
               <div class="notes-composer-wrap">
                 <div class="notes-composer">
                   <div id="notes-composer-attachments" hidden></div>
-                  <textarea id="notes-input" rows="1" placeholder="单轮提问（接线后带上历史）…"></textarea>
+                  <div class="notes-composer-input-wrap">
+                    <div id="notes-temp-live" class="notes-temp-tape" aria-hidden="true"></div>
+                    <textarea id="notes-input" rows="1" placeholder="单轮提问（接线后带上历史）…"></textarea>
+                  </div>
                   <div class="notes-composer-toolbar">
                     <div class="notes-composer-toolbar-left">
                       <button type="button" id="notes-composer-add-btn" aria-haspopup="menu" aria-expanded="false" aria-label="添加附件" title="添加附件">+</button>
@@ -7177,6 +7245,7 @@
                         <span class="notes-composer-model-label">选模型</span>
                       </button>
                       <button type="button" id="notes-params-btn" class="notes-params-btn" aria-haspopup="dialog" aria-expanded="false" aria-label="协议参数" title="协议参数">参数</button>
+                      <button type="button" id="notes-color-temp-btn" class="notes-color-temp-btn" aria-haspopup="dialog" aria-expanded="false" aria-pressed="false" data-i18n="notes.colorTemp.btn" data-i18n-title="notes.colorTemp.btnTitle" data-i18n-aria="notes.colorTemp.btnTitle">色温</button>
                     </div>
                     <div class="notes-composer-toolbar-right">
                       <button type="button" id="notes-mcp-btn" class="notes-mcp-btn" aria-haspopup="dialog" aria-expanded="false" aria-label="MCP 工具" title="MCP 工具">MCP</button>

@@ -176,6 +176,12 @@ export async function sendTurn(
       enabled_server_ids: string[];
     } | null;
     image_paths?: string[];
+    user_glyphs?: Array<{
+      ch: string;
+      dt_ms: number;
+      deleted?: boolean;
+      ts?: number | null;
+    }>;
   },
   history?: {
     role: "user" | "assistant";
@@ -194,11 +200,18 @@ export async function sendTurn(
 
 export async function saveUserOnlyCard(
   userText: string,
-  imagePaths?: string[]
+  imagePaths?: string[],
+  userGlyphs?: Array<{
+    ch: string;
+    dt_ms: number;
+    deleted?: boolean;
+    ts?: number | null;
+  }>
 ): Promise<SendTurnStart> {
   return invoke<SendTurnStart>("notes_save_user_only_card", {
     userText,
     imagePaths: imagePaths?.length ? imagePaths : null,
+    userGlyphs: userGlyphs?.length ? userGlyphs : null,
   });
 }
 

@@ -99,6 +99,39 @@ pub struct TimingsDeltaS {
     pub total: Option<f64>,
 }
 
+/// 流式笔记色温：一字一间隔（快暖红 / 慢冷蓝）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserGlyph {
+    pub ch: String,
+    #[serde(default, alias = "dtMs")]
+    pub dt_ms: u64,
+    #[serde(default)]
+    pub deleted: bool,
+    #[serde(default)]
+    pub ts: Option<u64>,
+}
+
+fn sanitize_user_glyphs(raw: Vec<UserGlyph>) -> Vec<UserGlyph> {
+    const MAX: usize = 8000;
+    let mut out = Vec::new();
+    for g in raw {
+        let ch: String = g.ch.chars().take(2).collect();
+        if ch.is_empty() {
+            continue;
+        }
+        out.push(UserGlyph {
+            ch,
+            dt_ms: g.dt_ms.min(300_000),
+            deleted: g.deleted,
+            ts: g.ts,
+        });
+        if out.len() >= MAX {
+            break;
+        }
+    }
+    out
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotesCard {
     pub v: u32,
@@ -107,6 +140,9 @@ pub struct NotesCard {
     pub status: String,
     pub model: NotesModelRef,
     pub user_text: String,
+    /// 用户打字色温字形（击键间隔）。旧卡缺省空。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub user_glyphs: Vec<UserGlyph>,
     #[serde(default)]
     pub assistant_text: String,
     #[serde(default)]
@@ -154,6 +190,8 @@ pub struct NotesCardSummary {
     pub status: String,
     pub model_label: String,
     pub user_text: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub user_glyphs: Vec<UserGlyph>,
     pub assistant_text: String,
     pub timings_delta_s: TimingsDeltaS,
     pub usage: TokenUsage,
@@ -441,6 +479,7 @@ fn card_to_summary(c: &NotesCard) -> NotesCardSummary {
         status: c.status.clone(),
         model_label: c.model.label.clone(),
         user_text: c.user_text.clone(),
+        user_glyphs: c.user_glyphs.clone(),
         assistant_text: c.assistant_text.clone(),
         timings_delta_s: c.timings_delta_s.clone(),
         usage: c.usage.clone(),
@@ -871,6 +910,9 @@ pub struct NotesTurnOpts {
     /// 发送前用户选的本地图片路径（会复制到 notes/attachments/）。
     #[serde(default)]
     pub image_paths: Vec<String>,
+    /// 用户打字色温字形（可选）。
+    #[serde(default)]
+    pub user_glyphs: Vec<UserGlyph>,
 }
 
 fn wire_context_from_opts(opts: &NotesTurnOpts) -> (bool, Option<String>, Option<String>, Option<String>, Option<u64>) {
@@ -2075,6 +2117,7 @@ fn apply_turn_body_opts(body: &mut Value, opts: &NotesTurnOpts) {
 pub fn notes_save_user_only_card(
     user_text: String,
     image_paths: Option<Vec<String>>,
+    user_glyphs: Option<Vec<UserGlyph>>,
 ) -> Result<SendTurnStart, String> {
     let text = user_text.trim().to_string();
     let imgs = image_paths.unwrap_or_default();
@@ -2102,6 +2145,7 @@ pub fn notes_save_user_only_card(
             proxy_name: String::new(),
         },
         user_text: text,
+        user_glyphs: sanitize_user_glyphs(user_glyphs.unwrap_or_default()),
         assistant_text: String::new(),
         thinking_text: None,
         timings_ms: TimingsMs::default(),
@@ -2175,6 +2219,7 @@ pub async fn notes_send_turn(
         status: "streaming".into(),
         model: model.clone(),
         user_text: text.clone(),
+        user_glyphs: sanitize_user_glyphs(opts.user_glyphs.clone()),
         assistant_text: String::new(),
         thinking_text: None,
         timings_ms: TimingsMs::default(),

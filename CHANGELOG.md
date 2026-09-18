@@ -13,6 +13,8 @@
 - README 界面截图：设置、播放器、仪表盘四页、流式笔记 / 线索板 / 笔记时间轴。
 - 给普通人的 Windows 安装：GitHub Release 下载 `OmniTrace-*-windows-x64.zip`，解压后「安装到本机.bat」。
 - 打 `v*` tag 时 GitHub Actions 编该 zip 并挂到 Release 附件。
+- 流式笔记「色温」：按击键间隔给用户打的字上色（快暖红 / 慢冷蓝），字形随卡片落盘。
+- GitHub Issue 模板（Bug / 想法）；壳内「反馈」可打开 New Issue。
 
 ### Changed
 

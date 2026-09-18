@@ -544,6 +544,7 @@ fn write_imported_card(turn: &ExtractedTurn, created_at: u64) -> Result<(), Stri
         status: "done".into(),
         model: imported_model(turn.model_label.clone()),
         user_text: turn.user_text.clone(),
+        user_glyphs: vec![],
         assistant_text: turn.assistant_text.clone(),
         thinking_text: None,
         timings_ms: TimingsMs::default(),
