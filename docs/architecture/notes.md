@@ -1,6 +1,6 @@
 # OmniTrace 流式笔记蓝图（细节）
 
-> **公开架构**。总览与契约见 [OVERVIEW.md](OVERVIEW.md) §5.1。维护者工作副本：`.cursor/ARCHITECTURE_NOTES.md`。  
+> **公开架构**。总览与契约见 [OVERVIEW.md](OVERVIEW.md) §5.1。  
 > 只写笔记 / MCP / 线索板 / 时间轴 / 参数窗等「现在是什么」；改契约时同步改 OVERVIEW 那一句。
 
 ---
@@ -12,10 +12,10 @@
 - 流式笔记 = LLM 卡片 + composer；落盘 `notes/cards|logs|config/`；LiteLLM sidecar、providers、pricing、搜索 `search_config.json`。
 - 线索板 = `notes_clue_board.ts` + `clue_boards.json`（+ 版本史，见 §4）。
 - 时间轴 = `notes_timeline.ts` + `time_view_nav.ts`（同日历尺子挂卡片）。
-- 内嵌 AI **非 coding agent**：工具白名单（只读数据/蓝图、ADR 草稿、仪表盘三页 UI 前端、线索板含建板/加边/历史回退、按设置搜索、artifacts）；**禁止**自动改架构蓝图（`docs/architecture/` 与维护者副本 `.cursor/ARCHITECTURE_*.md`）与采集/`dashboard_ctl`。
+- 内嵌助手**不是** coding agent：工具白名单（只读数据/蓝图、ADR 草稿、仪表盘三页 UI 前端、线索板含建板/加边/历史回退、按设置搜索、artifacts）；**禁止**自动改架构文档与采集 / `dashboard_ctl`。
 - **有 MCP 时** `notes_send_turn` 最多 8 轮 tool 循环 + 协议日志（请求只记摘要，不落整包 messages）；无 MCP 则原单轮。Enter 发送，Shift/Ctrl/Cmd+Enter 换行。
 - **工具调用契约**：优先 OpenAI `message.tool_calls`。若模型把 DeepSeek DSML（含 `<｜DSML｜…>` / 双竖线变体 / `calls` / `tool_calls` 块）或常见 `<tool_call>{json}</tool_call>` 写进 **content**（含 8 轮后的**最终流式**正文），Rust 会解析并转成同等 `tool_calls` 再执行；解析失败且正文仍像工具标记时不直接当终答展示。**MCP 活动面板只负责展示**已进入循环的工具回合，不替代本解析。
-- **暂缓（勿当本轮做）**：接地阅读器，见 [OVERVIEW.md](OVERVIEW.md) §7。
+- **尚未实现**：接地阅读器，见 [OVERVIEW.md](OVERVIEW.md) §7。
 
 ---
 

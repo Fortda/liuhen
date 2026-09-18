@@ -11,13 +11,13 @@
 
 ## 1. 产品是什么
 
-**般若计划**下的 **OmniTrace**：**Windows 采集（WinRecorder）+ 回放/直播（OmniPlayer）+ 仪表盘**；边载 **Android 采集**（`omnitrace_android`，本期不进 Windows OmniPlayer）。关于页：情报和信息采集，以及现象世界模型运行日志。数据默认本机 `OmniDatabase/`，不上传。公开仓库 MIT：`https://github.com/Fortda/omnitrace`。
+**般若计划**下的 **OmniTrace**：**Windows 采集（WinRecorder）+ 回放/直播（OmniPlayer）+ 仪表盘**；边载 **Android 采集**（`omnitrace_android`，**当前几乎不可用**，本期不进 Windows OmniPlayer）。关于页：情报和信息采集，以及现象世界模型运行日志。数据默认本机 `OmniDatabase/`，不上传。公开仓库 MIT：`https://github.com/Fortda/omnitrace`。
 
 - Win 采集：单进程 Rust `omnitrace_input.exe`，进程内插件。
-- Android：单 APK 前台服务 + 同进程无障碍；本机 `OmniDatabase/`，同步到 PC 作旁路根。
+- Android：源码在 `omnitrace_android/`；现状大量 bug、几乎不能当日常用。打算以后本机局域网和电脑联动；禁止把本期 APK 当成品。
 - 壳：Tauri 2 + Vite + 原生 TS；无边框标题栏。WebView2 **回环直连**（`--proxy-server=direct://` + `<-loopback>`），避免 Clash 劫持 `localhost`。
 - 数据双轨：`OmniDatabase/`——高频压缩 bin + ModuleEvent JSONL。
-- 知识归档：`CHANGELOG.md`（Keep a Changelog）+ `docs/adr/` + `docs/architecture/`（人读）+ 本目录蓝图（AI 工作副本）；`versions/**/DECISIONS.md` 可选。提示词原文与对话不进 Git。
+- 知识归档：`CHANGELOG.md` + `docs/adr/` + `docs/architecture/` + 本目录蓝图；`versions/**/DECISIONS.md` 可选。`PROMPT.md` 与密钥不进 Git。
 
 ---
 
@@ -29,8 +29,8 @@ OmniPlayer (Tauri 单实例) ──recorder_ctl──► omnitrace_input.exe (�
         └── notes ──llm_sidecar──► LiteLLM (:4000)
 ```
 
-- **稳定版入口**：`%LOCALAPPDATA%\OmniTrace\OmniPlayer.exe`；旁路 `data_root.json` 指仓库 `OmniDatabase/`。壳一律 `resolve_data_root`；禁止 cwd 相对另起空库。正式包须 `custom-protocol`（`package.ps1 -Install` 校验）。增量只换 exe（`incoming\` / 关于更新）；绝不改 `OmniDatabase`。安装脚本：`omniplayer/package.ps1 -Install` / `scripts/install-stable.ps1`。
-- **开发**：`打开 OmniTrace.bat` → `npm run tauri dev`。笔记快捷：`打开 OmniTrace 笔记.bat`（`--page=notes`）。
+- **稳定版入口**：`%LOCALAPPDATA%\OmniTrace\OmniPlayer.exe`；旁路 `data_root.json` 指数据根。开发机 `-Install` 指仓库 `OmniDatabase/`。公开 zip（GitHub Release Assets：`OmniTrace-*-windows-x64.zip`）含壳 + 采集 exe，**不含**库、不含打包机 `data_root.json`；`安装到本机.bat` 写指针到 `%USERPROFILE%\OmniTrace\OmniDatabase`。无指针时 candidate 仍认仓库/已有库（含用户目录与旧的下载目录路径），否则新库落用户目录。壳一律 `resolve_data_root`；禁止 cwd 相对另起空库。正式包须 `custom-protocol`（`package.ps1` 校验）。增量只换 exe（`incoming\` / 关于更新）；绝不改 `OmniDatabase`。安装脚本：zip 内 `安装到本机.bat`；开发机 `omniplayer/package.ps1 -Install` / `scripts/install-stable.ps1`。
+- **开发**：`scripts/run-app.bat` 或 `cd omniplayer && npm run tauri dev`。笔记快捷：`scripts/run-app.bat --page=notes`。
 - **CLI**：`--page=notes|settings|player|dashboard`；`notes` 时另开 `label=notes` WebView。
 - **笔记 XOR 摘窗**：嵌主窗或独立窗，禁止双开同编；摘出/关窗/收回前 `flushNotesPersist`。
 - **壳单实例**：第二次启动转发 argv（`--page=notes` → 前置笔记窗）。
@@ -66,7 +66,7 @@ OmniPlayer (Tauri 单实例) ──recorder_ctl──► omnitrace_input.exe (�
 - `TraceModule`：`info` / `start` / 可选 `tick` / `stop` / `status`。
 - `ModuleRegistry`：注册、enable、start_all、`manifest.json`、500ms `tick_all`。
 - ID：`input` | `focus` | `win_map` | `win_settings` | `body` | `network` | `ime` | `browser`。
-- **默认启用**：除 `browser`（桩）外全部启用。上列是**此刻闭集**（内置编译）。第三方成对插件 ABI / 热加载见 §7「以后」，禁止本轮实现。
+- **默认启用**：除 `browser`（桩）外全部启用。上列是**此刻闭集**（内置编译）。第三方成对插件 ABI / 热加载见 §7「以后」。
 
 ### 4.2 各模组（记录侧）
 
@@ -182,7 +182,7 @@ OmniPlayer (Tauri 单实例) ──recorder_ctl──► omnitrace_input.exe (�
 | `ARCHITECTURE_{NOTES,DASHBOARD,ANDROID}.md` | 专门深读 |
 | `CHANGELOG.md` / `docs/adr/` / `docs/releasing.md` | 发版说明、ADR、公开推送（orphan） |
 
-提示词原文：`versions/**/PROMPT.md` gitignore。公开上网不要推带对话归档的旧历史。
+`versions/**/PROMPT.md` gitignore。公开 `main` 不要推本机旧 `master`。
 
 ---
 
@@ -196,13 +196,14 @@ OmniPlayer (Tauri 单实例) ──recorder_ctl──► omnitrace_input.exe (�
 - **暂缓**：接地阅读器（Hermes）——现在不要实现。
 - 手机：不上架、不录 PCM/预览/截视频、不共用 `trace_DD.bin`、不改 Win `ModuleId`；OmniPlayer 暂不播手机源。
 
-### 以后（未做，禁止当本轮实现）
+### 以后（尚未实现）
 
-README 路线图方向，**不是**当前架构。禁止本轮做动态插件加载、云分享、创意工坊后端。§4 模组清单仍是此刻闭集。本机优先不变：个人录像默认只在磁盘；以后若有「平台」，分享的是模组 / 图表视图 / 皮肤 / 回放可视化，**默认不上传** `OmniDatabase` 轨迹。
+README 路线图方向，**不是**当前架构。不要在现阶段做动态插件加载、云分享、创意工坊后端。§4 模组清单仍是此刻闭集。本机优先不变：个人录像默认只在磁盘；以后若有「平台」，分享的是模组 / 图表视图 / 皮肤 / 回放可视化，**默认不上传** `OmniDatabase` 轨迹。
 
 - **账单**：电子钱包等账单文件批量导入，落本机，不上传。
 - **模组插件接口**：采集器（WinRecorder）与播放器（OmniPlayer）同一套（或成对的）插件 ABI——第三方模组能**写**记录侧数据，并能按约定的「可视化/窗体架构」在播放器里**演绎**（不是只出 JSONL）。现有进程内 `TraceModule` 与 `omniplayer/src/modules/` 是内置清单，不是创意工坊热加载。
 - **仪表盘创意工坊**：统计图 / 仪表盘视图的分享与安装接口（模组、图表、布局），类似 Steam Workshop；默认不上传用户轨迹。禁止做成把 OmniDatabase 同步到别人服务器。
+- **手机局域网联动**：Android 采集与 Windows 壳在本机局域网互通。当前 APK 几乎不可用。
 
 ---
 
@@ -210,11 +211,13 @@ README 路线图方向，**不是**当前架构。禁止本轮做动态插件加
 
 边载 APK；前台服务 + 同进程无障碍。PC 旁路根：`OmniDatabase/sources/<android_id>/`。信封同桌面（`module` 字符串）；高频 `imu_DD.bin`（`OTIM`），**禁** `trace_DD.bin`。健康三点同桌面。壳是 Android 自有 UI，非 OmniPlayer。
 
+**现状**：几乎没法用，大量 bug。上面是目标形状。局域网联动见 §7「以后」。
+
 **细节** → `.cursor/ARCHITECTURE_ANDROID.md`。
 
 ---
 
-## 9. 下一任最短路径
+## 9. 从哪打开文件
 
 1. 读 `rules/*.mdc` + **本蓝图**；深读按需 NOTES / DASHBOARD / ANDROID。  
 2. 宿主：`bin_host` → `lifecycle` → `modules` → `paths` / `input_bin` / `health`。  

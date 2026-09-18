@@ -1,41 +1,63 @@
-**中文** | [English](README.en.md)
-
 <p align="center">
   <img src="docs/images/icon.png" width="96" height="96" alt="OmniTrace">
 </p>
 
 <h1 align="center">OmniTrace</h1>
 
-<p align="center"><strong>般若计划</strong>（Prajna Plan）· 本机优先的 Windows 采集、回放与笔记壳</p>
+<p align="center"><strong>般若计划</strong> · 本机优先的 Windows 采集、回放与笔记壳</p>
 
 <p align="center">
+  <a href="README.md"><img src="https://img.shields.io/badge/README-%E4%B8%AD%E6%96%87-1f6f5b" alt="中文 README"></a>
+  <a href="README.en.md"><img src="https://img.shields.io/badge/README-English-2c2a27" alt="English README"></a>
+  <a href="https://github.com/Fortda/omnitrace/releases/latest"><img src="https://img.shields.io/github/v/release/Fortda/omnitrace?label=%E4%B8%8B%E8%BD%BD" alt="下载"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1f6f5b" alt="MIT"></a>
   <a href="https://github.com/Fortda/omnitrace"><img src="https://img.shields.io/badge/github-Fortda%2Fomnitrace-2c2a27" alt="GitHub"></a>
 </p>
+
+**OmniTrace** 是般若计划下的一套情报和信息采集与现象世界模型运行日志维护、管理的终端；意在扩展感知在现象世界时空因果连网络上的深度与广度。
 
 仓库：<https://github.com/Fortda/omnitrace> · 许可：[MIT](LICENSE)
 
 数据默认只写本机 `OmniDatabase/`，**不上传**。请勿把 API Key、Cookie、录像或数据库推进 Git。
 
-## 界面示意
+Windows 壳还在开发和打磨，很多地方会改。**手机端目前几乎没法用**（大量 bug）；仓库里的 `omnitrace_android/` 只是雏形。打算以后在**本机局域网**和电脑联动，现在还没做到能用，也**不会**把数据传到别人的服务器。
 
-四标签 OmniPlayer 壳的**示意图**（奶油纸风格，不是产品截图）。真实截图会在空数据、无密钥的环境里补拍，见 [docs/images](docs/images/README.md)。`settings.png` / `player.png` / `dashboard.png` / `notes.png` 尚未收录。
+## 界面
 
-![OmniPlayer 四标签壳示意图](docs/images/omniplayer-chrome.svg)
+<p align="center"><img src="docs/images/settings.png" alt="设置：WinRecorder 与外观" width="880"></p>
 
-打开 SVG 文件时，顶栏标签会循环切换四个页面。GitHub README 里的 `<img>` 常常只显示第一帧，这不是产品演示 GIF。
+<p align="center"><img src="docs/images/player.png" alt="播放器：直播回放与时间轴" width="880"></p>
+
+<p align="center"><img src="docs/images/dashboard-timeline.png" alt="仪表盘：运作时间轴" width="880"></p>
+<p align="center"><img src="docs/images/dashboard-stats.png" alt="仪表盘：统计图表" width="880"></p>
+<p align="center"><img src="docs/images/dashboard-status.png" alt="仪表盘：运行状态" width="880"></p>
+<p align="center"><img src="docs/images/dashboard-sleep.png" alt="仪表盘：睡眠猜测" width="880"></p>
+
+<p align="center"><img src="docs/images/omniplayer-notes.jpg" alt="流式笔记：DSML 工具调用、线索板与 MCP 工具选择" width="880"></p>
+<p align="center"><img src="docs/images/notes.png" alt="流式笔记与协议日志" width="880"></p>
+<p align="center"><img src="docs/images/notes-clue.jpg" alt="线索板" width="880"></p>
+<p align="center"><img src="docs/images/notes-timeline.png" alt="笔记时间轴" width="880"></p>
 
 ## 它做什么
 
-- **WinRecorder**（`omnitrace_input.exe`）：后台记录键鼠物理流与窗口环境。关壳不停录。
-- **OmniPlayer**：设置、回放 / 直播、仪表盘、流式笔记与线索板。
-- **Android**（`omnitrace_android/`）：边载采集 APK，本期不进 Windows 壳。
+- **WinRecorder**（`omnitrace_input.exe`）：在 Windows 后台记录鼠标、键盘、当前在用哪个窗口，以及桌面。关掉播放器窗口，采集仍在后台继续。用来事后回放「当时屏幕上有什么」，也给仪表盘做时间轴和统计。
+- **播放器**：按天回放。底栏时间轴可以拖动。它会按当时开着的窗口把画面摆回来，**不是**一份录像文件。
+- **仪表盘**：看自己把时间花在哪些程序上，还有统计图表、机器运行状态（网卡、内存、磁盘吞吐等）和睡眠猜测。数据留在本机，不会上传到别人的服务器。
+- **流式笔记**：在这台电脑上和助手对话。例如：
+  - 助手只能调用你勾选过的工具，用来读本机允许的文件（**不要把键盘记录交给模型**，见下方警告）
+  - 让助手在线索板上写便签、连线，也能回到之前的版本
+  - 纯聊天，并保留对话历史
+  - 按模型标价和实际用量估算费用（可显示人民币或美元）
+  - 查看发给模型的请求日志
+  - 按模型调节思考深度等参数；服务商与密钥在设置 → 语言模型
+- **线索板**：一张二维画布，用便签和连线整理思路、人物和因果。
+- **Android**（`omnitrace_android/`）：自行安装的手机试用版，**目前几乎没法用**。以后打算在本机局域网和电脑联动；现在还没有接到 Windows 应用里。
 
-关于页表述：情报和信息采集，以及现象世界模型运行日志。
+**键盘日志警告：** 采集文件会记下真实按键。把它交给任何云端模型，等于交出密码、私信、验证码和所有打过的字。笔记里的助手不该去读键盘采集文件（`trace_DD.bin`）。如果你扩大助手能用的工具，先确认它仍然看不到按键记录。
 
 ## 架构
 
-Player 启停采集器；数据落 `OmniDatabase/`；笔记经 sidecar 走 LiteLLM。细节见 [docs/architecture/OVERVIEW.md](docs/architecture/OVERVIEW.md)。
+播放器启停采集器；数据落 `OmniDatabase/`；笔记经 sidecar 走 LiteLLM。细节见 [docs/architecture/OVERVIEW.md](docs/architecture/OVERVIEW.md)。
 
 ```mermaid
 flowchart LR
@@ -46,15 +68,32 @@ flowchart LR
   APK[Android APK]
 
   OP -->|recorder_ctl| WR
-  WR -->|write| DB
-  OP -->|playback| DB
-  OP -->|"notes sidecar"| LLM
-  APK -.->|"sideload copy"| DB
+  WR -->|写入| DB
+  OP -->|回放| DB
+  OP -->|"笔记 sidecar"| LLM
+  APK -.->|"计划中的局域网"| OP
 ```
 
 ## 安装（Windows）
 
-稳定版装到 `%LOCALAPPDATA%\OmniTrace`：
+只要日常用，不用装开发环境。需要 **Windows 10 或 11（64 位）**。
+
+1. 打开 [Releases（发布页）](https://github.com/Fortda/omnitrace/releases/latest)
+2. 下载 **`OmniTrace-…-windows-x64.zip`**（只要这个 zip：里面是播放器和采集器）
+3. 解压整个文件夹，双击 **安装到本机.bat**
+4. 用桌面上的 **OmniTrace** 打开
+
+数据在你的用户目录 `OmniTrace\OmniDatabase`，**不会上传**。卸载应用不会删除这份数据。
+
+Windows 可能提示「未知应用」：选 **更多信息 → 仍要运行**（目前没有代码签名）。若双击没反应，右键 exe → 属性 → 解除锁定。
+
+若发布页下面还没有 zip，说明这一版还没挂上安装包。可以等下一版，或按下面从源码自己编。
+
+维护者怎么打 zip、怎么挂到 GitHub： [docs/releasing.md](docs/releasing.md)。
+
+### 从源码安装（开发）
+
+稳定版装到 `%LOCALAPPDATA%\OmniTrace`，数据指针指向仓库里的 `OmniDatabase/`：
 
 ```powershell
 .\scripts\install-stable.ps1
@@ -62,20 +101,18 @@ flowchart LR
 .\omniplayer\package.ps1 -Install
 ```
 
-GitHub **Release → Assets** 上计划提供：NSIS 安装包 + 便携 zip（zip **不含** `OmniDatabase`）。打法见 [docs/releasing.md](docs/releasing.md)。
-
-开发：仓库根 `打开 OmniTrace.bat`，或 `cd omniplayer && npm run tauri dev`。采集器独立后台，关壳不会停录。
+开发运行：`cd omniplayer && npm run tauri dev`，或仓库根 `scripts/run-app.bat`。采集器独立后台，关掉窗口不会停录。
 
 ## 文档
 
 | 文档 | 给谁 |
 |------|------|
 | [README.md](README.md) | 中文入门 |
-| [README.en.md](README.en.md) | English intro |
+| [README.en.md](README.en.md) | 英文入门 |
 | [CHANGELOG.md](CHANGELOG.md) | 发版时看什么变了 |
 | [docs/architecture/](docs/architecture/README.md) | 当前系统长什么样 |
 | [docs/adr/](docs/adr/README.md) | 架构决策（为什么） |
-| [docs/releasing.md](docs/releasing.md) | 打 tag、挂 Assets、公开初版 orphan 推送 |
+| [docs/releasing.md](docs/releasing.md) | 怎么下载；维护者怎么打 zip |
 
 ## 路线图
 
@@ -84,14 +121,15 @@ GitHub **Release → Assets** 上计划提供：NSIS 安装包 + 便携 zip（zi
 - **电子钱包账单批量导入**（账单文件仍只落本机，不上传）
 - **采集器 / 播放器模组插件接口**（成对 ABI：第三方模组写记录侧，并按约定的可视化 / 窗体架构在 OmniPlayer 里演绎；现有内置模组不是热加载）
 - **仪表盘创意工坊**（统计图 / 仪表盘视图的分享与安装接口；分享模组、图表、布局，默认不上传用户轨迹）
+- **手机与电脑本机局域网联动**（Android 采集目前几乎不可用，先别当真机产品）
 
-数据始终 local-first：采集、笔记、账单导入都不把库送到别人的服务器。以后若有分享平台，也不默认上传 `OmniDatabase`。
+数据始终本机优先：采集、笔记、账单导入都不把库送到别人的服务器。以后若有分享平台，也不默认上传 `OmniDatabase`。
 
 ## 贡献
 
 问题与想法请开 [GitHub Issue](https://github.com/Fortda/omnitrace/issues)。壳内「反馈」也可跳到同一入口。
 
-请把 `OmniDatabase/`、密钥、录像和提示词原文留在本机。补真实截图时用空数据环境，见 [docs/images/README.md](docs/images/README.md)。
+请把 `OmniDatabase/`、密钥、录像和提示词原文留在本机。截图约定见 [docs/images/README.md](docs/images/README.md)。
 
 ## 许可
 

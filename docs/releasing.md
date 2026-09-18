@@ -1,39 +1,36 @@
-# 发版与公开推送
+# 发版
 
-软件名 **OmniTrace**，项目名 **般若计划**。GitHub：<https://github.com/Fortda/omnitrace>（若登录名不是 `Fortda`，先改 [`omniplayer/src/shell_links.ts`](../omniplayer/src/shell_links.ts)）。
+软件名 **OmniTrace**，项目名 **般若计划**。源码：<https://github.com/Fortda/omnitrace>。
 
-## GitHub Release 的 Assets
+若 GitHub 登录名不是 `Fortda`，先改 [`omniplayer/src/shell_links.ts`](../omniplayer/src/shell_links.ts) 里的仓库地址。
 
-网页上 Release 里挂文件的那一块就叫 **Assets**。初版建议挂两个 Windows 文件：
+## 给下载安装的人
 
-1. **安装包（NSIS）**  
-   `cd omniplayer && npm run tauri build`  
-   产出大致在 `omniplayer/src-tauri/target/release/bundle/nsis/`，例如 `OmniTrace_0.1.2_x64-setup.exe`。
+打开 [GitHub Releases](https://github.com/Fortda/omnitrace/releases/latest)，下载 **`OmniTrace-…-windows-x64.zip`**。解压后双击 **安装到本机.bat**。逐步说明在仓库根 [README.md](../README.md) 的「安装」一节。
 
-2. **便携 zip**  
-   跑 [`omniplayer/package.ps1`](../omniplayer/package.ps1)（不要 `-Install` 也行），把 `dist/OmniPlayer/` 打成 `OmniTrace-0.1.2-windows-x64.zip`。  
-   **不要**把 `OmniDatabase/` 打进 zip。
+zip 里是播放器和采集器。**不含**你的数据目录 `OmniDatabase`。卸载程序不会删库。
 
-打 tag 后：GitHub → Releases → Draft a new release → 选 tag `v0.1.2` → 把上面两个文件拖进 Assets。同步改根目录 `CHANGELOG.md`。
+若某个 Release 下面没有 zip，说明那一版还没挂上安装包，等下一版或按 README 从源码安装。
 
-## 第一次把代码推到公开 GitHub（orphan）
+Tauri 打出来的 `setup.exe` 往往只有播放器、没有采集器，**不要当推荐下载**。
 
-本地 `master` 的旧提交说明里有完整对话，**不要** `git push origin master` 把那本历史推上去。
+## 打一版（维护者）
 
-在确认工作树已不含密钥、且 `versions/**/PROMPT.md` 已被 ignore 之后：
+1. 把根目录 [`CHANGELOG.md`](../CHANGELOG.md) 里 `[Unreleased]` 收成带日期的版本（Keep a Changelog）。
+2. 核对 [`omniplayer/src-tauri/tauri.conf.json`](../omniplayer/src-tauri/tauri.conf.json) 的 `version` 与 changelog / tag 一致。
+3. 在**公开**仓库的 `main` 上打 tag，例如 `v0.1.2`，并 `push` 该 tag。不要推本机旧 `master`。
+4. GitHub Actions 工作流 [`release-windows`](../.github/workflows/release.yml) 会在 Windows 上执行 [`omniplayer/package.ps1`](../omniplayer/package.ps1)，把 `dist/OmniTrace-<version>-windows-x64.zip` 挂到该 tag 的 Release（网页上那一块叫 Assets）。
+5. 本机也可先跑 `omniplayer/package.ps1`（不必加 `-Install`），再把 zip 拖进 Release 附件。zip **不得**含 `OmniDatabase/`，也 **不得**含打包机上的 `data_root.json`。
 
-```text
-# 1. 本机先备份当前分支（已有 master 即可）
-# 2. 从当前树拉一条没有祖先的分支
-git checkout --orphan public-v0
-git add -A
-git status   # 确认没有 OmniDatabase、providers.json、PROMPT.md
-git commit -m "chore: initial public snapshot of OmniTrace 0.1.2"
-# 3. 建好空仓库 Fortda/omnitrace 后
-git remote add origin https://github.com/Fortda/omnitrace.git
-git push -u origin public-v0:main
-```
+提交说明用 [Conventional Commits](https://www.conventionalcommits.org/)，短标题即可。
 
-本机原来的 `master` 留着，不要删。之后日常开发可以在 `main`（公开）或继续用私有 `master`；不要把私有历史上的对话 commit cherry-pick 到公开 `main`。
+## 不要进 Git、也不要进安装包
 
-用户没有说「推」之前，不要执行 `git push` / 不要创建 GitHub 仓库。
+- `OmniDatabase/`、录像、Cookie、API Key、`.env`
+- `versions/**/PROMPT.md`（本机提示词，已 gitignore）
+- `target/`、`node_modules/`、`dist/`
+- 任何 `data_root.json`（里面是本机绝对路径）
+
+## 公开分支
+
+GitHub 默认分支是 `main`。它和本机旧的 `master` **不是同一条历史**：`main` 从一份公开快照起算。日常开发在 `main`（或从它拉出的分支）上提交；不要把本机 `master` 整支 `push` 到 `origin`。

@@ -28,3 +28,7 @@ recordings/
 cache/
 tools/
 __pycache__/
+
+# Local Windows double-click launchers (keep on disk, not in git)
+/打开 OmniTrace.bat
+/打开 OmniTrace 笔记.bat

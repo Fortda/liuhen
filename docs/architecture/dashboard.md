@@ -1,7 +1,7 @@
 # OmniTrace 仪表盘蓝图（细节）
 
-> **公开架构**。总览与契约见 [OVERVIEW.md](OVERVIEW.md) §5.5。维护者工作副本：`.cursor/ARCHITECTURE_DASHBOARD.md`。  
-> **口径同步契约（OVERVIEW 保留那一句）**：改清洗 / AFK / 开关语义 / 格长等常数时，同一轮改代码 + `index.html` `#about-caliber` + 图上 hint/按钮 + OVERVIEW §5.5 契约句；细节常数以本文为准。
+> **公开架构**。总览与契约见 [OVERVIEW.md](OVERVIEW.md) §5.5。  
+> **口径同步**：改清洗 / AFK / 开关语义 / 格长等常数时，同一轮改代码 + `index.html` `#about-caliber` + 图上 hint/按钮 + OVERVIEW §5.5 契约句；细节常数以本文为准。  
 > **以后（尚未实现）**：统计图 / 仪表盘视图的创意工坊式分享见 [OVERVIEW.md](OVERVIEW.md) §7。默认不上传用户轨迹。
 
 ---

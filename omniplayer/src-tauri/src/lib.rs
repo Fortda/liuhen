@@ -196,7 +196,7 @@ pub(crate) fn read_install_data_root_pointer() -> Option<PathBuf> {
     Some(PathBuf::from(path))
 }
 
-/// 开发时优先找仓库 OmniDatabase；稳定版先读 exe 旁指针。
+/// 开发时优先找仓库 OmniDatabase；稳定版先读 exe 旁指针；公开 zip 回落到用户目录。
 fn candidate_data_roots() -> Vec<PathBuf> {
     let mut out = Vec::new();
     if let Ok(cwd) = std::env::current_dir() {
@@ -204,6 +204,9 @@ fn candidate_data_roots() -> Vec<PathBuf> {
         out.push(cwd.join("..").join("OmniDatabase"));
         out.push(cwd.join("..").join("..").join("OmniDatabase"));
         out.push(cwd.join("..").join("..").join("..").join("OmniDatabase"));
+    }
+    if let Some(home) = dirs::home_dir() {
+        out.push(home.join("OmniTrace").join("OmniDatabase"));
     }
     if let Some(dl) = dirs::download_dir() {
         out.push(dl.join("OmniTrace").join("OmniDatabase"));
@@ -250,7 +253,7 @@ pub(crate) fn resolve_data_root() -> PathBuf {
             return hit;
         }
     }
-    dirs::download_dir()
+    dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("OmniTrace")
         .join("OmniDatabase")

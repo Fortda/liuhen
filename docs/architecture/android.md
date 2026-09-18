@@ -1,7 +1,7 @@
 # OmniTrace Android 采集蓝图（细节）
 
-> **公开架构**。总览与非目标见 [OVERVIEW.md](OVERVIEW.md) §8 / §7。维护者工作副本：`.cursor/ARCHITECTURE_ANDROID.md`。  
-> `omnitrace_android` 本期**不进** Windows OmniPlayer；拷到 PC 时作旁路根。
+> **公开架构**。总览与非目标见 [OVERVIEW.md](OVERVIEW.md) §8 / §7。  
+> `omnitrace_android` 本期**不进** Windows OmniPlayer；**当前几乎不可用**。拷到 PC 时作旁路根。局域网联动是以后的事。
 
 ---
 

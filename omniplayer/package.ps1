@@ -110,6 +110,42 @@ function Get-AppVersion {
   return [string]$json.version
 }
 
+function Publish-PortableZip([string]$Version) {
+  $dataPtr = Join-Path $Dist "data_root.json"
+  if (Test-Path -LiteralPath $dataPtr) {
+    Remove-Item -LiteralPath $dataPtr -Force
+  }
+  $verTxt = Join-Path $Dist "VERSION.txt"
+  $utf8 = New-Object System.Text.UTF8Encoding $false
+  [System.IO.File]::WriteAllText($verTxt, $Version.Trim() + "`r`n", $utf8)
+
+  $distRoot = Join-Path $Repo "dist"
+  $wrap = Join-Path $distRoot "_zip_stage"
+  $stage = Join-Path $wrap "OmniTrace"
+  if (Test-Path -LiteralPath $wrap) {
+    Remove-Item -LiteralPath $wrap -Recurse -Force
+  }
+  New-Item -ItemType Directory -Force -Path $stage | Out-Null
+  Get-ChildItem -LiteralPath $Dist -File | Where-Object {
+    $_.Name -notin @("data_root.json", "OmniPlayer_Setup.exe")
+  } | ForEach-Object {
+    Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $stage $_.Name) -Force
+  }
+  if (-not (Test-Path -LiteralPath (Join-Path $stage "OmniPlayer.exe"))) {
+    Write-Error "portable zip: OmniPlayer.exe missing under $Dist"
+    exit 1
+  }
+  $zip = Join-Path $distRoot ("OmniTrace-" + $Version + "-windows-x64.zip")
+  if (Test-Path -LiteralPath $zip) {
+    Remove-Item -LiteralPath $zip -Force
+  }
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  [System.IO.Compression.ZipFile]::CreateFromDirectory($wrap, $zip)
+  Remove-Item -LiteralPath $wrap -Recurse -Force
+  Write-Host "portable zip:" -ForegroundColor Green
+  Write-Host "  $zip"
+}
+
 if (-not $SkipBuild) {
   $env:CARGO_TARGET_DIR = Join-Path $Root "src-tauri\target"
 
@@ -194,6 +230,10 @@ if (Test-Path $RecorderExe) {
   Write-Warning "omnitrace_input.exe not found; packaged install cannot start capture without cargo"
 }
 Copy-Item (Join-Path $Root "package\*") $Dist -Force
+$ico = Join-Path $Root "src-tauri\icons\icon.ico"
+if (Test-Path $ico) {
+  Copy-Item $ico (Join-Path $Dist "OmniTrace.ico") -Force
+}
 
 $BundleNsis = Join-Path $ReleaseDir "bundle\nsis"
 $installer = Get-ChildItem $BundleNsis -Filter "*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -204,6 +244,7 @@ if ($installer) {
 Write-Host ""
 Write-Host "portable folder:" -ForegroundColor Green
 Write-Host "  $Dist"
+Publish-PortableZip (Get-AppVersion)
 
 if (-not $Install) {
   Write-Host "To install stable + desktop shortcut:  .\package.ps1 -Install  or  ..\scripts\install-stable.ps1"

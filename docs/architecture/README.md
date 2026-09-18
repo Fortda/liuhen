@@ -9,4 +9,4 @@ Current system shape (contracts, not a second copy of the source):
 
 Why a decision was made: [docs/adr](../adr/README.md).
 
-If you change a contract, update this folder **and** the maintainer copies under `.cursor/ARCHITECTURE_*.md`.
+If you change a contract, update this folder so it still matches the code.

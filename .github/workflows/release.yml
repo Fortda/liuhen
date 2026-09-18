@@ -1,0 +1,53 @@
+name: release-windows
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-zip:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: omniplayer/package-lock.json
+
+      - name: Build portable zip
+        shell: pwsh
+        run: ./omniplayer/package.ps1
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: omnitrace-windows-x64
+          path: dist/OmniTrace-*-windows-x64.zip
+          if-no-files-found: error
+
+      - name: Attach zip to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/OmniTrace-*-windows-x64.zip
+          generate_release_notes: true
+          body: |
+            Windows 64-bit zip（播放器 + 采集器）。不含 OmniDatabase。
+
+            解压后双击 **安装到本机.bat**。数据留在本机用户目录，卸载程序不会删库。
+
+            Windows 64-bit zip (player + recorder). Does not include OmniDatabase.
+
+            Unzip, then run **安装到本机.bat**. Data stays on this PC; uninstall keeps the library.

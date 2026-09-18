@@ -1,33 +1,53 @@
-========================================
-  OmniTrace / OmniPlayer 使用说明
-========================================
+﻿OmniTrace（Windows）
+====================
 
-一、这是什么
-  自用采集（WinRecorder）+ 回放 / 仪表盘 / 流式笔记。
-  数据在仓库里的 OmniDatabase，不打进本程序目录。
+这是什么
+  在这台电脑上记录和回放你用过的窗口、鼠标和键盘，并带本机笔记。
+  数据只存在这台电脑上，不会上传。
 
-二、日常怎么开（稳定版）
-  桌面「OmniTrace」快捷方式，或
-  %LOCALAPPDATA%\OmniTrace\OmniPlayer.exe
-  不要用仓库里的「打开 OmniTrace.bat」当日常入口——那是开发（tauri dev），改代码时会卡住。
+推荐：安装到本机
+  1. 解压整个文件夹（不要只拿出一个 exe）
+  2. 双击「安装到本机.bat」
+  3. 用桌面上的 OmniTrace 打开
 
-三、怎么更新
-  1. 开发侧编好新包后运行 omniplayer\package.ps1（或 scripts\install-stable.ps1）
-  2. 打开稳定版 → 关于 →「更新」
-     会优先用 incoming 或仓库 dist\OmniPlayer\OmniPlayer.exe
-     找不到再手选 exe
-  只换程序文件，不碰 OmniDatabase。
+  程序位置：%LOCALAPPDATA%\OmniTrace
+  数据位置：%USERPROFILE%\OmniTrace\OmniDatabase
+  卸载（Windows 设置 → 应用 → OmniTrace）不会删除数据。
 
-四、数据在哪
-  安装目录旁 data_root.json 指向仓库 OmniDatabase\
-  ├── EventData\    （.bin 物理流：鼠标键盘）
-  ├── ModuleData\   （各模组 jsonl：焦点/窗口等）
-  ├── notes\        （流式笔记卡片、日志、配置；密钥仅在本机）
-  └── control\      （采集器心跳等控制面）
+也可以不安装
+  双击「启动 OmniPlayer.bat」。
+  没有安装指针时，数据写到用户目录下的 OmniTrace\OmniDatabase。
+  若你以前已经在「下载\OmniTrace」里有一份库，会继续用那一份。
 
-五、开发入口（可选）
-  仓库根「打开 OmniTrace.bat」→ tauri dev，与稳定版互不影响（采集仍单实例）。
+Windows 提示「未知应用 / 已保护你的电脑」
+  安装包目前没有代码签名。选「更多信息」→「仍要运行」。
+  若双击没有反应：右键 exe → 属性 → 勾选「解除锁定」。
 
-六、卸载
-  应用和功能里的 OmniTrace，或跑安装目录 uninstall.ps1
-  不会删除 OmniDatabase。
+请不要
+  不要把键盘记录文件发给网上的 AI（里面会有密码、私信、验证码）。
+  不要把整个 OmniDatabase 文件夹发到网上或推进 Git。
+
+系统
+  Windows 10 或 11，64 位。需要 Microsoft Edge WebView2（一般已自带）。
+
+---
+
+What this is
+  Capture and replay windows, mouse, and keyboard on this PC, plus local notes.
+  Data stays on this computer. Nothing is uploaded.
+
+Install (recommended)
+  Unzip the whole folder, then run 安装到本机.bat (Install on this PC).
+  App: %LOCALAPPDATA%\OmniTrace
+  Data: %USERPROFILE%\OmniTrace\OmniDatabase
+  Uninstalling the app does not delete your data.
+
+Run without installing
+  Double-click 启动 OmniPlayer.bat. Data goes under your user folder
+  OmniTrace\OmniDatabase unless an older library already exists.
+
+Windows SmartScreen
+  The build is unsigned. More info → Run anyway.
+  If nothing happens: Properties on the exe → Unblock.
+
+Do not send keyboard capture files to any cloud model, and do not upload OmniDatabase.
