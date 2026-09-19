@@ -6,13 +6,15 @@ import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import { initTheme } from "./theme";
 import { initMotionStyle } from "./omni_float";
 import { initLang, shellT } from "./shell_i18n";
 import { GITHUB_ISSUES_NEW_URL, GITHUB_REPO_URL } from "./shell_links";
 import { initCostDisplaySettings } from "./notes_cost_display";
 import { flushShellApps, initShellApps } from "./shell_apps";
+import { initPlaybackSettings } from "./playback_prefs";
+import { initArchiveNamingSettings } from "./notes_archive_prefs";
 
 type PlayerMod = typeof import("./player");
 type DashboardMod = typeof import("./dashboard");
@@ -292,6 +294,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   initMotionStyle();
   initLang();
   initCostDisplaySettings();
+  initPlaybackSettings();
+  initArchiveNamingSettings();
   initShellDialogs();
   initShellApps(() => ensureNotes());
 
@@ -360,6 +364,77 @@ window.addEventListener("DOMContentLoaded", async () => {
     void refreshOmniSyncMeta();
   }
 
+  function displayFsPath(p: string): string {
+    return p.replace(/^\\\\\?\\/, "");
+  }
+
+  function dataRootErrorMessage(err: unknown): string {
+    const raw = err instanceof Error ? err.message : String(err);
+    if (raw.includes("RECORDER_RUNNING")) return shellT("settings.data.err.running");
+    if (raw.includes("ENV_OVERRIDE")) return shellT("settings.data.err.env");
+    if (raw.includes("NO_EXE_DIR")) return shellT("settings.data.err.exe");
+    if (raw.includes("EMPTY_PATH")) return shellT("settings.data.err.empty");
+    if (raw.includes("CREATE_DIR")) return shellT("settings.data.err.create");
+    if (raw.includes("WRITE_POINTER")) return shellT("settings.data.err.write");
+    return raw;
+  }
+
+  function setDataRootPathText(text: string) {
+    const el = document.getElementById("settings-data-root-path");
+    if (el) el.textContent = text;
+  }
+
+  async function refreshDataRootPath() {
+    setDataRootPathText(shellT("settings.data.meta.loading"));
+    try {
+      const root = await invoke<string>("get_data_root");
+      setDataRootPathText(displayFsPath(root || "—"));
+    } catch (e) {
+      setDataRootPathText(String(e));
+    }
+  }
+
+  function notifyDataRootChanged(path: string) {
+    window.dispatchEvent(
+      new CustomEvent("omnitrace-data-root", { detail: path })
+    );
+  }
+
+  async function chooseDataRootFolder() {
+    const chooseBtn = document.getElementById(
+      "settings-data-root-choose"
+    ) as HTMLButtonElement | null;
+    try {
+      const picked = await open({ directory: true, multiple: false });
+      const path = typeof picked === "string" ? picked : null;
+      if (!path) return;
+      if (chooseBtn) chooseBtn.disabled = true;
+      const next = await invoke<string>("set_data_root", { path });
+      setDataRootPathText(displayFsPath(next || path));
+      notifyDataRootChanged(next || path);
+      showSettingsToast(shellT("settings.data.toast.changed"), true);
+    } catch (e) {
+      showSettingsToast(dataRootErrorMessage(e));
+    } finally {
+      if (chooseBtn) chooseBtn.disabled = false;
+    }
+  }
+
+  async function openDataRootFolder() {
+    try {
+      const root = await invoke<string>("get_data_root");
+      const path = displayFsPath(root || "");
+      if (!path) {
+        showSettingsToast(shellT("settings.data.err.open"));
+        return;
+      }
+      await openPath(path);
+    } catch (e) {
+      showSettingsToast(shellT("settings.data.err.open"));
+      console.error(e);
+    }
+  }
+
   async function refreshOmniSyncMeta() {
     const el = document.getElementById("omni-sync-meta");
     if (!el) return;
@@ -413,7 +488,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   let pageActivateGen = 0;
-  let settingsPane: "home" | "llm" = "home";
+  type SettingsPane = "home" | "llm" | "playback";
+  let settingsPane: SettingsPane = "home";
 
   function syncLlmBackLabel() {
     const back = document.getElementById("settings-llm-back");
@@ -424,7 +500,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   function setSettingsPane(
-    pane: "home" | "llm",
+    pane: SettingsPane,
     opts?: { skipMount?: boolean }
   ) {
     settingsPane = pane;
@@ -435,8 +511,14 @@ window.addEventListener("DOMContentLoaded", async () => {
       .getElementById("settings-llm")
       ?.classList.toggle("hidden", pane !== "llm");
     document
+      .getElementById("settings-playback")
+      ?.classList.toggle("hidden", pane !== "playback");
+    document
       .getElementById("settings-open-llm")
       ?.setAttribute("aria-expanded", pane === "llm" ? "true" : "false");
+    document
+      .getElementById("settings-open-playback")
+      ?.setAttribute("aria-expanded", pane === "playback" ? "true" : "false");
     syncLlmBackLabel();
     if (pane === "llm" && !opts?.skipMount) {
       void ensureNotes()
@@ -461,7 +543,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   function switchPage(
     page: string,
-    opts?: { settingsPane?: "home" | "llm" }
+    opts?: { settingsPane?: SettingsPane }
   ) {
     if (page !== "settings") {
       document.body.classList.remove("shell-notes-llm");
@@ -518,6 +600,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       if (gen !== pageActivateGen) return;
       if (targetPage === "settings") {
         void refreshRecorderStatus();
+        void refreshDataRootPath();
         return;
       }
       activatePageModule(targetPage);
@@ -528,6 +611,13 @@ window.addEventListener("DOMContentLoaded", async () => {
     openLlmSettings();
   });
   document.getElementById("settings-llm-back")?.addEventListener("click", () => {
+    closeLlmSettings();
+  });
+  document.getElementById("settings-open-playback")?.addEventListener("click", () => {
+    if (SHELL_NOTES) document.body.classList.add("shell-notes-llm");
+    switchPage("settings", { settingsPane: "playback" });
+  });
+  document.getElementById("settings-playback-back")?.addEventListener("click", () => {
     closeLlmSettings();
   });
   window.addEventListener("omnitrace-open-llm-settings", () => {
@@ -622,6 +712,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       requestAnimationFrame(() => moveNavPill());
     });
     void refreshRecorderStatus();
+    void refreshDataRootPath();
     if (settingsPane === "llm") syncLlmBackLabel();
   });
 
@@ -650,6 +741,18 @@ window.addEventListener("DOMContentLoaded", async () => {
       toggleAutostart.disabled = false;
     }
   });
+
+  document
+    .getElementById("settings-data-root-choose")
+    ?.addEventListener("click", () => {
+      void chooseDataRootFolder();
+    });
+  document
+    .getElementById("settings-data-root-open")
+    ?.addEventListener("click", () => {
+      void openDataRootFolder();
+    });
+  void refreshDataRootPath();
 
   navigateToPage = switchPage;
 

@@ -881,6 +881,10 @@ pub struct McpTurnOpts {
     pub inject_product_context: bool,
     #[serde(default)]
     pub enabled_server_ids: Vec<String>,
+    #[serde(default)]
+    pub viewing_clue_board: bool,
+    #[serde(default)]
+    pub active_board_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -1821,10 +1825,16 @@ pub struct SuggestPresetNoteReq {
     pub model_key: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct SuggestPresetMeta {
+    pub name: String,
+    pub note: String,
+}
+
 #[tauri::command]
 pub async fn notes_wire_preset_suggest_note(
     req: SuggestPresetNoteReq,
-) -> Result<String, String> {
+) -> Result<SuggestPresetMeta, String> {
     llm_sidecar_ensure_running_async().await?;
     let pf = load_providers();
     let model_key = req
@@ -1853,7 +1863,7 @@ pub async fn notes_wire_preset_suggest_note(
     }
     lines.push(String::new());
     lines.push(
-        "请用一句中文（不超过 40 字）概括这个连线组合的主题或用途。只输出这一句，不要引号或列表。"
+        "请用一句 JSON 概括这个对话存档：{\"name\":\"不超过12字的标题\",\"note\":\"不超过40字的备注\"}。只输出 JSON，不要Markdown。"
             .to_string(),
     );
     let prompt = lines.join("\n");
@@ -1863,7 +1873,7 @@ pub async fn notes_wire_preset_suggest_note(
         .map_err(|e| e.to_string())?;
     let body = json!({
         "model": model.proxy_name,
-        "max_tokens": 80,
+        "max_tokens": 120,
         "temperature": 0.3,
         "messages": [{ "role": "user", "content": prompt }],
     });
@@ -1887,10 +1897,63 @@ pub async fn notes_wire_preset_suggest_note(
         .trim_matches(['"', '\'', '「', '」', '“', '”'])
         .to_string();
     if text.is_empty() {
-        return Err("模型未返回备注".into());
+        return Err("模型未返回名称".into());
     }
-    let out: String = text.chars().take(80).collect();
-    Ok(out)
+    if let Ok(obj) = serde_json::from_str::<Value>(&text) {
+        let name: String = obj
+            .get("name")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .chars()
+            .take(24)
+            .collect();
+        let note: String = obj
+            .get("note")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .chars()
+            .take(80)
+            .collect();
+        if !name.trim().is_empty() || !note.trim().is_empty() {
+            return Ok(SuggestPresetMeta {
+                name: name.trim().to_string(),
+                note: note.trim().to_string(),
+            });
+        }
+    }
+    let stripped = text
+        .trim()
+        .trim_start_matches("```json")
+        .trim_start_matches("```")
+        .trim_end_matches("```")
+        .trim();
+    if let Ok(obj) = serde_json::from_str::<Value>(stripped) {
+        let name: String = obj
+            .get("name")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .chars()
+            .take(24)
+            .collect();
+        let note: String = obj
+            .get("note")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .chars()
+            .take(80)
+            .collect();
+        if !name.trim().is_empty() || !note.trim().is_empty() {
+            return Ok(SuggestPresetMeta {
+                name: name.trim().to_string(),
+                note: note.trim().to_string(),
+            });
+        }
+    }
+    let note: String = text.chars().take(80).collect();
+    Ok(SuggestPresetMeta {
+        name: String::new(),
+        note,
+    })
 }
 
 fn image_path_to_data_url(path: &str) -> Result<String, String> {
@@ -2258,10 +2321,27 @@ pub async fn notes_send_turn(
     let app2 = app.clone();
     let err_id = card_id.clone();
     let mcp_prefs = mcp_prefs_from_turn(&opts);
-    let system = if notes_mcp::any_mcp_enabled(&mcp_prefs) && mcp_prefs.inject_product_context {
-        Some(notes_mcp::product_context_system_message())
-    } else {
+    let mut system_parts: Vec<String> = Vec::new();
+    if notes_mcp::any_mcp_enabled(&mcp_prefs) && mcp_prefs.inject_product_context {
+        system_parts.push(notes_mcp::product_context_system_message());
+    }
+    let enabled = notes_mcp::enabled_server_ids(&mcp_prefs);
+    if enabled.contains(notes_mcp::SERVER_CLUE_BOARD) {
+        let viewing = opts
+            .mcp
+            .as_ref()
+            .map(|m| m.viewing_clue_board)
+            .unwrap_or(false);
+        let bid = opts
+            .mcp
+            .as_ref()
+            .and_then(|m| m.active_board_id.as_deref());
+        system_parts.push(notes_mcp::clue_board_usage_system_message(viewing, bid));
+    }
+    let system = if system_parts.is_empty() {
         None
+    } else {
+        Some(system_parts.join("\n"))
     };
     let messages = build_chat_messages(
         &text,

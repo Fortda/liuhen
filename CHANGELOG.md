@@ -4,27 +4,25 @@
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-09-19
+
 ### Added
 
-- 架构「以后」意图（未实现）：账单批量导入、采集器/播放器成对插件 ABI、仪表盘创意工坊接口（见蓝图 §7）。
-- 公开仓库文档：MIT、Keep a Changelog、关于页仓库链接、反馈跳转 GitHub Issue。
-- 发版说明：`docs/releasing.md`（Windows zip 挂到 GitHub Release）。
-- 双语 README（`README.md` / `README.en.md`）、公开架构 `docs/architecture/`、界面示意图 `docs/images/`。
-- README 界面截图：设置、播放器、仪表盘四页、流式笔记 / 线索板 / 笔记时间轴。
-- 给普通人的 Windows 安装：GitHub Release 下载 `OmniTrace-*-windows-x64.zip`，解压后「安装到本机.bat」。
-- 打 `v*` tag 时 GitHub Actions 编该 zip 并挂到 Release 附件。
+- 给朋友的 Windows **setup.exe**（`OmniTrace-*-windows-x64-setup.exe`）：每用户向导、可选目录（默认 `%LOCALAPPDATA%\OmniTrace`）、桌面/开始菜单快捷方式、HKCU 卸载项；含播放器 **和** 采集器；安装时写 `data_root.json` 指向 `%USERPROFILE%\OmniTrace\OmniDatabase`。包内无库。卸载不删库。zip 仍提供。
+- 设置 → **滚动与缩放**：播放器 / 时间轴滚轮步进与缩放灵敏度，以及「重置为默认」。
+- 设置首页：**对话存档是否由当时对话的 AI 写名称和备注**。
+- 设置页可改 **数据存放位置**（写 exe 旁指针，不搬已有库；采集运行中拒绝）。
 - 流式笔记「色温」：按击键间隔给用户打的字上色（快暖红 / 慢冷蓝），字形随卡片落盘。
 - GitHub Issue 模板（Bug / 想法）；壳内「反馈」可打开 New Issue。
 
 ### Changed
 
-- Git 提交改用 Conventional Commits。
-- 关于页文案：情报和信息采集；现象世界模型运行日志。
-- README：般若计划定位句、中英 README 徽章、各模块用途与键鼠日志警告。
-- 公开文档改成给人看的说明（发版、ADR、架构），去掉对话记录体。
-- 人读架构入口改为 `docs/architecture/OVERVIEW.md`（不再以 `.cursor` 作为对外第一链接）。
-- README / 蓝图写明：Windows 壳仍在打磨；Android 当前几乎不可用；局域网联动是以后的事。
-- 不再把仓库根两个本机双击启动脚本（`打开 OmniTrace.bat` / `打开 OmniTrace 笔记.bat`）放进 Git。
+- README 安装改为推荐 setup.exe（中英分写）；zip 仍可用。
+- README 截图换成高清 PNG（设置 / 播放器 / 仪表盘各页 / 笔记工具与参数）。
+- 连线存档绿线按成员集合重排为相邻路径（A—C 再接入 B → A—B—C），不留跨弦。
+- 连线存档列表：轮数、相对时间、悬停备注；右键详情/删除。
+- 发版脚本与 Actions 同时产出 setup.exe 与 zip。
+- ADR-0003：朋友安装器改为含采集器的 NSIS，不再推荐 Tauri 自带的播放器-only setup。
 
 ## [0.1.2] - 2026-09-13
 
@@ -36,10 +34,13 @@
 - 流式笔记：MCP / 线索板持久历史、模型设置子页、应用栏分窗。
 - 仪表盘运行状态机箱图（网络吞吐、内存、磁盘读写）。
 - 契约蓝图拆分：`ARCHITECTURE_BLUEPRINT.md` + NOTES / DASHBOARD / ANDROID。
+- 公开仓库文档：MIT、Keep a Changelog、双语 README、`docs/architecture/`。
+- Windows 便携 zip +「安装到本机.bat」。
 
 ### Security
 
 - 运行时库 `OmniDatabase/`、API Key、提示词原文不进 Git。
 
-[Unreleased]: https://github.com/Fortda/omnitrace/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/Fortda/omnitrace/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/Fortda/omnitrace/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Fortda/omnitrace/releases/tag/v0.1.2

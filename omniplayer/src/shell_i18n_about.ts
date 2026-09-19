@@ -4,7 +4,7 @@ import type { StringTable } from "./shell_i18n_tables";
 
 export const ABOUT_ZH: StringTable = {
   "dlg.about.intro":
-    "OmniTrace 是<strong>般若计划</strong>下的一套<strong>情报和信息采集</strong>与<strong>现象世界模型运行日志</strong>维护、管理的终端；意在扩展感知在现象世界时空因果连网络上的深度与广度。",
+    "OmniTrace 是辅助人尽可能记录和模拟世界的软件。它是<strong>般若计划</strong>下的一套<strong>情报和信息采集</strong>与<strong>现象世界模型运行日志</strong>维护、管理的终端；意在扩展感知在现象世界时空因果链网络上的深度与广度。",
   "dlg.about.bullet1":
     "<strong>采集</strong>：WinRecorder（<span class=\"dlg-meta\">omnitrace_input.exe</span>）在后台记录键鼠物理流与窗口环境，作为情报与信息、现象世界模型运行痕迹的一路输入。",
   "dlg.about.bullet2":
@@ -111,7 +111,7 @@ export const ABOUT_ZH: StringTable = {
 
 export const ABOUT_EN: StringTable = {
   "dlg.about.intro":
-    "OmniTrace is the software of <strong>Prajna Plan</strong>: a terminal for <strong>intelligence and information capture</strong> and a <strong>phenomenal-world-model operation log</strong> — extending the depth and breadth of perception on the spatiotemporal causal-connection network of the phenomenal world.",
+    "OmniTrace is software that helps people record and simulate the world as fully as they can. It is the software of <strong>Prajna Plan</strong>: a terminal for <strong>intelligence and information capture</strong> and a <strong>phenomenal-world-model operation log</strong> — extending the depth and breadth of perception on the spatiotemporal causal-chain network of the phenomenal world.",
   "dlg.about.bullet1":
     "<strong>Capture</strong>: WinRecorder (<span class=\"dlg-meta\">omnitrace_input.exe</span>) records keyboard/mouse physical streams and window context in the background as one input channel for intelligence, information, and phenomenal-world-model traces.",
   "dlg.about.bullet2":

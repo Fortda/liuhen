@@ -1063,6 +1063,15 @@
       word-break: break-all;
       line-height: 1.4;
     }
+    .settings-data-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+    .settings-data-actions .notes-btn {
+      white-space: nowrap;
+    }
 
     .switch {
       position: relative;
@@ -1151,6 +1160,118 @@
       font: inherit;
       font-size: 13px;
     }
+    .settings-ctrl {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      flex: 0 0 auto;
+    }
+    .settings-num {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--muted);
+      flex: 0 0 auto;
+    }
+    .settings-reset {
+      appearance: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      margin: 0;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .settings-reset svg {
+      display: block;
+      width: 16px;
+      height: 16px;
+    }
+    .settings-reset:hover:not(:disabled) {
+      color: var(--text);
+      background: color-mix(in srgb, var(--text) 7%, transparent);
+    }
+    .settings-reset:focus-visible {
+      outline: 2px solid var(--accent, #6b8f71);
+      outline-offset: 1px;
+    }
+    .settings-reset:disabled {
+      opacity: 0.28;
+      cursor: default;
+    }
+    .settings-num input,
+    .settings-select {
+      width: 5.2rem;
+      padding: 6px 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+    }
+    .settings-select {
+      width: min(16rem, 46vw);
+      max-width: 100%;
+    }
+    #settings-playback {
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+    }
+    #settings-playback .notes-settings-sticky h2 {
+      margin: 0;
+      flex: 1 1 auto;
+      min-width: 0;
+      font-size: 16px;
+      font-weight: 650;
+      font-family: var(--font-serif);
+    }
+    .dlg-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 0 0 12px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .dlg-field input,
+    .dlg-field textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+    }
+    .dlg-check {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin: 4px 0 12px;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .dlg-check input {
+      margin-top: 3px;
+    }
+    .notes-preset-toast {
+      margin: 0 0 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .notes-preset-toast.is-error { color: var(--danger); }
 
     /* —— 播放器页：壳与其它页同色；仅舞台黑底 —— */
     #page-player {
@@ -2557,8 +2678,12 @@
     .shell-apps-hide-green:hover { color: var(--text); }
     .notes-preset-sidebar-head {
       flex: 0 0 auto;
-      padding: 10px 12px 6px;
+      padding: 8px 8px 6px 10px;
       border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
     }
     .notes-preset-sidebar-head h2 {
       margin: 0;
@@ -2566,15 +2691,38 @@
       font-weight: 650;
       color: var(--muted);
       letter-spacing: 0.02em;
+      flex: 0 1 auto;
+      min-width: 0;
     }
+    .notes-preset-hide-notes {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin: 0;
+      font-size: 10px;
+      line-height: 1.2;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+    .notes-preset-hide-notes input {
+      margin: 0;
+      width: 13px;
+      height: 13px;
+      accent-color: var(--notes-wire);
+      flex: none;
+    }
+    .notes-preset-hide-notes:hover { color: var(--text); }
     #notes-preset-list {
       flex: 1 1 auto;
       min-height: 0;
       overflow-y: auto;
-      padding: 8px;
+      padding: 6px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
     }
     .notes-preset-empty {
       margin: 8px 4px;
@@ -2585,9 +2733,9 @@
     .notes-preset-item {
       position: relative;
       display: grid;
-      gap: 3px;
+      gap: 2px;
       width: 100%;
-      padding: 8px 28px 8px 10px;
+      padding: 6px 8px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--panel);
@@ -2614,15 +2762,34 @@
     .notes-preset-item-note {
       font-size: 11px;
       color: var(--muted);
-      line-height: 1.35;
+      line-height: 1.3;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
+    .notes-preset-sidebar.is-hide-notes .notes-preset-item-note {
+      display: none;
+    }
     .notes-preset-item-meta {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px;
       font-size: 10px;
       color: color-mix(in srgb, var(--muted) 80%, transparent);
+    }
+    .notes-preset-item-when {
+      flex: none;
+      font-variant-numeric: tabular-nums;
+    }
+    .notes-preset-hover-pop {
+      z-index: 12000;
+      pointer-events: auto;
+    }
+    .notes-preset-hover-pop .notes-wire-origin-value {
+      max-height: 8em;
+      overflow: auto;
     }
     .notes-preset-ctx-menu {
       z-index: 12000;
@@ -2859,7 +3026,9 @@
     }
     .notes-clue-board-item {
       position: relative;
-      display: block;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       width: 100%;
       padding: 8px 10px;
       border: 1px solid var(--line);
@@ -2869,6 +3038,26 @@
       text-align: left;
       cursor: pointer;
       font: inherit;
+    }
+    .notes-clue-board-item-check {
+      display: none;
+      flex: 0 0 auto;
+      width: 14px;
+      height: 14px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      box-sizing: border-box;
+    }
+    body.clue-board-multiselect .notes-clue-board-item-check {
+      display: inline-block;
+    }
+    .notes-clue-board-item.is-checked .notes-clue-board-item-check {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .notes-clue-board-item.is-checked {
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+      background: color-mix(in srgb, var(--accent) 8%, var(--panel));
     }
     .notes-clue-board-item:hover {
       border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
@@ -4394,36 +4583,39 @@
     }
     .notes-card-activity {
       align-self: stretch;
-      max-width: min(92%, 520px);
-      margin: 2px 0 4px;
-      padding: 8px 10px;
-      border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
-      border-radius: 10px;
-      background:
-        linear-gradient(
-          165deg,
-          color-mix(in srgb, var(--panel) 92%, var(--accent) 6%) 0%,
-          color-mix(in srgb, var(--panel) 96%, transparent) 100%
-        );
+      max-width: min(92%, 560px);
+      margin: 2px 0 6px;
+      padding: 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
       color: var(--muted);
-      font-size: 12px;
-      line-height: 1.45;
-      box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent);
+      font-size: 13px;
+      line-height: 1.5;
+      box-shadow: none;
     }
     .notes-card-activity.is-done {
-      border-color: color-mix(in srgb, var(--line) 90%, transparent);
-      background: color-mix(in srgb, var(--panel) 94%, transparent);
+      border: none;
+      background: transparent;
       box-shadow: none;
     }
     .notes-card-activity.is-done > .notes-card-activity-head {
       color: var(--muted);
     }
     .notes-card-activity > .notes-card-activity-head {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--accent);
-      letter-spacing: 0.01em;
-      margin-bottom: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: 0;
+      margin: 0;
+      padding: 2px 0;
+      background: none;
+      border: none;
+      border-radius: 0;
       user-select: none;
       cursor: pointer;
       list-style: none;
@@ -4432,27 +4624,30 @@
       display: none;
     }
     .notes-card-activity > .notes-card-activity-head::before {
-      content: "▸ ";
-      color: var(--accent);
+      content: "▸";
+      color: var(--muted);
+      font-size: 11px;
+      width: 0.9em;
     }
     .notes-card-activity[open] > .notes-card-activity-head::before {
-      content: "▾ ";
+      content: "▾";
     }
     .notes-card-activity[open] > .notes-card-activity-head {
-      margin-bottom: 6px;
+      margin-bottom: 2px;
     }
     .notes-card-activity-body {
       display: flex;
       flex-direction: column;
-      gap: 0;
+      gap: 2px;
+      padding: 0 0 0 1.05em;
     }
     .notes-card-activity-round {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      margin-top: 6px;
-      padding-top: 6px;
-      border-top: 1px dashed color-mix(in srgb, var(--line) 80%, transparent);
+      gap: 2px;
+      margin: 0;
+      padding: 0;
+      border: none;
     }
     .notes-card-activity-round:first-of-type {
       margin-top: 0;
@@ -4460,16 +4655,19 @@
       border-top: none;
     }
     .notes-card-activity-round-lab {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: color-mix(in srgb, var(--muted) 85%, var(--accent));
-      letter-spacing: 0.04em;
+      font-family: inherit;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0;
       text-transform: none;
       user-select: none;
+      opacity: 0.8;
     }
     .notes-card-activity-think,
     .notes-card-activity-bucket {
       margin: 0;
+      border: none;
+      background: none;
     }
     .notes-card-activity-think > summary,
     .notes-card-activity-bucket > summary,
@@ -4478,6 +4676,16 @@
       list-style: none;
       color: var(--muted);
       user-select: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 0;
+      margin: 0;
+      border: none;
+      background: none;
+      border-radius: 0;
+      font: inherit;
+      font-size: 12.5px;
     }
     .notes-card-activity-think > summary::-webkit-details-marker,
     .notes-card-activity-bucket > summary::-webkit-details-marker,
@@ -4486,54 +4694,56 @@
     }
     .notes-card-activity-think > summary::before,
     .notes-card-activity-bucket > summary::before {
-      content: "▸ ";
-      color: var(--accent);
+      content: "▸";
+      color: var(--muted);
+      font-size: 11px;
+      width: 0.9em;
     }
     .notes-card-activity-think[open] > summary::before,
     .notes-card-activity-bucket[open] > summary::before {
-      content: "▾ ";
+      content: "▾";
     }
     .notes-card-activity-tool.is-expandable > summary::before {
       content: "▸";
-      color: var(--accent);
-      font-size: 10px;
+      color: var(--muted);
+      font-size: 11px;
       width: 0.9em;
     }
     .notes-card-activity-tool.is-expandable[open] > summary::before {
       content: "▾";
     }
     .notes-card-activity-bucket > summary {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--text);
+      font-family: inherit;
+      font-size: 12.5px;
+      color: var(--muted);
     }
     .notes-card-activity-bucket[data-bucket="explore"] > summary {
-      color: color-mix(in srgb, var(--text) 70%, #4a7c59);
+      color: var(--muted);
     }
     .notes-card-activity-bucket[data-bucket="edited"] > summary {
-      color: color-mix(in srgb, var(--text) 70%, #8a6a3a);
+      color: var(--muted);
     }
     .notes-card-activity-think-body {
-      margin: 6px 0 0;
-      max-height: 160px;
+      margin: 2px 0 4px;
+      max-height: 220px;
       overflow: auto;
       white-space: pre-wrap;
       word-break: break-word;
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--text);
-      background: color-mix(in srgb, var(--bg) 70%, transparent);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 6px 8px;
+      font-family: inherit;
+      font-size: 12.5px;
+      color: var(--muted);
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      padding: 0 0 0 1.05em;
     }
     .notes-card-activity-tools {
       list-style: none;
-      margin: 4px 0 0;
-      padding: 0;
+      margin: 0;
+      padding: 0 0 0 1.05em;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 0;
     }
     .notes-card-activity-tool-li {
       list-style: none;
@@ -4543,12 +4753,12 @@
     .notes-card-activity-tool {
       display: grid;
       grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) auto;
-      gap: 6px 8px;
+      gap: 6px 10px;
       align-items: baseline;
-      padding: 4px 6px;
-      border-radius: 6px;
-      border: 1px solid transparent;
-      background: color-mix(in srgb, var(--bg) 55%, transparent);
+      padding: 2px 0;
+      border-radius: 0;
+      border: none;
+      background: transparent;
     }
     .notes-card-activity-tool.is-expandable {
       display: block;
@@ -4559,39 +4769,39 @@
     .notes-card-activity-tool-sum {
       display: grid;
       grid-template-columns: auto minmax(0, 1.2fr) minmax(0, 1.6fr) auto;
-      gap: 6px 8px;
+      gap: 6px 10px;
       align-items: baseline;
-      padding: 4px 6px;
-      border-radius: 6px;
-      border: 1px solid transparent;
-      background: color-mix(in srgb, var(--bg) 55%, transparent);
+      padding: 2px 0;
+      border-radius: 0;
+      border: none;
+      background: transparent;
     }
     .notes-card-activity-tool[data-status="running"],
     .notes-card-activity-tool.is-expandable[data-status="running"] > .notes-card-activity-tool-sum {
-      border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+      border: none;
     }
     .notes-card-activity-tool[data-status="error"],
     .notes-card-activity-tool.is-expandable[data-status="error"] > .notes-card-activity-tool-sum {
-      border-color: color-mix(in srgb, #c45c5c 45%, var(--line));
+      border: none;
     }
     .notes-card-activity-tool-name {
-      font-family: var(--font-mono);
-      font-size: 11px;
+      font-family: inherit;
+      font-size: 12.5px;
       color: var(--text);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     .notes-card-activity-tool-target {
-      font-size: 11px;
+      font-size: 12px;
       color: var(--muted);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     .notes-card-activity-tool-status {
-      font-size: 10px;
-      font-family: var(--font-mono);
+      font-size: 11px;
+      font-family: inherit;
       color: var(--muted);
       white-space: nowrap;
     }
@@ -4604,11 +4814,11 @@
       color: #c45c5c;
     }
     .notes-card-activity-tool-body {
-      margin: 4px 0 2px 14px;
-      padding: 6px 8px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: color-mix(in srgb, var(--bg) 65%, transparent);
+      margin: 0 0 4px 1.05em;
+      padding: 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
     }
     .notes-card-activity-tool-meta {
       display: grid;
@@ -6921,7 +7131,7 @@
           <div id="settings-home">
           <div class="settings-wrap">
             <h1 data-i18n="settings.title">设置</h1>
-            <p class="sub" data-i18n="settings.sub">WinRecorder 采集、开机行为、语言模型与外观。健康与统计见「仪表盘」。</p>
+            <p class="sub" data-i18n="settings.sub">WinRecorder 采集、开机行为、数据存放位置、语言模型、滚动缩放与外观。健康与统计见「仪表盘」。</p>
             <div class="settings-card">
               <div class="settings-row">
                 <div class="copy">
@@ -6954,6 +7164,19 @@
               </div>
             </div>
             <div class="settings-card" style="margin-top: 14px">
+              <div class="settings-row" id="settings-data-root-row">
+                <div class="copy">
+                  <div class="label" data-i18n="settings.data.label">数据存放位置</div>
+                  <div class="desc" data-i18n="settings.data.desc">采集、笔记和回放都写在这里。改位置只改指针，不会把已有数据搬走；需要的话请自己复制。</div>
+                  <div class="meta" id="settings-data-root-path">读取中…</div>
+                </div>
+                <div class="settings-data-actions">
+                  <button type="button" class="notes-btn" id="settings-data-root-choose" data-i18n="settings.data.choose">选择文件夹</button>
+                  <button type="button" class="notes-btn" id="settings-data-root-open" data-i18n="settings.data.open">打开</button>
+                </div>
+              </div>
+            </div>
+            <div class="settings-card" style="margin-top: 14px">
               <button type="button" id="settings-open-llm" class="settings-row settings-row-nav" aria-haspopup="true" aria-expanded="false" data-i18n-aria="settings.llm.aria">
                 <div class="copy">
                   <div class="label" data-i18n="settings.llm.label">语言模型</div>
@@ -6961,6 +7184,36 @@
                 </div>
                 <span class="settings-chevron" aria-hidden="true">›</span>
               </button>
+            </div>
+            <div class="settings-card" style="margin-top: 14px">
+              <button type="button" id="settings-open-playback" class="settings-row settings-row-nav" aria-haspopup="true" aria-expanded="false" data-i18n-aria="settings.playback.aria">
+                <div class="copy">
+                  <div class="label" data-i18n="settings.playback.label">滚动与缩放</div>
+                  <div class="desc" data-i18n="settings.playback.desc">播放器和时间轴滚轮一次走多远、缩多快。改完立刻生效。</div>
+                </div>
+                <span class="settings-chevron" aria-hidden="true">›</span>
+              </button>
+            </div>
+            <div class="settings-card" style="margin-top: 14px">
+              <div class="settings-row">
+                <div class="copy">
+                  <div class="label" data-i18n="settings.archiveAi.label">对话存档由当时 AI 写名字和备注</div>
+                  <div class="desc" data-i18n="settings.archiveAi.desc">打开则保存对话时用当前对话模型总结名称和备注。关掉后请在下面指定另一台模型来写。</div>
+                </div>
+                <label class="switch" data-i18n-title="settings.archiveAi.switchTitle">
+                  <input type="checkbox" id="settings-archive-use-chat-ai" checked />
+                  <span></span>
+                </label>
+              </div>
+              <div class="settings-row hidden" id="settings-archive-summarizer-row">
+                <div class="copy">
+                  <div class="label" data-i18n="settings.archiveAi.which.label">由哪台 AI 写名字和备注</div>
+                  <div class="desc" data-i18n="settings.archiveAi.which.desc">当前对话模型为「无」或不让对话模型写时，用这里选的模型。</div>
+                </div>
+                <select id="settings-archive-summarizer" class="settings-select" data-i18n-aria="settings.archiveAi.which.aria">
+                  <option value="">—</option>
+                </select>
+              </div>
             </div>
             <div class="settings-card" style="margin-top: 14px">
               <div class="settings-row">
@@ -7042,6 +7295,86 @@
               </div>
             </div>
           </div>
+          <div id="settings-playback" class="notes-settings-view hidden">
+            <div class="notes-settings-sticky">
+              <button type="button" id="settings-playback-back" class="notes-btn" data-i18n="settings.playback.back">← 设置</button>
+              <h2 data-i18n="settings.playback.title">滚动与缩放</h2>
+            </div>
+            <div class="notes-settings-scroll">
+              <div class="settings-wrap settings-playback-body">
+                <p class="sub" data-i18n="settings.playback.lead">滚轮一次走多远、缩多快。数字越小越细。改完立刻用在播放器和时间轴上。</p>
+                <div class="settings-card">
+                  <div class="settings-row">
+                    <div class="copy">
+                      <div class="label" data-i18n="settings.playback.playerPan.label">播放器 · 滚动</div>
+                      <div class="desc" data-i18n="settings.playback.playerPan.desc">底栏时间轴每格滚轮平移，占当前可见时间的百分比。</div>
+                    </div>
+                    <div class="settings-ctrl">
+                      <label class="settings-num">
+                        <input type="number" id="playback-player-pan" min="0.5" max="20" step="0.5" value="3" />
+                        <span>%</span>
+                      </label>
+                      <button type="button" class="settings-reset" data-playback-reset="playerPanPct" data-i18n-title="settings.playback.reset" data-i18n-aria="settings.playback.reset" title="重置为默认" aria-label="重置为默认"></button>
+                    </div>
+                  </div>
+                  <div class="settings-row">
+                    <div class="copy">
+                      <div class="label" data-i18n="settings.playback.playerZoom.label">播放器 · 缩放</div>
+                      <div class="desc" data-i18n="settings.playback.playerZoom.desc">Alt 或 Ctrl 加滚轮时，观察窗一次放大或缩小多少。</div>
+                    </div>
+                    <div class="settings-ctrl">
+                      <label class="settings-num">
+                        <input type="number" id="playback-player-zoom" min="1" max="25" step="0.5" value="5" />
+                        <span>%</span>
+                      </label>
+                      <button type="button" class="settings-reset" data-playback-reset="playerZoomPct" data-i18n-title="settings.playback.reset" data-i18n-aria="settings.playback.reset" title="重置为默认" aria-label="重置为默认"></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="settings-card" style="margin-top: 14px">
+                  <div class="settings-row">
+                    <div class="copy">
+                      <div class="label" data-i18n="settings.playback.timelinePan.label">时间轴 · 滚动</div>
+                      <div class="desc" data-i18n="settings.playback.timelinePan.desc">仪表盘运作轴和笔记时间轴每格滚轮平移。</div>
+                    </div>
+                    <div class="settings-ctrl">
+                      <label class="settings-num">
+                        <input type="number" id="playback-timeline-pan" min="0.5" max="20" step="0.5" value="2.5" />
+                        <span>%</span>
+                      </label>
+                      <button type="button" class="settings-reset" data-playback-reset="timelinePanPct" data-i18n-title="settings.playback.reset" data-i18n-aria="settings.playback.reset" title="重置为默认" aria-label="重置为默认"></button>
+                    </div>
+                  </div>
+                  <div class="settings-row">
+                    <div class="copy">
+                      <div class="label" data-i18n="settings.playback.timelineZoom.label">时间轴 · 缩放</div>
+                      <div class="desc" data-i18n="settings.playback.timelineZoom.desc">Alt 加滚轮时观察窗一次变化的百分比。仪表盘上的「Alt缩%」与此项相同。</div>
+                    </div>
+                    <div class="settings-ctrl">
+                      <label class="settings-num">
+                        <input type="number" id="playback-timeline-zoom" min="1" max="50" step="1" value="4" />
+                        <span>%</span>
+                      </label>
+                      <button type="button" class="settings-reset" data-playback-reset="timelineZoomPct" data-i18n-title="settings.playback.reset" data-i18n-aria="settings.playback.reset" title="重置为默认" aria-label="重置为默认"></button>
+                    </div>
+                  </div>
+                  <div class="settings-row">
+                    <div class="copy">
+                      <div class="label" data-i18n="settings.playback.inertia.label">惯性</div>
+                      <div class="desc" data-i18n="settings.playback.inertia.desc">松手后时间轴再滑一小段。关掉则滚一格停一格。</div>
+                    </div>
+                    <div class="settings-ctrl">
+                      <label class="switch" data-i18n-title="settings.playback.inertia.switchTitle">
+                        <input type="checkbox" id="playback-inertia" checked />
+                        <span></span>
+                      </label>
+                      <button type="button" class="settings-reset" data-playback-reset="inertia" data-i18n-title="settings.playback.reset" data-i18n-aria="settings.playback.reset" title="重置为默认" aria-label="重置为默认"></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section id="page-player" class="page">
@@ -7113,7 +7446,7 @@
                   <h2>运行时间轴</h2>
                   <div class="dash-health-head-right">
                     <div id="dash-tick-lod" title="Alt缩%：每次 Alt+滚轮改变观察窗跨度的百分比">
-                      <label>Alt缩% <input type="number" id="alt-zoom-pct" min="1" max="50" step="1" value="8" /></label>
+                      <label>Alt缩% <input type="number" id="alt-zoom-pct" min="1" max="50" step="1" value="4" /></label>
                     </div>
                   </div>
                 </div>
@@ -7196,19 +7529,16 @@
               <aside class="notes-preset-sidebar" id="notes-preset-sidebar" data-i18n-aria="notes.preset.aria">
                 <div class="notes-preset-sidebar-head">
                   <h2 data-i18n="notes.preset.title">连线存档</h2>
+                  <label class="notes-preset-hide-notes" data-i18n-title="notes.preset.hideNotesHint" title="打开后列表瓷砖不显示备注行，悬停仍可看全文">
+                    <input type="checkbox" id="notes-preset-hide-notes" />
+                    <span data-i18n="notes.preset.hideNotes">是否隐藏备注</span>
+                  </label>
                 </div>
                 <div id="notes-preset-list"></div>
                 <div class="notes-preset-sidebar-foot">
-                  <div id="notes-preset-save-form" class="hidden">
-                    <label><span data-i18n="notes.preset.saveName">名称</span> <input type="text" id="notes-preset-save-name" maxlength="120" data-i18n-placeholder="notes.preset.saveNamePh" placeholder="例如：调研主线" /></label>
-                    <label><span data-i18n="notes.preset.saveNote">备注</span> <textarea id="notes-preset-save-note" maxlength="500" data-i18n-placeholder="notes.preset.saveNotePh" placeholder="可选手写；留空且开启 AI 时自动生成"></textarea></label>
-                    <div class="notes-preset-save-actions">
-                      <button type="button" id="notes-preset-save-commit" class="notes-btn primary" data-i18n="notes.preset.saveCommit">保存</button>
-                      <button type="button" id="notes-preset-save-cancel" class="notes-btn" data-i18n="notes.preset.saveCancel">取消</button>
-                    </div>
-                  </div>
+                  <p id="notes-preset-toast" class="notes-preset-toast hidden" role="status"></p>
                   <button type="button" id="notes-preset-save-open" class="notes-btn" data-i18n="notes.preset.saveCurrent">保存当前组合</button>
-                  <button type="button" id="notes-preset-new" class="notes-btn primary" data-i18n="notes.preset.new">+ 新建存档</button>
+                  <button type="button" id="notes-preset-new" class="notes-btn primary" data-i18n="notes.preset.new">+ 新对话</button>
                 </div>
               </aside>
               <div class="notes-stage-main">
@@ -7457,7 +7787,7 @@
                   <path class="logo-lash" d="M20.4 11.55l1.05 0.22M20.55 11.95l1.15 0.45" stroke-width="0.72" stroke-linecap="round"/>
                 </svg>
               </div>
-              <p data-i18n-html="dlg.about.intro">OmniTrace 是<strong>般若计划</strong>下的一套<strong>情报和信息采集</strong>与<strong>现象世界模型运行日志</strong>维护、管理的终端；意在扩展感知在现象世界时空因果连网络上的深度与广度。</p>
+              <p data-i18n-html="dlg.about.intro">OmniTrace 是辅助人尽可能记录和模拟世界的软件。它是<strong>般若计划</strong>下的一套<strong>情报和信息采集</strong>与<strong>现象世界模型运行日志</strong>维护、管理的终端；意在扩展感知在现象世界时空因果链网络上的深度与广度。</p>
               <ul>
                 <li data-i18n-html="dlg.about.bullet1"><strong>采集</strong>：WinRecorder（<span class="dlg-meta">omnitrace_input.exe</span>）在后台记录键鼠物理流与窗口环境，作为情报与信息、现象世界模型运行痕迹的一路输入。</li>
                 <li data-i18n-html="dlg.about.bullet2"><strong>回放</strong>：OmniPlayer 播放器与仪表盘，用于回看、对照与从日志中提炼结构。</li>
@@ -7759,6 +8089,33 @@
                 <button type="button" class="dlg-btn" data-dlg-close data-i18n="dlg.close">关闭</button>
               </div>
               <p id="feedback-copy-status"></p>
+            </div>
+          </div>
+        </div>
+        <div id="dlg-archive-save-overlay" class="dlg-overlay hidden" aria-hidden="true">
+          <div id="dlg-archive-save" class="dlg" role="dialog" aria-labelledby="dlg-archive-save-title" aria-modal="true">
+            <div class="dlg-head">
+              <h2 id="dlg-archive-save-title" data-i18n="notes.preset.saveDlgTitle">保存对话</h2>
+              <button type="button" id="notes-preset-save-cancel" data-i18n-title="dlg.close">✕</button>
+            </div>
+            <div class="dlg-body">
+              <label class="dlg-field">
+                <span data-i18n="notes.preset.saveName">名称</span>
+                <input type="text" id="notes-preset-save-name" maxlength="120" data-i18n-placeholder="notes.preset.saveNamePh" placeholder="留空则为「未命名」" />
+              </label>
+              <label class="dlg-field">
+                <span data-i18n="notes.preset.saveNote">备注</span>
+                <textarea id="notes-preset-save-note" maxlength="500" rows="3" data-i18n-placeholder="notes.preset.saveNotePh" placeholder="可选手写；勾选下方时可由 AI 填写"></textarea>
+              </label>
+              <label class="dlg-check">
+                <input type="checkbox" id="notes-preset-save-ai" checked />
+                <span data-i18n="notes.preset.saveAi">是否让 AI 自己写对话存档的名称和备注</span>
+              </label>
+              <p id="notes-preset-save-hint" class="dlg-meta"></p>
+              <div class="dlg-actions">
+                <button type="button" id="notes-preset-save-commit" class="dlg-btn primary" data-i18n="notes.preset.saveCommit">保存</button>
+                <button type="button" id="notes-preset-save-cancel-btn" class="dlg-btn" data-i18n="notes.preset.saveCancel">取消</button>
+              </div>
             </div>
           </div>
         </div>

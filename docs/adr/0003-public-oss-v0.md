@@ -17,16 +17,17 @@
 4. `versions/**/PROMPT.md` **gitignore**，只留本机。
 5. 公开 GitHub 仓库名 **omnitrace**；项目名「般若计划」，软件名 OmniTrace。
 6. 公开默认分支 `main` 从一份无旧祖先的快照起算，不推送本机旧 `master`。发版步骤见 [`docs/releasing.md`](../releasing.md)。
-7. 打 `v*` tag 时用 GitHub Actions 编 Windows 便携 zip，挂到该 Release 的 Assets。日常 PR 不强跑这套构建。
+7. 打 `v*` tag 时用 GitHub Actions 编 Windows **setup.exe + zip**，挂到该 Release 的 Assets。日常 PR 不强跑这套构建。
+8. 给外行朋友的安装物是 **`OmniTrace-*-windows-x64-setup.exe`**：每用户向导（默认 `%LOCALAPPDATA%\OmniTrace`，尽量不抬 UAC）、含播放器 **和** 采集器、HKCU 卸载项、桌面/开始菜单快捷方式、exe 旁 `data_root.json` 指向 `%USERPROFILE%\OmniTrace\OmniDatabase`。包内仍无库；卸载不删库。zip 仍提供。
 
 ### 决定不做 / 延后
 
 - 不改 crate / 包名 `omnitrace_input`。
 - 不为每次提交跑完整 Windows 打包 CI。
-- Tauri NSIS `setup.exe` 暂不作为推荐下载（常缺采集器）。
+- 不把 **Tauri 自带**、只打播放器的 NSIS 当推荐下载。朋友安装器用 `omniplayer/package/omnitrace.nsi` 打 Dist 全量（`package.ps1`）。
 
 ## 3. 后果
 
 - 本机旧 `master` 仍可留作私有考古。
 - 公开克隆者只看到初版树和此后的短提交。
-- 普通人下载走 GitHub Release 的 zip，不需要装 Rust / Node。
+- 普通人下载走 GitHub Release 的 **setup.exe**（或 zip），不需要装 Rust / Node。

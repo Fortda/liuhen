@@ -2,7 +2,7 @@
 
 > **公开副本**：[`docs/architecture/android.md`](../docs/architecture/android.md)。
 > **地位**：专门蓝图。总览与非目标见 `.cursor/ARCHITECTURE_BLUEPRINT.md` §8 / §7。  
-> `omnitrace_android` 本期**不进** Windows OmniPlayer；拷到 PC 时作旁路根。
+> `omnitrace_android` 本期**不进** Windows OmniPlayer；**当前几乎不可用**。拷到 PC 时作旁路根。局域网联动见主蓝图 §7「以后」。
 
 ---
 

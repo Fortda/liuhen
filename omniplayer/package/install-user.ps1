@@ -58,7 +58,7 @@ if (-not (Test-Path -LiteralPath $ptrFile)) {
   [System.IO.File]::WriteAllText($ptrFile, $ptr, $utf8)
 }
 
-$version = "0.1.2"
+$version = "0.1.3"
 $verFile = Join-Path $InstallDir "VERSION.txt"
 if (Test-Path -LiteralPath $verFile) {
   $line = (Get-Content -LiteralPath $verFile -TotalCount 1 -ErrorAction SilentlyContinue)

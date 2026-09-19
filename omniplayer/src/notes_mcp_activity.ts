@@ -1,4 +1,4 @@
-/** MCP 回合中的 Cursor 式活动面板（整板折叠 / 多轮思考 / Explore·Edited）。 */
+import { shellT } from "./shell_i18n";
 
 export type McpToolActivityStatus = "running" | "done" | "error";
 
@@ -140,30 +140,25 @@ function escapeHtml(s: string): string {
 }
 
 function statusLabel(st: McpToolActivityStatus): string {
-  if (st === "running") return "运行中";
-  if (st === "error") return "失败";
-  return "完成";
+  if (st === "running") return shellT("notes.activity.running");
+  if (st === "error") return shellT("notes.activity.error");
+  return shellT("notes.activity.complete");
 }
 
 function phaseLabel(phase: string | null | undefined, statusText: string): string {
   const p = (phase || "").trim();
-  if (p === "done" || p === "completed") return "已完成";
-  if (p === "waiting_model") return "等待模型…";
-  if (p === "reading") return "读取响应…";
-  if (p === "tool") return "调用工具…";
-  if (p === "thinking") return "思考中…";
-  if (p === "streaming") return "生成回复…";
-  return statusText || "进行中…";
+  if (p === "done" || p === "completed") return shellT("notes.activity.done");
+  if (p === "waiting_model") return shellT("notes.activity.waitingModel");
+  if (p === "reading") return shellT("notes.activity.reading");
+  if (p === "tool") return shellT("notes.activity.tool");
+  if (p === "thinking") return shellT("notes.activity.phaseThinking");
+  if (p === "streaming") return shellT("notes.activity.streaming");
+  return statusText || shellT("notes.activity.running");
 }
 
 function bucketLabel(k: McpToolBucket): string {
-  if (k === "edited") return "Edited";
-  return "Explore";
-}
-
-function bucketLabelZh(k: McpToolBucket): string {
-  if (k === "edited") return "编辑";
-  return "探索";
+  if (k === "edited") return shellT("notes.activity.edited");
+  return shellT("notes.activity.explore");
 }
 
 function splitThinkingBlocks(text: string | null | undefined): string[] {
@@ -294,7 +289,7 @@ function buildToolRow(
   if (target) {
     const row = document.createElement("div");
     row.className = "notes-card-activity-tool-meta";
-    row.innerHTML = `<span class="notes-card-activity-tool-meta-k">目标</span>`;
+    row.innerHTML = `<span class="notes-card-activity-tool-meta-k">${shellT("notes.activity.target")}</span>`;
     const v = document.createElement("span");
     v.className = "notes-card-activity-tool-meta-v";
     v.textContent = target;
@@ -304,7 +299,7 @@ function buildToolRow(
   if (detail) {
     const row = document.createElement("div");
     row.className = "notes-card-activity-tool-meta";
-    row.innerHTML = `<span class="notes-card-activity-tool-meta-k">详情</span>`;
+    row.innerHTML = `<span class="notes-card-activity-tool-meta-k">${shellT("notes.activity.detail")}</span>`;
     const v = document.createElement("pre");
     v.className = "notes-card-activity-tool-meta-v notes-card-activity-tool-detail";
     v.textContent = detail;
@@ -424,19 +419,19 @@ export function buildMcpActivityEl(
   head.className = "notes-card-activity-head";
   const round =
     activity.round != null && activity.max_rounds != null
-      ? `回合 ${activity.round}/${activity.max_rounds}`
+      ? `${shellT("notes.activity.round", { n: `${activity.round}/${activity.max_rounds}` })}`
       : activity.round != null
-        ? `回合 ${activity.round}`
+        ? shellT("notes.activity.round", { n: String(activity.round) })
         : "";
   const waited =
     !completed &&
     activity.waited_secs != null &&
     activity.waited_secs > 0
-      ? `已等待 ${activity.waited_secs}s`
+      ? shellT("notes.activity.waited", { n: String(activity.waited_secs) })
       : "";
-  const phase = completed ? "已完成" : phaseLabel(activity.phase, statusText);
+  const phase = completed ? shellT("notes.activity.done") : phaseLabel(activity.phase, statusText);
   const bits = [round, phase, waited].filter(Boolean);
-  head.textContent = bits.join(" · ") || (completed ? "MCP 活动" : "MCP 活动…");
+  head.textContent = bits.join(" · ") || (completed ? shellT("notes.activity.panel") : shellT("notes.activity.panel"));
   root.appendChild(head);
 
   const body = document.createElement("div");
@@ -453,7 +448,7 @@ export function buildMcpActivityEl(
     if (rounds.length > 1) {
       const lab = document.createElement("div");
       lab.className = "notes-card-activity-round-lab";
-      lab.textContent = `第 ${slice.index} 轮`;
+      lab.textContent = shellT("notes.activity.round", { n: String(slice.index) });
       block.appendChild(lab);
     }
 
@@ -471,7 +466,7 @@ export function buildMcpActivityEl(
       const defaultOpen = completed ? !long : isLiveThink || !long;
       const details = makeDetails(
         thinkKey,
-        `思考（${slice.thinking.length} 字）`,
+        shellT("notes.activity.thinking"),
         resolveOpen(thinkKey, opts, defaultOpen),
         "notes-card-activity-think"
       );
@@ -489,7 +484,7 @@ export function buildMcpActivityEl(
       const defaultOpen = !completed || anyRunning || g.tools.length <= 6;
       const details = makeDetails(
         gKey,
-        `${bucketLabel(g.bucket)} · ${bucketLabelZh(g.bucket)}（${g.tools.length}）`,
+        `${bucketLabel(g.bucket)}（${g.tools.length}）`,
         resolveOpen(gKey, opts, defaultOpen),
         `notes-card-activity-bucket notes-card-activity-bucket-${g.bucket}`
       );

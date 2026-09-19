@@ -5,6 +5,8 @@
  * - WebView 上需自管 Alt，避免进系统菜单
  */
 
+import { getPlaybackPrefs } from "./playback_prefs";
+
 export const DAY_MS = 86_400_000;
 /** 最小视窗：可放到毫秒级刻度（同仪表盘） */
 export const MIN_VIEW_SPAN_MS = 80;
@@ -21,21 +23,8 @@ export const ZOOM_FRICTION = 20;
 export const LONG_PRESS_MS = 100;
 export const CLICK_SLOP_PX = 6;
 
-/** 与仪表盘 alt-zoom-pct 同 key，避免两套步进 */
-const ALT_ZOOM_STORAGE = "omnitrace.dash.viewPrefs";
-
-export function readAltZoomStepPct(fallback = 8): number {
-  try {
-    const raw = localStorage.getItem(ALT_ZOOM_STORAGE);
-    if (!raw) return fallback;
-    const p = JSON.parse(raw) as { altZoomStepPct?: number };
-    if (p.altZoomStepPct != null && Number.isFinite(p.altZoomStepPct)) {
-      return Math.max(1, Math.min(50, Math.round(p.altZoomStepPct)));
-    }
-  } catch {
-    /* ignore */
-  }
-  return fallback;
+export function readAltZoomStepPct(): number {
+  return getPlaybackPrefs().timelineZoomPct;
 }
 
 export type TimeView = { start: number; end: number };
@@ -179,7 +168,8 @@ export function handleTimeAxisWheel(
   );
   const view = opts.getView();
   const span = Math.max(1, view.end - view.start);
-  const stepPct = opts.altZoomStepPct ?? readAltZoomStepPct();
+  const prefs = getPlaybackPrefs();
+  const stepPct = opts.altZoomStepPct ?? prefs.timelineZoomPct;
   const wantZoom = opts.altHeld || e.altKey || e.ctrlKey || e.metaKey;
 
   if (wantZoom) {
@@ -189,14 +179,23 @@ export function handleTimeAxisWheel(
     const ratio = Math.min(0.8, (absD / 100) * (stepPct / 100));
     const factor = dir < 0 ? 1 / (1 + ratio) : 1 + ratio;
     opts.setView(applyZoomFactor(view, factor, frac));
-    opts.inertia.zoomVel += dir * ratio * 8;
-    kickInertia(opts.inertia, opts.getView, opts.setView, opts.onFrame, opts.onIdle);
+    if (prefs.inertia) {
+      opts.inertia.zoomVel += dir * ratio * 8;
+      kickInertia(opts.inertia, opts.getView, opts.setView, opts.onFrame, opts.onIdle);
+    } else {
+      opts.onFrame();
+    }
   } else {
-    const dFrac = (dy / 100) * 0.035;
+    const panFrac = Math.max(0.005, prefs.timelinePanPct / 100);
+    const dFrac = (dy / 100) * panFrac;
     const delta = span * dFrac;
     opts.setView(applyPanDelta(view, delta));
-    opts.inertia.panVel += delta * 0.08;
-    kickInertia(opts.inertia, opts.getView, opts.setView, opts.onFrame, opts.onIdle);
+    if (prefs.inertia) {
+      opts.inertia.panVel += delta * 0.08;
+      kickInertia(opts.inertia, opts.getView, opts.setView, opts.onFrame, opts.onIdle);
+    } else {
+      opts.onFrame();
+    }
   }
   return true;
 }

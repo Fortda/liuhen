@@ -5,14 +5,20 @@
   在这台电脑上记录和回放你用过的窗口、鼠标和键盘，并带本机笔记。
   数据只存在这台电脑上，不会上传。
 
-推荐：安装到本机
-  1. 解压整个文件夹（不要只拿出一个 exe）
-  2. 双击「安装到本机.bat」
-  3. 用桌面上的 OmniTrace 打开
+推荐：setup.exe
+  从 GitHub Releases 下载 OmniTrace-…-windows-x64-setup.exe。
+  下一步、下一步。默认装到 %LOCALAPPDATA%\OmniTrace（当前用户，一般不用管理员）。
+  桌面和开始菜单会有快捷方式。
 
   程序位置：%LOCALAPPDATA%\OmniTrace
   数据位置：%USERPROFILE%\OmniTrace\OmniDatabase
   卸载（Windows 设置 → 应用 → OmniTrace）不会删除数据。
+
+若你拿的是 zip
+  1. 解压整个文件夹（不要只拿出一个 exe）
+  2. 双击「安装到本机.bat」
+  3. 用桌面上的 OmniTrace 打开
+  效果和 setup.exe 相同。
 
 也可以不安装
   双击「启动 OmniPlayer.bat」。
@@ -36,11 +42,15 @@ What this is
   Capture and replay windows, mouse, and keyboard on this PC, plus local notes.
   Data stays on this computer. Nothing is uploaded.
 
-Install (recommended)
-  Unzip the whole folder, then run 安装到本机.bat (Install on this PC).
+Recommended: setup.exe
+  Download OmniTrace-…-windows-x64-setup.exe from GitHub Releases.
+  Next, Next, Next. Default: %LOCALAPPDATA%\OmniTrace (per-user, usually no admin).
   App: %LOCALAPPDATA%\OmniTrace
   Data: %USERPROFILE%\OmniTrace\OmniDatabase
   Uninstalling the app does not delete your data.
+
+If you have the zip
+  Unzip the whole folder, then run 安装到本机.bat (Install on this PC).
 
 Run without installing
   Double-click 启动 OmniPlayer.bat. Data goes under your user folder

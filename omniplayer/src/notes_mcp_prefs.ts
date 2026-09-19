@@ -155,13 +155,20 @@ export function enabledMcpServerIds(): string[] {
   return mcpPrefs.servers.filter((s) => s.enabled).map((s) => s.id);
 }
 
-export function mcpTurnOpts(): {
+export function mcpTurnOpts(extra?: {
+  viewingClueBoard?: boolean;
+  activeBoardId?: string | null;
+}): {
   inject_product_context: boolean;
   enabled_server_ids: string[];
+  viewing_clue_board: boolean;
+  active_board_id: string | null;
 } {
   return {
     inject_product_context: mcpPrefs.inject_product_context,
     enabled_server_ids: enabledMcpServerIds(),
+    viewing_clue_board: Boolean(extra?.viewingClueBoard),
+    active_board_id: extra?.activeBoardId?.trim() || null,
   };
 }
 

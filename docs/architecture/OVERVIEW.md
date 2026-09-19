@@ -28,7 +28,7 @@ OmniPlayer (Tauri 单实例) ──recorder_ctl──► omnitrace_input.exe (�
         └── notes ──llm_sidecar──► LiteLLM (:4000)
 ```
 
-- **稳定版入口**：`%LOCALAPPDATA%\OmniTrace\OmniPlayer.exe`；旁路 `data_root.json` 指数据根。开发机 `-Install` 指仓库 `OmniDatabase/`。公开 zip（GitHub Release Assets：`OmniTrace-*-windows-x64.zip`）含壳 + 采集 exe，**不含**库、不含打包机 `data_root.json`；`安装到本机.bat` 写指针到 `%USERPROFILE%\OmniTrace\OmniDatabase`。无指针时 candidate 仍认仓库/已有库（含用户目录与旧的下载目录路径），否则新库落用户目录。壳一律 `resolve_data_root`；禁止 cwd 相对另起空库。正式包须 `custom-protocol`（`package.ps1` 校验）。增量只换 exe（`incoming\` / 关于更新）；绝不改 `OmniDatabase`。安装脚本：zip 内 `安装到本机.bat`；开发机 `omniplayer/package.ps1 -Install` / `scripts/install-stable.ps1`。
+- **稳定版入口**：`%LOCALAPPDATA%\OmniTrace\OmniPlayer.exe`；旁路 `data_root.json` 指数据根。**设置页可改数据存放位置**（写 exe 旁同一指针，不搬移已有库；采集运行中拒绝改）；该开关只在设置。开发机 `-Install` 指仓库 `OmniDatabase/`。公开 **setup.exe**（`OmniTrace-*-windows-x64-setup.exe`）= 每用户向导（默认 `%LOCALAPPDATA%\OmniTrace`、HKCU 卸载、桌面/开始菜单快捷方式）+ 壳与采集 exe + 写指针到 `%USERPROFILE%\OmniTrace\OmniDatabase`；**包内仍无库**。zip 仍提供（同内容便携位 + `安装到本机.bat`）。无指针时 candidate 仍认仓库/已有库（含用户目录与旧的下载目录路径），否则新库落用户目录。壳一律 `resolve_data_root`；禁止 cwd 相对另起空库。正式包须 `custom-protocol`（`package.ps1` 校验）。增量只换 exe（`incoming\` / 关于更新）；绝不改 `OmniDatabase`。安装：朋友用 setup.exe；zip 内 `安装到本机.bat`；开发机 `omniplayer/package.ps1 -Install` / `scripts/install-stable.ps1`。卸载只删程序目录，不删用户库。
 - **开发**：`scripts/run-app.bat` 或 `cd omniplayer && npm run tauri dev`。笔记快捷：`scripts/run-app.bat --page=notes`。
 - **CLI**：`--page=notes|settings|player|dashboard`；`notes` 时另开 `label=notes` WebView。
 - **笔记 XOR 摘窗**：嵌主窗或独立窗，禁止双开同编；摘出/关窗/收回前 `flushNotesPersist`。
@@ -127,7 +127,7 @@ OmniPlayer (Tauri 单实例) ──recorder_ctl──► omnitrace_input.exe (�
 
 | 页 | 职责 |
 |----|------|
-| 设置 | **唯一** WinRecorder 开关 + 自启 + 外观；**模型服务商在设置子页，Lobe 式左列表右详情**（不在笔记主界面并排）；默认落地页 |
+| 设置 | **唯一** WinRecorder 开关 + 自启 + 数据存放位置 + 外观；**模型服务商在设置子页，Lobe 式左列表右详情**（不在笔记主界面并排）；**播放/时间轴滚动缩放在设置子页**（`localStorage omnitrace.playback.v1`）；**对话存档 AI 命名在设置首页**；默认落地页 |
 | 播放器 | 直播/点播、舞台、底栏时间轴（点日段载入） |
 | 仪表盘 | 运作轴 / 统计 / 动态 / 睡眠 / 运行状态；可 `seekPlayerToTs` |
 | 笔记 | 流式笔记 / 线索板 / 时间轴；MCP 白名单非 coding agent。**细节** → [notes.md](notes.md) |
@@ -147,7 +147,7 @@ OmniPlayer (Tauri 单实例) ──recorder_ctl──► omnitrace_input.exe (�
 ### 5.3 播放器不变量（`player.ts`）
 
 - 冷启动可交互；bin 赶进度在 Rust（共享读；种子禁 `Date.now()`）。**黄条/可播 = 物理流解码区间**（非 jsonl endTime）。
-- 离开播放器页 **不**清跨日内存缓存。时间轴：rAF 合并重画；**平移仅滚轮**（Alt/Ctrl 缩放 + 摩擦惯性）；针可 scrub；无舞台长按拖移。
+- 离开播放器页 **不**清跨日内存缓存。时间轴：rAF 合并重画；**平移仅滚轮**（Alt/Ctrl 缩放 + 摩擦惯性）；针可 scrub；无舞台长按拖移。滚轮步进/缩放灵敏度由设置子页控制（`omnitrace.playback.v1`，默认比旧硬编码更小）。
 - 时间显示 = 当日 00:00 起的日内钟。倍速 1…2048× / 自定义；**直播禁用倍速**。
 - **直播** = 今日 path + offset **tail**；缺壁纸/display 时当日全文再向前最多 14 日粘性；`day_roll` 写新日文件。
 - 无数据 / 追赶中 / 针在缓存外 → **纯黑屏**。

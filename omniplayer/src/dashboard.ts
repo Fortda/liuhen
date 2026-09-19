@@ -18,6 +18,11 @@ import { buildTimeTicks, tickLabelCursor } from "./time_axis";
 import { LANE_PX_MIN } from "./lod_band";
 import { runHeavyIpc } from "./heavy_ipc";
 import {
+  getPlaybackPrefs,
+  PLAYBACK_PREFS_EVENT,
+  setPlaybackPrefs,
+} from "./playback_prefs";
+import {
   buildStatusChartsHtml,
   fetchStatusCharts,
   paintStatusCharts,
@@ -213,8 +218,8 @@ const HIST_H_MIN = 52;
 const HIST_H_MAX = 240;
 /** 柱图区高度（Shift+滚轮在柱图上可调） */
 let histHeightPx = 96;
-/** Alt+滚轮：单次相对观察窗跨度变化百分比（与刻度规则无关） */
-let altZoomStepPct = 8;
+/** Alt+滚轮：单次相对观察窗跨度变化百分比（与设置子页同一偏好） */
+let altZoomStepPct = getPlaybackPrefs().timelineZoomPct;
 
 /** 性能实验：分段计时回调（null=关闭） */
 let perfCollect: ((name: string, ms: number) => void) | null = null;
@@ -1862,21 +1867,32 @@ function bindHealthInteractions() {
       else if (e.deltaMode === 2) dy *= 300;
 
       if (e.altKey) {
-        // 放大/缩小：由 Alt 滚轮方向和物理幅度决定，无限制截断
+        // 放大/缩小：由 Alt 滚轮方向和物理幅度决定
+        const prefs = getPlaybackPrefs();
         zoomAnchorFrac = frac;
         const dir = dy < 0 ? -1 : 1;
         const absD = Math.abs(dy);
-        const ratio = Math.min(0.8, (absD / 100) * (altZoomStepPct / 100));
+        const stepPct = prefs.timelineZoomPct;
+        const ratio = Math.min(0.8, (absD / 100) * (stepPct / 100));
         const factor = dir < 0 ? 1 / (1 + ratio) : 1 + ratio;
         applyZoomFactor(factor, frac);
-        zoomVel += dir * ratio * 8;
-        kickInertia();
+        if (prefs.inertia) {
+          zoomVel += dir * ratio * 8;
+          kickInertia();
+        } else {
+          redrawHealthFromCache();
+        }
       } else {
-        // 平移：线性比例，每一格滚轮精准对应位移，不截断速级
-        const dFrac = (dy / 100) * 0.035;
+        const prefs = getPlaybackPrefs();
+        const panFrac = Math.max(0.005, prefs.timelinePanPct / 100);
+        const dFrac = (dy / 100) * panFrac;
         applyPanDelta(span * dFrac);
-        panVel += span * dFrac * 0.08;
-        kickInertia();
+        if (prefs.inertia) {
+          panVel += span * dFrac * 0.08;
+          kickInertia();
+        } else {
+          redrawHealthFromCache();
+        }
       }
     },
     { passive: false }
@@ -2640,7 +2656,7 @@ function applyStatsReport(
         <summary>落盘摘要（今日模组 JSONL 行数 · 不含键鼠 bin）</summary>
         <p class="muted" style="margin:8px 0 0">一条 = 当日 events_DD.jsonl 一行 ModuleEvent，不按 kind 过滤。input 的键鼠物理流在 EventData bin，见上方键鼠累计。</p>
         <div class="stat-cards" style="margin-top:12px">
-          <div class="stat-card"><div class="k">数据根</div><div class="v mono">${escapeHtml(s.data_root)}</div></div>
+          <div class="stat-card"><div class="k">数据存放位置</div><div class="v mono">${escapeHtml(s.data_root)}</div></div>
           <div class="stat-card"><div class="k">今日键鼠 bin</div><div class="v">${formatBytes(binBytes)}</div></div>
           <div class="stat-card"><div class="k">今日键鼠次数</div><div class="v">鼠标 ${formatCount(todayMouse)} · 键盘 ${formatCount(todayKey)}</div></div>
           <div class="stat-card"><div class="k">今日健康心跳</div><div class="v">${formatCount(Number(s.today?.health_events) || 0)} <span class="muted">/ 累计 ${formatCount(Number(s.today?.health_events_total ?? vol.health_events) || 0)}</span></div></div>
@@ -2866,30 +2882,8 @@ function escapeHtml(s: string) {
     .replace(/"/g, "&quot;");
 }
 
-const TICK_LOD_STORAGE_KEY = "omnitrace.dash.viewPrefs";
-
-type StoredViewPrefs = {
-  altZoomStepPct?: number;
-};
-
-function loadStoredViewPrefs(): StoredViewPrefs {
-  try {
-    const raw = localStorage.getItem(TICK_LOD_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as StoredViewPrefs;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
 function saveStoredViewPrefs() {
-  try {
-    const payload: StoredViewPrefs = { altZoomStepPct };
-    localStorage.setItem(TICK_LOD_STORAGE_KEY, JSON.stringify(payload));
-  } catch {
-    /* ignore quota / private mode */
-  }
+  setPlaybackPrefs({ timelineZoomPct: altZoomStepPct });
 }
 
 function syncTickLodInputs() {
@@ -2900,10 +2894,7 @@ function syncTickLodInputs() {
 }
 
 function bindTickLodPanel() {
-  const stored = loadStoredViewPrefs();
-  if (stored.altZoomStepPct != null && Number.isFinite(stored.altZoomStepPct)) {
-    altZoomStepPct = Math.max(1, Math.min(50, Math.round(stored.altZoomStepPct)));
-  }
+  altZoomStepPct = getPlaybackPrefs().timelineZoomPct;
 
   const apply = () => {
     const zoomEl = $("alt-zoom-pct") as HTMLInputElement | null;
@@ -2921,6 +2912,10 @@ function bindTickLodPanel() {
       (e.target as HTMLElement).blur();
       apply();
     }
+  });
+  window.addEventListener(PLAYBACK_PREFS_EVENT, () => {
+    altZoomStepPct = getPlaybackPrefs().timelineZoomPct;
+    syncTickLodInputs();
   });
   syncTickLodInputs();
 }
@@ -2977,6 +2972,9 @@ export function initDashboard() {
         void renderStatusCharts();
       }
     }
+  });
+  window.addEventListener("omnitrace-data-root", () => {
+    if (dashPanel === "stats") void renderStats({ force: true });
   });
 }
 

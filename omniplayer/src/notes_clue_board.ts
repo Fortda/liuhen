@@ -372,6 +372,21 @@ function boardListEl(): HTMLElement | null {
 }
 
 let boardListMenuEl: HTMLDivElement | null = null;
+let boardListMultiMode = false;
+const selectedBoardIds = new Set<string>();
+
+function setBoardListMultiMode(on: boolean) {
+  boardListMultiMode = on;
+  document.body.classList.toggle("clue-board-multiselect", on);
+  if (!on) selectedBoardIds.clear();
+  renderBoardList();
+}
+
+function toggleBoardListSelection(id: string) {
+  if (selectedBoardIds.has(id)) selectedBoardIds.delete(id);
+  else selectedBoardIds.add(id);
+  renderBoardList();
+}
 
 function hideBoardListMenu() {
   const el = boardListMenuEl;
@@ -385,6 +400,10 @@ function showBoardListMenu(clientX: number, clientY: number, board: ClueBoard) {
   hideBoardListMenu();
   hideClueContextMenu();
   hideGroupMetaPopover();
+  if (boardListMultiMode && !selectedBoardIds.has(board.id)) {
+    selectedBoardIds.add(board.id);
+    renderBoardList();
+  }
   const menu = document.createElement("div");
   menu.className = "omni-float notes-preset-ctx-menu";
   menu.setAttribute("role", "menu");
@@ -407,7 +426,41 @@ function showBoardListMenu(clientX: number, clientY: number, board: ClueBoard) {
   });
   menu.appendChild(detailsBtn);
 
-  if (boards.length > 1) {
+  const multiBtn = document.createElement("button");
+  multiBtn.type = "button";
+  multiBtn.className = "notes-preset-ctx-item";
+  multiBtn.setAttribute("role", "menuitem");
+  multiBtn.textContent = boardListMultiMode
+    ? shellT("notes.clue.boards.multiSelectOff")
+    : shellT("notes.clue.boards.multiSelect");
+  multiBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    hideBoardListMenu();
+    if (boardListMultiMode) {
+      setBoardListMultiMode(false);
+    } else {
+      selectedBoardIds.add(board.id);
+      setBoardListMultiMode(true);
+    }
+  });
+  menu.appendChild(multiBtn);
+
+  const selectedCount = selectedBoardIds.size;
+  const canDeleteMany =
+    boardListMultiMode && selectedCount > 0 && boards.length > 1;
+  if (canDeleteMany) {
+    const delSel = document.createElement("button");
+    delSel.type = "button";
+    delSel.className = "notes-preset-ctx-item is-danger";
+    delSel.setAttribute("role", "menuitem");
+    delSel.textContent = shellT("notes.clue.boards.deleteSelected");
+    delSel.addEventListener("click", (e) => {
+      e.stopPropagation();
+      hideBoardListMenu();
+      void deleteSelectedBoards();
+    });
+    menu.appendChild(delSel);
+  } else if (boards.length > 1) {
     const delBtn = document.createElement("button");
     delBtn.type = "button";
     delBtn.className = "notes-preset-ctx-item is-danger";
@@ -448,6 +501,13 @@ function renderBoardList() {
     item.setAttribute("aria-selected", board.id === activeBoardId ? "true" : "false");
     item.title = shellT("notes.clue.boards.renameHint");
     item.classList.toggle("is-active", board.id === activeBoardId);
+    const checked = selectedBoardIds.has(board.id);
+    item.classList.toggle("is-checked", checked);
+
+    const check = document.createElement("span");
+    check.className = "notes-clue-board-item-check";
+    check.setAttribute("aria-hidden", "true");
+    item.appendChild(check);
 
     const name = document.createElement("span");
     name.className = "notes-clue-board-item-name";
@@ -549,6 +609,54 @@ async function deleteBoard(id: string) {
   renderBoardList();
 }
 
+async function deleteSelectedBoards() {
+  const ids = [...selectedBoardIds].filter((id) => boards.some((b) => b.id === id));
+  const keep = boards.length - ids.length;
+  if (ids.length === 0 || keep < 1) return;
+  if (
+    !window.confirm(
+      shellT("notes.clue.boards.deleteSelectedConfirm", { n: String(ids.length) })
+    )
+  ) {
+    return;
+  }
+  for (const id of ids) {
+    if (boards.length <= 1) break;
+    if (activeBoardId === id) flushTextHistoryTimer();
+    await flushSave();
+    clearClueHistoryBoard(id);
+    try {
+      await invoke("notes_clue_history_delete", { boardId: id });
+    } catch {
+      /* ignore */
+    }
+    try {
+      const saved = await invoke<ClueBoardsFile>("notes_clue_board_delete", {
+        boardId: id,
+      });
+      if (saved?.boards) {
+        boards = saved.boards;
+        activeBoardId = saved.active_id || boards[0]?.id || "";
+      } else {
+        boards = boards.filter((b) => b.id !== id);
+      }
+    } catch (e) {
+      console.error(e);
+      showHint(t("删除失败", "Delete failed"));
+      break;
+    }
+  }
+  selectedBoardIds.clear();
+  setBoardListMultiMode(false);
+  const next = boards.find((b) => b.id === activeBoardId) ?? boards[0];
+  if (next) {
+    activeBoardId = next.id;
+    applyBoardData(next);
+    await setClueHistoryBoard(activeBoardId, currentClueSnapshot());
+  }
+  renderBoardList();
+}
+
 function beginRenameBoard(id: string, item: HTMLElement) {
   const board = boards.find((b) => b.id === id);
   if (!board) return;
@@ -591,6 +699,21 @@ function onBoardListClick(e: MouseEvent) {
   ) as HTMLElement | null;
   const id = item?.dataset.boardId;
   if (!id) return;
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    if (!boardListMultiMode) {
+      selectedBoardIds.add(activeBoardId);
+      if (id !== activeBoardId) selectedBoardIds.add(id);
+      setBoardListMultiMode(true);
+      return;
+    }
+    toggleBoardListSelection(id);
+    return;
+  }
+  if (boardListMultiMode) {
+    toggleBoardListSelection(id);
+    return;
+  }
   void switchBoard(id);
 }
 

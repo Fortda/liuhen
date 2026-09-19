@@ -1,8 +1,8 @@
 # OmniTrace Android
 
-自用边载采集 APK。契约见仓库 [`docs/architecture/OVERVIEW.md`](../docs/architecture/OVERVIEW.md) §8 与 [`docs/architecture/android.md`](../docs/architecture/android.md)。
+自用边载采集 APK。**当前几乎没法用**（大量 bug），不是能日常装的产品。契约见仓库 [`docs/architecture/OVERVIEW.md`](../docs/architecture/OVERVIEW.md) §8 与 [`docs/architecture/android.md`](../docs/architecture/android.md)。
 
-本期 **不进 Windows OmniPlayer**。不录麦克风 PCM、不录相机预览。
+本期 **不进 Windows OmniPlayer**。打算以后本机局域网和电脑联动。不录麦克风 PCM、不录相机预览。
 
 App 底栏三页：**设置**（分组卡片：采集、开机自启/后台常驻、外观、权限、数据；地图资源另页）、**播放器**（选日回放地图+时间轴）、**仪表盘**（全屏时间轴/行踪等）。底图可选 CARTO/OSM（WGS84）或高德（GCJ-02）；放大未下载的城会先问体积。
 

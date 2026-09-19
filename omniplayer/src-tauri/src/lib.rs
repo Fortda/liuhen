@@ -183,6 +183,18 @@ pub(crate) fn current_exe_dir() -> Option<PathBuf> {
         .and_then(|p| p.parent().map(|d| d.to_path_buf()))
 }
 
+fn path_for_pointer(p: &Path) -> PathBuf {
+    let raw = p.canonicalize().unwrap_or_else(|_| p.to_path_buf());
+    let s = raw.to_string_lossy();
+    #[cfg(windows)]
+    {
+        let t = s.strip_prefix(r"\\?\").unwrap_or(s.as_ref());
+        return PathBuf::from(t);
+    }
+    #[cfg(not(windows))]
+    PathBuf::from(s.as_ref())
+}
+
 /// 稳定版安装根旁的指针：`{ "path": "<OmniDatabase 绝对路径>" }`。
 pub(crate) fn read_install_data_root_pointer() -> Option<PathBuf> {
     let dir = current_exe_dir()?;
@@ -194,6 +206,39 @@ pub(crate) fn read_install_data_root_pointer() -> Option<PathBuf> {
         return None;
     }
     Some(PathBuf::from(path))
+}
+
+pub(crate) fn write_install_data_root_pointer(path: &Path) -> Result<(), String> {
+    let dir = current_exe_dir().ok_or_else(|| "NO_EXE_DIR".to_string())?;
+    let file = dir.join("data_root.json");
+    let body = serde_json::json!({ "path": path.to_string_lossy() }).to_string();
+    std::fs::write(&file, body).map_err(|e| format!("WRITE_POINTER:{e}"))?;
+    Ok(())
+}
+
+/// 用户在设置里选中的目录：已是库则用之；否则在其下使用/创建 `OmniDatabase`。
+fn normalize_chosen_data_root(picked: &Path) -> Result<PathBuf, String> {
+    if picked.as_os_str().is_empty() {
+        return Err("EMPTY_PATH".into());
+    }
+    if looks_like_db(picked) {
+        return Ok(path_for_pointer(picked));
+    }
+    let nested = picked.join("OmniDatabase");
+    if looks_like_db(&nested) {
+        return Ok(path_for_pointer(&nested));
+    }
+    let name = picked
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+    let target = if name.eq_ignore_ascii_case("OmniDatabase") {
+        picked.to_path_buf()
+    } else {
+        nested
+    };
+    std::fs::create_dir_all(&target).map_err(|e| format!("CREATE_DIR:{e}"))?;
+    Ok(path_for_pointer(&target))
 }
 
 /// 开发时优先找仓库 OmniDatabase；稳定版先读 exe 旁指针；公开 zip 回落到用户目录。
@@ -262,6 +307,31 @@ pub(crate) fn resolve_data_root() -> PathBuf {
 #[tauri::command]
 fn get_data_root() -> String {
     resolve_data_root().to_string_lossy().into_owned()
+}
+
+/// 设置页改数据存放位置：写 exe 旁 `data_root.json`，不搬移已有库。采集运行中拒绝。
+#[tauri::command]
+fn set_data_root(path: String) -> Result<String, String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("EMPTY_PATH".into());
+    }
+    if std::env::var("OMNITRACE_DATA")
+        .ok()
+        .is_some_and(|s| !s.trim().is_empty())
+    {
+        return Err("ENV_OVERRIDE".into());
+    }
+    if recorder_ctl::recorder_status().running {
+        return Err("RECORDER_RUNNING".into());
+    }
+    let chosen = normalize_chosen_data_root(Path::new(trimmed))?;
+    write_install_data_root_pointer(&chosen)?;
+    // 开机自启快捷方式的工作目录是当时的数据根上一级；改位置后重写，避免登录后仍写进旧库。
+    if recorder_ctl::recorder_status().autostart {
+        let _ = recorder_ctl::autostart_set(true);
+    }
+    Ok(resolve_data_root().to_string_lossy().into_owned())
 }
 
 #[tauri::command]
@@ -714,6 +784,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_data_root,
+            set_data_root,
             find_today_traces,
             list_recordings,
             read_trace_file,

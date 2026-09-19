@@ -24,6 +24,7 @@ import {
   type ModuleEvent,
 } from "./modules";
 import { cancelPlayerHeavyIpc, runHeavyIpc } from "./heavy_ipc";
+import { getPlaybackPrefs } from "./playback_prefs";
 
 export type RecordingDay = {
   date: string;
@@ -1018,21 +1019,32 @@ function bindPlayerTimelineFx() {
     const span = Math.max(1, tlViewEnd - tlViewStart);
     const frac = Math.min(1, Math.max(0, x / cssW));
     // Alt（自管）或 Ctrl：缩放；裸滚轮：平移
+    const prefs = getPlaybackPrefs();
     const wantZoom = altZoomHeld || e.altKey || e.ctrlKey || e.metaKey;
     if (wantZoom) {
-      const factor = e.deltaY < 0 ? 0.85 : 1.18;
+      const ratio = Math.max(0.01, prefs.playerZoomPct / 100);
+      const factor = e.deltaY < 0 ? 1 / (1 + ratio) : 1 + ratio;
       applyTlZoomFactor(factor, frac);
       tlZoomAnchorFrac = frac;
-      const ln = Math.log(factor);
-      tlZoomVel += ln * 0.55;
-      kickTlInertia();
+      if (prefs.inertia) {
+        const ln = Math.log(factor);
+        tlZoomVel += ln * 0.55;
+        kickTlInertia();
+      } else {
+        drawPlayerTimeline();
+      }
     } else {
       const dir = e.deltaY > 0 ? 1 : -1;
       const notches = Math.max(1, Math.min(3, Math.round(Math.abs(e.deltaY) / 100)));
-      const delta = span * 0.08 * dir * notches;
+      const panFrac = Math.max(0.005, prefs.playerPanPct / 100);
+      const delta = span * panFrac * dir * notches;
       applyTlPanDelta(delta);
-      tlPanVel += delta * 0.08;
-      kickTlInertia();
+      if (prefs.inertia) {
+        tlPanVel += delta * 0.08;
+        kickTlInertia();
+      } else {
+        drawPlayerTimeline();
+      }
     }
   };
   window.addEventListener("wheel", onWheel, { passive: false, capture: true });
@@ -3008,6 +3020,12 @@ export function initPlayer(appWin: {
     .catch(() => {
       defaultDataRoot = "";
     });
+  window.addEventListener("omnitrace-data-root", ((ev: Event) => {
+    const path = (ev as CustomEvent<string>).detail;
+    defaultDataRoot = typeof path === "string" && path ? path : "";
+    lastPlaylistRefreshedAt = 0;
+    if (isPlayerPageActive()) void refreshPlaylist(true);
+  }) as EventListener);
   void refreshSystemCursorSize();
 
   window.addEventListener("resize", () => {

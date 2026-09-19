@@ -5,16 +5,19 @@ Assets for the public README.
 | File | What |
 |------|------|
 | `icon.png` | App icon (from `omniplayer/src-tauri/icons/icon.png`) |
-| `settings.png` | Settings |
-| `player.png` | Player (live replay) |
+| `settings.png` | Settings (WinRecorder, autostart, data path, appearance) |
+| `player.png` | Player (live replay and timeline) |
 | `dashboard-timeline.png` | Dashboard · activity timeline |
-| `dashboard-stats.png` | Dashboard · stats |
+| `dashboard-stats.png` | Dashboard · stats overview |
+| `dashboard-stats-keys.png` | Dashboard · keyboard key frequency |
 | `dashboard-status.png` | Dashboard · machine status |
 | `dashboard-sleep.png` | Dashboard · sleep guess |
-| `omniplayer-notes.jpg` | Streaming notes with DSML tool calls, clue board, and MCP tool picker |
-| `notes.png` | Streaming notes and protocol log |
-| `notes-clue.jpg` | Clue board |
-| `notes-timeline.png` | Notes timeline |
+| `omniplayer-notes.png` | Streaming notes: chat, tool calls, cost, and protocol log |
+| `notes-mcp.png` | Streaming notes · MCP tool picker |
+| `notes-models.png` | Streaming notes · model list and pricing |
+| `notes-params.png` | Streaming notes · per-model parameters |
+| `notes-clue.jpg` | Clue board (older shot; no new HD source yet) |
+| `notes-timeline.png` | Notes timeline (older shot; no new HD source yet) |
 | `omniplayer-chrome.svg` | Four-tab **schematic** (not used on README now that real shots exist) |
 | `omniplayer-tabs.svg` | Tiny tab-pill schematic |
 

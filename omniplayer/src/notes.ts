@@ -112,6 +112,7 @@ import {
 import {
   enterClueBoardMode,
   flushClueBoardSave,
+  getActiveClueBoardId,
   initClueBoard,
   isClueAppsHosted,
   leaveClueBoardMode,
@@ -2278,7 +2279,10 @@ async function handleSend() {
       {
         ...turnOpts,
         wire_context: wireContext,
-        mcp: mcpTurnOpts(),
+        mcp: mcpTurnOpts({
+          viewingClueBoard: notesMode === "clue",
+          activeBoardId: notesMode === "clue" ? getActiveClueBoardId() : null,
+        }),
         image_paths: imagePaths,
         user_glyphs: userGlyphs.length ? userGlyphs : undefined,
       },
@@ -2334,6 +2338,7 @@ export function initNotes() {
       syncComposerHint();
       applyHideNonGreenFilter();
     },
+    getModelKey: () => currentModelKey,
   });
   initClueBoard();
   initNotesTimeline({

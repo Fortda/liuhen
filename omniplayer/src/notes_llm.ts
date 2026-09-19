@@ -148,12 +148,14 @@ export async function deleteWirePreset(presetId: string): Promise<WirePresetsFil
   return invoke<WirePresetsFile>("notes_wire_presets_delete", { presetId });
 }
 
+export type SuggestPresetMeta = { name: string; note: string };
+
 export async function suggestWirePresetNote(
   edges: string[][],
   cards: { id: string; text: string }[],
   modelKey?: string
-): Promise<string> {
-  return invoke<string>("notes_wire_preset_suggest_note", {
+): Promise<SuggestPresetMeta> {
+  return invoke<SuggestPresetMeta>("notes_wire_preset_suggest_note", {
     req: { edges, cards, model_key: modelKey || null },
   });
 }
@@ -174,6 +176,8 @@ export async function sendTurn(
     mcp?: {
       inject_product_context: boolean;
       enabled_server_ids: string[];
+      viewing_clue_board?: boolean;
+      active_board_id?: string | null;
     } | null;
     image_paths?: string[];
     user_glyphs?: Array<{

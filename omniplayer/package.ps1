@@ -146,6 +146,135 @@ function Publish-PortableZip([string]$Version) {
   Write-Host "  $zip"
 }
 
+function Resolve-Makensis {
+  $cmd = Get-Command makensis -ErrorAction SilentlyContinue
+  if ($cmd -and $cmd.Source) { return [string]$cmd.Source }
+  foreach ($p in @(
+      (Join-Path ${env:ProgramFiles(x86)} "NSIS\makensis.exe"),
+      (Join-Path $env:ProgramFiles "NSIS\makensis.exe"),
+      (Join-Path $env:LOCALAPPDATA "OmniTrace-build\nsis-3.10\makensis.exe"),
+      (Join-Path $env:LOCALAPPDATA "tauri\NSIS\makensis.exe")
+    )) {
+    if ($p -and (Test-Path -LiteralPath $p)) { return $p }
+  }
+
+  $tools = Join-Path $env:LOCALAPPDATA "OmniTrace-build"
+  $zip = Join-Path $tools "nsis-3.10.zip"
+  $out = Join-Path $tools "nsis-3.10"
+  New-Item -ItemType Directory -Force -Path $tools | Out-Null
+  Write-Host "Downloading portable NSIS 3.10 (build tool only, not shipped)..." -ForegroundColor Cyan
+  $urls = @(
+    "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.10/nsis-3.10.zip",
+    "https://sourceforge.net/projects/nsis/files/NSIS%203/3.10/nsis-3.10.zip/download"
+  )
+  $ok = $false
+  foreach ($url in $urls) {
+    try {
+      Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+      if ((Test-Path -LiteralPath $zip) -and ((Get-Item -LiteralPath $zip).Length -gt 1000000)) {
+        $ok = $true
+        break
+      }
+    } catch {}
+  }
+  if (-not $ok) {
+    if (Get-Command choco -ErrorAction SilentlyContinue) {
+      Write-Host "Trying choco install nsis..." -ForegroundColor Cyan
+      choco install nsis --yes --no-progress
+      $sys = Join-Path ${env:ProgramFiles(x86)} "NSIS\makensis.exe"
+      if (Test-Path -LiteralPath $sys) { return $sys }
+    }
+    Write-Error "makensis not found and NSIS download failed. Install NSIS 3 or add makensis to PATH."
+    exit 1
+  }
+  if (Test-Path -LiteralPath $out) {
+    Remove-Item -LiteralPath $out -Recurse -Force
+  }
+  Expand-Archive -LiteralPath $zip -DestinationPath $tools -Force
+  $found = Get-ChildItem -LiteralPath $tools -Recurse -Filter "makensis.exe" | Select-Object -First 1
+  if (-not $found) {
+    Write-Error "NSIS zip extracted but makensis.exe missing"
+    exit 1
+  }
+  return [string]$found.FullName
+}
+
+function Publish-SetupExe([string]$Version) {
+  $player = Join-Path $Dist "OmniPlayer.exe"
+  $rec = Join-Path $Dist "omnitrace_input.exe"
+  if (-not (Test-Path -LiteralPath $player)) {
+    Write-Error "setup.exe: OmniPlayer.exe missing under $Dist"
+    exit 1
+  }
+  if (-not (Test-Path -LiteralPath $rec)) {
+    Write-Error "setup.exe: omnitrace_input.exe missing — friend installer must include the recorder"
+    exit 1
+  }
+
+  $makensis = Resolve-Makensis
+  $nsi = Join-Path $Root "package\omnitrace.nsi"
+  $license = Join-Path $Repo "LICENSE"
+  if (-not (Test-Path -LiteralPath $nsi)) { Write-Error "missing $nsi"; exit 1 }
+  if (-not (Test-Path -LiteralPath $license)) { Write-Error "missing $license"; exit 1 }
+
+  # Stage on an ASCII path so makensis does not choke on the repo folder name.
+  $stage = Join-Path $env:LOCALAPPDATA "OmniTrace-build\setup-stage"
+  if (Test-Path -LiteralPath $stage) {
+    Remove-Item -LiteralPath $stage -Recurse -Force
+  }
+  New-Item -ItemType Directory -Force -Path $stage | Out-Null
+  foreach ($name in @(
+      "OmniPlayer.exe",
+      "omnitrace_input.exe",
+      "OmniTrace.ico",
+      "使用说明.txt",
+      "VERSION.txt",
+      "write-data-root.ps1"
+    )) {
+    $src = Join-Path $Dist $name
+    if (Test-Path -LiteralPath $src) {
+      Copy-Item -LiteralPath $src -Destination (Join-Path $stage $name) -Force
+    }
+  }
+  Copy-Item -LiteralPath $nsi -Destination (Join-Path $stage "omnitrace.nsi") -Force
+  Copy-Item -LiteralPath $license -Destination (Join-Path $stage "LICENSE") -Force
+  $icoSrc = Join-Path $Root "src-tauri\icons\icon.ico"
+  if (Test-Path -LiteralPath $icoSrc) {
+    Copy-Item -LiteralPath $icoSrc -Destination (Join-Path $stage "OmniTrace.ico") -Force
+  }
+  if (-not (Test-Path -LiteralPath (Join-Path $stage "write-data-root.ps1"))) {
+    Copy-Item -LiteralPath (Join-Path $Root "package\write-data-root.ps1") -Destination (Join-Path $stage "write-data-root.ps1") -Force
+  }
+
+  $setupName = "OmniTrace-" + $Version + "-windows-x64-setup.exe"
+  $setupOut = Join-Path $stage $setupName
+  $argOut = "/DOUTFILE=$setupName"
+  $argVer = "/DPRODUCT_VERSION=$Version"
+  $argLic = "/DLICENSE_FILE=LICENSE"
+  $argIco = "/DICON_FILE=OmniTrace.ico"
+  Push-Location $stage
+  try {
+    & $makensis /INPUTCHARSET UTF8 $argVer $argOut $argLic $argIco "omnitrace.nsi"
+    if ($LASTEXITCODE -ne 0) {
+      Write-Error "makensis exit $LASTEXITCODE"
+      exit 1
+    }
+  } finally {
+    Pop-Location
+  }
+  if (-not (Test-Path -LiteralPath $setupOut)) {
+    Write-Error "makensis did not write $setupOut"
+    exit 1
+  }
+
+  $distRoot = Join-Path $Repo "dist"
+  New-Item -ItemType Directory -Force -Path $distRoot | Out-Null
+  $final = Join-Path $distRoot $setupName
+  Copy-Item -LiteralPath $setupOut -Destination $final -Force
+  Write-Host "setup.exe (player + recorder, per-user):" -ForegroundColor Green
+  Write-Host "  $final"
+}
+
 if (-not $SkipBuild) {
   $env:CARGO_TARGET_DIR = Join-Path $Root "src-tauri\target"
 
@@ -227,24 +356,27 @@ Copy-Item $BuiltExe (Join-Path $Dist "OmniPlayer.exe") -Force
 if (Test-Path $RecorderExe) {
   Copy-Item $RecorderExe (Join-Path $Dist "omnitrace_input.exe") -Force
 } else {
-  Write-Warning "omnitrace_input.exe not found; packaged install cannot start capture without cargo"
+  Write-Error "omnitrace_input.exe not found; friend setup.exe and zip must include the recorder"
+  exit 1
 }
-Copy-Item (Join-Path $Root "package\*") $Dist -Force
+Get-ChildItem (Join-Path $Root "package") -File | Where-Object {
+  $_.Extension -ne ".nsi"
+} | ForEach-Object {
+  Copy-Item $_.FullName (Join-Path $Dist $_.Name) -Force
+}
 $ico = Join-Path $Root "src-tauri\icons\icon.ico"
 if (Test-Path $ico) {
   Copy-Item $ico (Join-Path $Dist "OmniTrace.ico") -Force
 }
 
-$BundleNsis = Join-Path $ReleaseDir "bundle\nsis"
-$installer = Get-ChildItem $BundleNsis -Filter "*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($installer) {
-  Copy-Item $installer.FullName (Join-Path $Dist "OmniPlayer_Setup.exe") -Force
-}
+# Friend installer is our Dist-based NSIS (player + recorder), not Tauri's player-only bundle.
 
 Write-Host ""
 Write-Host "portable folder:" -ForegroundColor Green
 Write-Host "  $Dist"
-Publish-PortableZip (Get-AppVersion)
+$appVer = Get-AppVersion
+Publish-PortableZip $appVer
+Publish-SetupExe $appVer
 
 if (-not $Install) {
   Write-Host "To install stable + desktop shortcut:  .\package.ps1 -Install  or  ..\scripts\install-stable.ps1"

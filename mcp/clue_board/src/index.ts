@@ -82,7 +82,7 @@ server.tool(
 
 server.tool(
   "clue_board_create_note",
-  "Add a sticky note (node) to a clue board. board_id must already exist — use clue_board_create_board first; do not invent ids.",
+  "Add a sticky note (node) to an existing clue board. Prefer an existing board_id from clue_board_list. Do not call clue_board_create_board first unless the user asked for a new board.",
   {
     board_id: boardIdSchema,
     text: z.string().optional().describe("Note text"),
@@ -119,7 +119,7 @@ server.tool(
 
 server.tool(
   "clue_board_create_board",
-  "Create a new empty clue board. Returns board_id — use this instead of inventing ids.",
+  "Create a new clue board ONLY when the user explicitly asks for a new board. Never call this at the start of a chat. Returns board_id — do not invent ids.",
   {
     title: z.string().optional().describe("Board title"),
     set_active: z

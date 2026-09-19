@@ -171,12 +171,27 @@ pub fn product_context_system_message() -> String {
 You may use tools only within their documented scope. \
 Do NOT edit .cursor/ARCHITECTURE_BLUEPRINT.md directly — use write_adr_draft or write_arch_suggestion instead. \
 Dashboard UI edits are limited to stats/live/sleep front-end files. \
-Clue board: use clue_board_create_board to make a new board (never invent board_id); \
-then create_note / add_edge / update_note / delete_note / set_active as needed. \
+Clue board tools exist but must NOT be used to mint a new empty board at the start of a chat. \
+Only call clue_board_create_board when the user explicitly asks for a new board. \
+Prefer clue_board_list / clue_board_get on an existing board. \
 Version history is durable: clue_board_list_history shows chronological steps (human vs AI); \
 clue_board_rollback restores a prior seq via full snapshot (safe undo / version restore).",
         root.display()
     )
+}
+
+pub fn clue_board_usage_system_message(viewing: bool, board_id: Option<&str>) -> String {
+    let bid = board_id.map(|s| s.trim()).filter(|s| !s.is_empty());
+    if viewing {
+        if let Some(id) = bid {
+            return format!(
+                "The user is currently viewing clue board `{id}`. Use that board_id for get / create_note / add_edge / update. \
+Do NOT call clue_board_create_board unless they explicitly ask for a new board."
+            );
+        }
+    }
+    "The user is not on a clue board. Do NOT call clue_board_create_board or create empty boards unless they explicitly ask to make a board. Answer in chat instead."
+        .into()
 }
 
 /// Map OpenAI tool name → MCP server id (stable; unknown → None).
@@ -361,7 +376,7 @@ pub fn openai_tools_for_prefs(prefs: &McpPrefs) -> Vec<Value> {
         ));
         tools.push(tool_def(
             "clue_board_create_board",
-            "Create a new empty clue board and optionally make it active. Returns the new board_id — use this instead of inventing ids.",
+            "Create a new clue board ONLY when the user explicitly asks for a new board. Never call this at the start of a chat or as a default. Returns board_id — do not invent ids.",
             json!({
                 "type": "object",
                 "properties": {
@@ -373,7 +388,7 @@ pub fn openai_tools_for_prefs(prefs: &McpPrefs) -> Vec<Value> {
         ));
         tools.push(tool_def(
             "clue_board_create_note",
-            "Add a note node to an existing clue board (board_id must already exist — create with clue_board_create_board first).",
+            "Add a sticky note to an existing clue board. Prefer the active board or clue_board_list first. Do NOT call clue_board_create_board first unless the user asked for a new board.",
             json!({
                 "type": "object",
                 "properties": {
@@ -760,7 +775,7 @@ pub async fn execute_tool(name: &str, args: &Value, prefs: &McpPrefs) -> Result<
                     .to_string();
                 let board = data.boards.iter_mut().find(|b| b.id == bid).ok_or_else(|| {
                     format!(
-                        "board not found: {bid}. Call clue_board_list or clue_board_create_board first; do not invent board_id."
+                        "board not found: {bid}. Call clue_board_list and use an existing board_id; only call clue_board_create_board if the user asked for a new board."
                     )
                 })?;
                 board.nodes.push(crate::notes_ctl::ClueBoardNode {

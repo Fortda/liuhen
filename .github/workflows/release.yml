@@ -26,7 +26,7 @@ jobs:
           cache: npm
           cache-dependency-path: omniplayer/package-lock.json
 
-      - name: Build portable zip
+      - name: Build setup.exe and portable zip
         shell: pwsh
         run: ./omniplayer/package.ps1
 
@@ -34,20 +34,30 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: omnitrace-windows-x64
-          path: dist/OmniTrace-*-windows-x64.zip
+          path: |
+            dist/OmniTrace-*-windows-x64-setup.exe
+            dist/OmniTrace-*-windows-x64.zip
           if-no-files-found: error
 
-      - name: Attach zip to GitHub Release
+      - name: Attach artifacts to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/OmniTrace-*-windows-x64.zip
+          files: |
+            dist/OmniTrace-*-windows-x64-setup.exe
+            dist/OmniTrace-*-windows-x64.zip
           generate_release_notes: true
           body: |
-            Windows 64-bit zip（播放器 + 采集器）。不含 OmniDatabase。
+            **给朋友：** 下载 **`OmniTrace-…-windows-x64-setup.exe`**，下一步下一步即可（当前用户，一般不用管理员）。里面是播放器 + 采集器。
 
-            解压后双击 **安装到本机.bat**。数据留在本机用户目录，卸载程序不会删库。
+            数据在本机 `%USERPROFILE%\OmniTrace\OmniDatabase`，不进安装包。卸载（设置 → 应用 → OmniTrace）不删库。
 
-            Windows 64-bit zip (player + recorder). Does not include OmniDatabase.
+            Windows 提示「未知应用」：选 **更多信息 → 仍要运行**（目前没有代码签名）。
 
-            Unzip, then run **安装到本机.bat**. Data stays on this PC; uninstall keeps the library.
+            也可以下 zip，解压后双击「安装到本机.bat」。
+
+            **For friends:** download **`OmniTrace-…-windows-x64-setup.exe`**, Next Next Next (per-user, usually no UAC). Player + recorder included.
+
+            Data stays in `%USERPROFILE%\OmniTrace\OmniDatabase` and is not in the package. Uninstall keeps the library.
+
+            SmartScreen: **More info → Run anyway** (unsigned). Zip is still attached.

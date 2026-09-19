@@ -58,6 +58,34 @@ export function formatGroupMetaTime(ms: number | null | undefined): {
   return { abs: formatTs(ms), rel: formatRelativeTs(ms) };
 }
 
+const ARCHIVE_REL_DAY_CUTOFF = 10;
+
+/** Compact list time: `1h前` / `1d前`, then calendar date (same cutoff as the notes right-hand rail). */
+export function formatArchiveListWhen(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return "";
+  const diffMs = Math.max(0, Date.now() - ms);
+  const diffMin = Math.floor(diffMs / 60_000);
+  const diffH = Math.floor(diffMs / 3_600_000);
+  const diffD = Math.floor(diffMs / 86_400_000);
+  if (diffD < ARCHIVE_REL_DAY_CUTOFF) {
+    if (diffMin < 1) return shellT("notes.card.timeJustNow");
+    if (diffMin < 60) return shellT("notes.card.timeMinutes", { n: diffMin });
+    if (diffH < 24) return shellT("notes.preset.relHours", { n: Math.max(1, diffH) });
+    return shellT("notes.preset.relDays", { n: Math.max(1, diffD) });
+  }
+  const d = new Date(ms);
+  const now = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  if (d.getFullYear() === now.getFullYear()) {
+    return shellT("notes.preset.dateMD", { m: d.getMonth() + 1, d: d.getDate() });
+  }
+  return shellT("notes.preset.dateYMD", {
+    y: d.getFullYear(),
+    m: p(d.getMonth() + 1),
+    d: p(d.getDate()),
+  });
+}
+
 let groupMetaPopEl: HTMLElement | null = null;
 let groupMetaOutside: ((e: MouseEvent) => void) | null = null;
 

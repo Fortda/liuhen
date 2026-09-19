@@ -77,6 +77,18 @@ function isGemini25(id: string): boolean {
   return /gemini-2\.5/.test(id);
 }
 
+/** Gemini 3.7 / 3.8 Flash: thinking_level 支持 low/medium/high；minimal 会 400。 */
+function gemini3FlashRejectsMinimal(id: string): boolean {
+  return /gemini-3\.[78]/.test(id);
+}
+
+/** Gemini 3 Flash 族里仍认 minimal 的（3 / 3.5 / 3.6 Flash、Flash-Lite），不含 3.7/3.8。 */
+function gemini3SupportsMinimal(id: string): boolean {
+  if (!isGemini3(id) || !/flash/.test(id)) return false;
+  if (gemini3FlashRejectsMinimal(id)) return false;
+  return true;
+}
+
 /** 当前选中模型 → 参数窗可展示/可下发的字段 */
 export function inferTurnParamSchema(
   m: NotesModelRef | null | undefined
@@ -163,31 +175,45 @@ export function inferTurnParamSchema(
   if (isGeminiFamily(id)) {
     const gemini3 = isGemini3(id);
     const gemini25 = isGemini25(id);
-    const flashLike = /flash/.test(id);
     const effortOptions: EffortOption[] = gemini3
       ? [
-          ...(flashLike ? [{ id: "minimal" as const, label: "minimal" }] : []),
+          ...(gemini3SupportsMinimal(id)
+            ? [{ id: "minimal" as const, label: "minimal" }]
+            : []),
           { id: "low", label: "low" },
           { id: "medium", label: "medium" },
           { id: "high", label: "high" },
         ]
       : [];
+    const flash38 = /gemini-3\.8/.test(id);
+    const flash37 = /gemini-3\.7/.test(id);
+    const rejectsMinimal = gemini3FlashRejectsMinimal(id);
     return {
-      familyLabel: gemini3 ? "Gemini 3" : gemini25 ? "Gemini 2.5" : "Gemini",
+      familyLabel: gemini3
+        ? flash38
+          ? "Gemini 3.8 Flash"
+          : flash37
+            ? "Gemini 3.7 Flash"
+            : "Gemini 3"
+        : gemini25
+          ? "Gemini 2.5"
+          : "Gemini",
       thinkingToggle: gemini25,
       effortOptions,
       thinkingBudget: gemini25,
       googleSearch: true,
-      temperature: true,
-      top_p: true,
+      temperature: !gemini3,
+      top_p: !gemini3,
       max_tokens: true,
-      samplingIgnoredWhenThinking: false,
+      samplingIgnoredWhenThinking: gemini3,
       effortFieldLabel: gemini3 ? "thinking_level" : "reasoning_effort",
       effortFieldHint: gemini3
-        ? "经 LiteLLM 映射为 thinking_level（High 等）"
+        ? "经 LiteLLM 映射为 thinking_level（low / medium / high）"
         : "原样写入请求体",
       note: gemini3
-        ? "thinking_level 经 reasoning_effort 下发；可开 Google Search grounding"
+        ? rejectsMinimal
+          ? "本模型支持思考链：thinking_level 为 low / medium / high（默认 medium）。不支持 minimal（会报错）；不传 thinking.budget_tokens / thinking.enabled。temperature / top_p 不随请求下发。"
+          : "thinking_level 经 reasoning_effort 下发；可开 Google Search grounding"
         : gemini25
           ? "thinking.budget_tokens；可开 Google Search grounding"
           : "通用采样 + Google Search grounding；勿发明 API 不认的字段",

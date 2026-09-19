@@ -187,86 +187,79 @@ function cardCreatedAt(id: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-type SkipSpan = {
-  lo: number;
-  hi: number;
-  epLo: string;
-  epHi: string;
-};
-
-/** 跨接边两端时间更早/更晚的卡片 id */
-function spanEndpoints(x: string, y: string, tx: number, ty: number): SkipSpan {
-  const lo = Math.min(tx, ty);
-  const hi = Math.max(tx, ty);
-  return {
-    lo,
-    hi,
-    epLo: tx <= ty ? x : y,
-    epHi: tx <= ty ? y : x,
-  };
+function isCardId(id: string): boolean {
+  return !!id && id !== COMPOSER_ID;
 }
 
-function spanKey(span: SkipSpan): string {
-  return `${span.lo}\n${span.hi}\n${span.epLo}\n${span.epHi}`;
+/** Feed/list order of visible cards; missing ids fall back to created_at. */
+function sortCardsInFeedOrder(ids: Iterable<string>): string[] {
+  const idx = new Map<string, number>();
+  allCardIds().forEach((id, i) => idx.set(id, i));
+  return [...new Set(ids)].filter(isCardId).sort((a, b) => {
+    const ia = idx.has(a) ? idx.get(a)! : Number.POSITIVE_INFINITY;
+    const ib = idx.has(b) ? idx.get(b)! : Number.POSITIVE_INFINITY;
+    if (ia !== ib) return ia - ib;
+    const ta = cardCreatedAt(a);
+    const tb = cardCreatedAt(b);
+    if (ta != null && tb != null && ta !== tb) return ta - tb;
+    return a.localeCompare(b);
+  });
+}
+
+function cardMembership(seed: string): Set<string> {
+  const member = new Set<string>();
+  for (const id of componentOf(seed)) {
+    if (isCardId(id)) member.add(id);
+  }
+  return member;
 }
 
 /**
- * 时间序「中间卡」插入：若新边一端 M 严格介于某跨接边 X—Y 两端之间，
- * 且新边连接 M 与 X 或 Y，则拆掉该跨接边（如已有 A—C，再连 B—A 时删 A—C）。
- * composer 无 created_at，不参与时间序判定。
+ * Persist a connected card set as one polyline: consecutive neighbors in feed order.
+ * Composer edges are kept. Skip-chords (A—C while B is also selected) are dropped.
  */
-function findBridgingSkipSpans(a: string, b: string): SkipSpan[] {
-  const tA = cardCreatedAt(a);
-  const tB = cardCreatedAt(b);
-  const spans: SkipSpan[] = [];
-  const seen = new Set<string>();
-
-  for (const k of edges) {
-    const [x, y] = parseKey(k);
-    const tx = cardCreatedAt(x);
-    const ty = cardCreatedAt(y);
-    if (tx == null || ty == null) continue;
-    const span = spanEndpoints(x, y, tx, ty);
-
-    for (const [, other, tm] of [
-      [a, b, tA] as const,
-      [b, a, tB] as const,
-    ]) {
-      if (tm == null || tm <= span.lo || tm >= span.hi) continue;
-      if (other !== x && other !== y) continue;
-      const key = spanKey(span);
-      if (seen.has(key)) break;
-      seen.add(key);
-      spans.push(span);
-      break;
-    }
+function rewriteMembershipPath(member: Set<string>): string[] {
+  const sorted = sortCardsInFeedOrder(member);
+  if (!sorted.length) return sorted;
+  const inSet = new Set(sorted);
+  for (const k of [...edges]) {
+    const [a, b] = parseKey(k);
+    if (a === COMPOSER_ID || b === COMPOSER_ID) continue;
+    if (inSet.has(a) && inSet.has(b)) edges.delete(k);
   }
-  return spans;
-}
-
-/** 跨接边时间窗内所有卡片（含两端与严格介于其间的卡），按 created_at 升序 */
-function nodesInSkipSpan(span: SkipSpan): string[] {
-  const nodes = new Set<string>([span.epLo, span.epHi]);
-  for (const id of allCardIds()) {
-    const t = cardCreatedAt(id);
-    if (t != null && t > span.lo && t < span.hi) nodes.add(id);
-  }
-  return [...nodes].sort((u, v) => cardCreatedAt(u)! - cardCreatedAt(v)!);
-}
-
-/** 按时间序为相邻卡片补链边；跳过已存在边与同连通块内冗余直连 */
-function completeAdjacentChain(sorted: string[]): number {
-  let added = 0;
   for (let i = 0; i < sorted.length - 1; i++) {
-    const u = sorted[i];
-    const v = sorted[i + 1];
-    if (!u || !v || u === v) continue;
-    if (edges.has(edgeKey(u, v))) continue;
-    if (componentOf(u).has(v)) continue;
-    addEdge(u, v);
-    added++;
+    addEdge(sorted[i]!, sorted[i + 1]!);
   }
-  return added;
+  return sorted;
+}
+
+/** Union two nodes' card memberships and rewrite as an ordered path. */
+function linearizeUnion(a: string, b: string): string[] {
+  const member = cardMembership(a);
+  for (const id of cardMembership(b)) member.add(id);
+  if (isCardId(a)) member.add(a);
+  if (isCardId(b)) member.add(b);
+  return rewriteMembershipPath(member);
+}
+
+/** Normalize every component (load/apply of old skip-chord graphs). */
+function linearizeAllComponents(): boolean {
+  const before = [...edges].join("\0");
+  const seen = new Set<string>();
+  const seeds = new Set<string>(allCardIds());
+  for (const k of edges) {
+    const [a, b] = parseKey(k);
+    if (isCardId(a)) seeds.add(a);
+    if (isCardId(b)) seeds.add(b);
+  }
+  for (const id of seeds) {
+    if (seen.has(id)) continue;
+    const member = cardMembership(id);
+    if (isCardId(id) && !member.size) member.add(id);
+    for (const n of member) seen.add(n);
+    if (member.size) rewriteMembershipPath(member);
+  }
+  return [...edges].join("\0") !== before;
 }
 
 function cardShortLabel(id: string): string {
@@ -277,38 +270,12 @@ function cardShortLabel(id: string): string {
   return time || id.slice(0, 8);
 }
 
-function formatChainFeedback(chains: string[][]): string {
-  if (!chains.length) return "已插入中间节点，拆掉跨接";
-  const longest = chains.reduce((a, b) => (b.length > a.length ? b : a), chains[0]!);
-  if (longest.length <= 4) {
-    return `已插入中间节点，链已补全为 ${longest.map(cardShortLabel).join("→")}`;
+function formatChainFeedback(sorted: string[]): string {
+  if (sorted.length <= 2) return "已接通";
+  if (sorted.length <= 4) {
+    return `链已按顺序连为 ${sorted.map(cardShortLabel).join("→")}`;
   }
-  return `已插入中间节点，已按时间序补全 ${longest.length} 张卡片的相邻链`;
-}
-
-/**
- * 拆掉跨接边并按时间序补全相邻链（如 A—C 跨 B，B 连一端后得 A—B—C）。
- * 返回拆掉条数与补全涉及的链（用于提示）。
- */
-function bridgeAndCompleteChain(a: string, b: string): {
-  removed: number;
-  chains: string[][];
-} {
-  const spans = findBridgingSkipSpans(a, b);
-  if (!spans.length) return { removed: 0, chains: [] };
-
-  let removed = 0;
-  for (const span of spans) {
-    if (edges.delete(edgeKey(span.epLo, span.epHi))) removed++;
-  }
-
-  const chains: string[][] = [];
-  for (const span of spans) {
-    const sorted = nodesInSkipSpan(span);
-    completeAdjacentChain(sorted);
-    chains.push(sorted);
-  }
-  return { removed, chains };
+  return `已按时间序连成 ${sorted.length} 张卡片的相邻链`;
 }
 
 function disconnectNode(id: string) {
@@ -356,6 +323,7 @@ export function rewireComposerAfterSend(newCardId: string) {
   disconnectNode(COMPOSER_ID);
   for (const n of attached) addEdge(n, newCardId);
   addEdge(newCardId, COMPOSER_ID);
+  linearizeUnion(newCardId, attached[0] || COMPOSER_ID);
   persistSoon();
   scheduleDrawWires();
 }
@@ -367,7 +335,7 @@ export function composerIsLive(): boolean {
 export function linkNodes(a: string, b: string) {
   if (!a || !b || a === b) return;
   if (!componentOf(a).has(b)) {
-    bridgeAndCompleteChain(a, b);
+    linearizeUnion(a, b);
     if (!componentOf(a).has(b)) addEdge(a, b);
   }
   persistSoon();
@@ -408,21 +376,45 @@ export function drawWires() {
     const lastId = ids.length ? ids[ids.length - 1] : undefined;
     if (lastId && neighbors(lastId).length) live = componentOf(lastId);
   }
-  const parts: string[] = [];
+  const dimParts: string[] = [];
+  const litParts: string[] = [];
+  const drawn = new Set<string>();
+
+  const pushCable = (a: string, b: string, lit: boolean) => {
+    const pa = pos.get(a);
+    const pb = pos.get(b);
+    if (!pa || !pb) return;
+    const k = edgeKey(a, b);
+    if (drawn.has(k)) return;
+    drawn.add(k);
+    const d = cablePath(pa, pb);
+    const stroke = lit ? "var(--notes-wire)" : "var(--notes-wire-dim)";
+    const svg =
+      `<path d="${d}" fill="none" stroke="${stroke}" stroke-width="2.2" stroke-linecap="round"/>` +
+      `<path class="notes-wire-hit" data-edge="${encodeURIComponent(k)}" d="${d}" fill="none" stroke="transparent" stroke-width="14" stroke-linecap="round" style="cursor:pointer"/>`;
+    (lit ? litParts : dimParts).push(svg);
+  };
+
+  const seen = new Set<string>();
+  for (const id of pos.keys()) {
+    if (id === COMPOSER_ID || seen.has(id)) continue;
+    const comp = componentOf(id);
+    for (const n of comp) seen.add(n);
+    const sorted = sortCardsInFeedOrder(comp).filter((cid) => pos.has(cid));
+    const lit = sorted.some((cid) => live.has(cid));
+    for (let i = 0; i < sorted.length - 1; i++) {
+      pushCable(sorted[i]!, sorted[i + 1]!, lit);
+    }
+  }
 
   for (const k of edges) {
     const [a, b] = parseKey(k);
-    const pa = pos.get(a);
-    const pb = pos.get(b);
-    if (!pa || !pb) continue;
-    const d = cablePath(pa, pb);
+    if (a !== COMPOSER_ID && b !== COMPOSER_ID) continue;
     const lit = live.has(a) && live.has(b);
-    const stroke = lit ? "var(--notes-wire)" : "var(--notes-wire-dim)";
-    parts.push(
-      `<path d="${d}" fill="none" stroke="${stroke}" stroke-width="2.2" stroke-linecap="round"/>` +
-        `<path class="notes-wire-hit" data-edge="${encodeURIComponent(k)}" d="${d}" fill="none" stroke="transparent" stroke-width="14" stroke-linecap="round" style="cursor:pointer"/>`
-    );
+    pushCable(a, b, lit);
   }
+
+  const parts: string[] = [...dimParts, ...litParts];
 
   if (pending) {
     const from = pos.get(pending.from);
@@ -477,15 +469,14 @@ function tryConnect(from: string, to: string) {
     showWireFeedback("已断开直连");
     return;
   }
-  // 同连通分量（已间接连通）禁止再加边，避免成环/冗余
   if (componentOf(from).has(to)) {
     showWireFeedback("已在同一网络，不能再连");
     return;
   }
-  const { removed, chains } = bridgeAndCompleteChain(from, to);
+  const path = linearizeUnion(from, to);
   if (!componentOf(from).has(to)) addEdge(from, to);
   persistSoon();
-  if (removed > 0) showWireFeedback(formatChainFeedback(chains));
+  if (path.length >= 3) showWireFeedback(formatChainFeedback(path));
 }
 
 function pickUp(from: string, cx: number, cy: number) {
@@ -588,6 +579,7 @@ export async function loadContextGraph() {
   } catch (err) {
     console.error(err);
   }
+  if (linearizeAllComponents()) persistSoon();
   scheduleDrawWires();
   onHint?.();
 }
@@ -605,6 +597,7 @@ export function applyEdges(list: string[][]) {
     if (pair.length < 2) continue;
     addEdge(String(pair[0]), String(pair[1]));
   }
+  linearizeAllComponents();
   if (saveTimer) {
     window.clearTimeout(saveTimer);
     saveTimer = 0;
