@@ -227,7 +227,6 @@ function Publish-SetupExe([string]$Version) {
       "OmniPlayer.exe",
       "omnitrace_input.exe",
       "OmniTrace.ico",
-      "使用说明.txt",
       "VERSION.txt",
       "write-data-root.ps1"
     )) {
@@ -235,6 +234,11 @@ function Publish-SetupExe([string]$Version) {
     if (Test-Path -LiteralPath $src) {
       Copy-Item -LiteralPath $src -Destination (Join-Path $stage $name) -Force
     }
+  }
+  Get-ChildItem -LiteralPath $Dist -File -Filter "*.txt" | Where-Object {
+    $_.Name -notin @("VERSION.txt", "LICENSE")
+  } | Select-Object -First 1 | ForEach-Object {
+    Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $stage "Readme.txt") -Force
   }
   Copy-Item -LiteralPath $nsi -Destination (Join-Path $stage "omnitrace.nsi") -Force
   Copy-Item -LiteralPath $license -Destination (Join-Path $stage "LICENSE") -Force
