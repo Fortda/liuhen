@@ -7,17 +7,41 @@ android {
     namespace = "com.omnitrace.android"
     compileSdk = 34
 
+    val omniVersion = (findProperty("omniVersion") as String?)?.trim().orEmpty()
+        .ifEmpty { "0.1.4" }
+    val omniVersionCode = (findProperty("omniVersionCode") as String?)?.toIntOrNull()
+        ?: 14
+
     defaultConfig {
         applicationId = "com.omnitrace.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = omniVersionCode
+        versionName = omniVersion
+    }
+
+    // No Play upload keystore. Sideload uses the machine debug keystore so
+    // phones will install it; say so in the Release notes. A real store
+    // file can be injected with OMNI_ANDROID_STORE_FILE (+ password/alias).
+    signingConfigs {
+        create("sideload") {
+            val envStore = System.getenv("OMNI_ANDROID_STORE_FILE")
+            val store = if (!envStore.isNullOrBlank()) {
+                file(envStore)
+            } else {
+                file("${System.getProperty("user.home")}/.android/debug.keystore")
+            }
+            storeFile = store
+            storePassword = System.getenv("OMNI_ANDROID_STORE_PASSWORD") ?: "android"
+            keyAlias = System.getenv("OMNI_ANDROID_KEY_ALIAS") ?: "androiddebugkey"
+            keyPassword = System.getenv("OMNI_ANDROID_KEY_PASSWORD") ?: "android"
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("sideload")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

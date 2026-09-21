@@ -44,9 +44,17 @@ export function normalizeClueNodesEdges(
     if (n.h != null) {
       n.h = Number.isFinite(n.h) ? Math.min(1200, Math.max(72, n.h)) : undefined;
     }
+    const aliasedParent = (n as ClueBoardNode & { parent_id?: string | null })
+      .parent_id;
+    const parentRaw = (n.parentId ?? aliasedParent ?? "").trim();
+    n.parentId = parentRaw || undefined;
+    n.collapsed = n.collapsed === true ? true : undefined;
+    const kind = normalizeClueKind(n.kind);
+    n.kind = kind;
     outNodes.push(n);
   }
   if (outNodes.length > 500) outNodes.length = 500;
+  sanitizeClueParents(outNodes);
 
   const nodeIds = new Set(outNodes.map((n) => n.id));
   const outEdges: ClueBoardEdge[] = [];
@@ -70,6 +78,94 @@ export function normalizeClueNodesEdges(
   }
 
   return { nodes: outNodes, edges: outEdges };
+}
+
+export function normalizeClueKind(
+  raw: string | null | undefined,
+): "project" | "research" | undefined {
+  const k = (raw ?? "").trim().toLowerCase();
+  if (k === "project" || k === "research") return k;
+  return undefined;
+}
+
+export function clueParentWouldCycle(
+  nodes: ClueBoardNode[],
+  nodeId: string,
+  parentId: string,
+): boolean {
+  if (!parentId || parentId === nodeId) return true;
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  let cur: string | undefined = parentId;
+  const seen = new Set<string>([nodeId]);
+  while (cur) {
+    if (seen.has(cur)) return true;
+    seen.add(cur);
+    const p: string | undefined = byId.get(cur)?.parentId?.trim() || undefined;
+    cur = p;
+  }
+  return false;
+}
+
+export function applyClueGroupFields(
+  nodes: ClueBoardNode[],
+  node: ClueBoardNode,
+  opts: {
+    parentId?: string | null;
+    collapsed?: boolean | null;
+    kind?: string | null;
+  },
+): void {
+  if (opts.parentId !== undefined) {
+    const pid = (opts.parentId ?? "").trim();
+    if (!pid) {
+      node.parentId = undefined;
+    } else {
+      if (pid === node.id) throw new Error("parent cannot be self");
+      if (!nodes.some((n) => n.id === pid)) {
+        throw new Error(`parent not found: ${pid}`);
+      }
+      const probe = nodes.map((n) =>
+        n.id === node.id ? { ...node, parentId: pid } : n,
+      );
+      if (!probe.some((n) => n.id === node.id)) {
+        probe.push({ ...node, parentId: pid });
+      }
+      if (clueParentWouldCycle(probe, node.id, pid)) {
+        throw new Error(`parent would create a cycle: ${pid}`);
+      }
+      node.parentId = pid;
+    }
+  }
+  if (opts.collapsed !== undefined && opts.collapsed !== null) {
+    node.collapsed = opts.collapsed ? true : undefined;
+  }
+  if (opts.kind !== undefined) {
+    if (!opts.kind) {
+      node.kind = undefined;
+    } else {
+      const k = normalizeClueKind(opts.kind);
+      if (!k) throw new Error('kind must be "project" or "research"');
+      node.kind = k;
+    }
+  }
+}
+
+function sanitizeClueParents(nodes: ClueBoardNode[]): void {
+  const ids = new Set(nodes.map((n) => n.id));
+  for (const n of nodes) {
+    const p = (n.parentId ?? "").trim();
+    if (!p || p === n.id || !ids.has(p)) {
+      n.parentId = undefined;
+    } else {
+      n.parentId = p;
+    }
+  }
+  for (const n of nodes) {
+    const p = n.parentId;
+    if (p && clueParentWouldCycle(nodes, n.id, p)) {
+      n.parentId = undefined;
+    }
+  }
 }
 
 function normalizeClueBoardEntry(board: ClueBoard): ClueBoard | null {

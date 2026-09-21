@@ -32,6 +32,8 @@ import {
   revealFloat,
 } from "./omni_float";
 
+export type ClueNoteKind = "project" | "research";
+
 export type ClueNode = {
   id: string;
   text: string;
@@ -40,6 +42,9 @@ export type ClueNode = {
   w?: number;
   h?: number;
   color?: string;
+  parentId?: string;
+  collapsed?: boolean;
+  kind?: ClueNoteKind;
 };
 
 export type ClueEdge = {
@@ -264,6 +269,7 @@ let rightPress: RightPressState | null = null;
 let ctxMenuEl: HTMLElement | null = null;
 let ctxMenuCanvasPt: { x: number; y: number } | null = null;
 let ctxMenuEdgeId: string | null = null;
+let ctxMenuNodeId: string | null = null;
 let textCtxMenuEl: HTMLElement | null = null;
 let textCtxTarget: HTMLTextAreaElement | null = null;
 let zoomToastTimer = 0;
@@ -782,6 +788,87 @@ function nodeById(id: string): ClueNode | undefined {
   return nodes.find((n) => n.id === id);
 }
 
+function parseClueKind(raw: unknown): ClueNoteKind | undefined {
+  return raw === "project" || raw === "research" ? raw : undefined;
+}
+
+function nodeParentId(n: ClueNode | undefined | null): string | undefined {
+  const p = (n?.parentId ?? "").trim();
+  return p || undefined;
+}
+
+function childrenOf(id: string): ClueNode[] {
+  return nodes.filter((n) => nodeParentId(n) === id);
+}
+
+function descendantIds(id: string): string[] {
+  const out: string[] = [];
+  const stack = childrenOf(id).map((n) => n.id);
+  const seen = new Set<string>([id]);
+  while (stack.length) {
+    const cur = stack.pop()!;
+    if (seen.has(cur)) continue;
+    seen.add(cur);
+    out.push(cur);
+    for (const c of childrenOf(cur)) stack.push(c.id);
+  }
+  return out;
+}
+
+function hiddenNodeIdSet(): Set<string> {
+  const hidden = new Set<string>();
+  for (const n of nodes) {
+    if (!n.collapsed) continue;
+    for (const id of descendantIds(n.id)) hidden.add(id);
+  }
+  return hidden;
+}
+
+function wouldCycleParent(nodeId: string, parentId: string): boolean {
+  if (!parentId || parentId === nodeId) return true;
+  let cur: string | undefined = parentId;
+  const seen = new Set<string>([nodeId]);
+  while (cur) {
+    if (seen.has(cur)) return true;
+    seen.add(cur);
+    cur = nodeParentId(nodeById(cur));
+  }
+  return false;
+}
+
+function dragIdsWithDescendants(ids: string[]): string[] {
+  const set = new Set<string>();
+  for (const id of ids) {
+    set.add(id);
+    for (const d of descendantIds(id)) set.add(d);
+  }
+  return [...set];
+}
+
+function setNodeParent(childId: string, parentId: string | null): boolean {
+  const child = nodeById(childId);
+  if (!child) return false;
+  if (parentId) {
+    if (!nodeById(parentId) || wouldCycleParent(childId, parentId)) return false;
+    child.parentId = parentId;
+  } else {
+    delete child.parentId;
+  }
+  return true;
+}
+
+function toggleNodeCollapsed(id: string) {
+  const n = nodeById(id);
+  if (!n || descendantIds(id).length === 0) return;
+  const next = !n.collapsed;
+  if (next) n.collapsed = true;
+  else delete n.collapsed;
+  renderNodes();
+  recordClueHistory(next ? CLUE_HISTORY_LABELS.collapse : CLUE_HISTORY_LABELS.expand);
+  scheduleSave();
+  scheduleDrawClueWires();
+}
+
 function layoutPx(v: number): number {
   return v * zoom;
 }
@@ -798,10 +885,14 @@ function isDotMode(): boolean {
   return zoom <= ZOOM_DOT_MODE;
 }
 
-function clueDotLabel(text: string): string {
+function clueDotLabel(text: string, n?: ClueNode): string {
   const trimmed = text.trim();
-  if (!trimmed) return "…";
-  return [...trimmed].slice(0, CLUE_DOT_LABEL_MAX).join("");
+  let base = trimmed ? [...trimmed].slice(0, CLUE_DOT_LABEL_MAX).join("") : "…";
+  if (n?.collapsed) {
+    const count = descendantIds(n.id).length;
+    if (count > 0) base = `${base} ·${count}`;
+  }
+  return base;
 }
 
 function nodeLogicalSize(n: ClueNode, el?: HTMLElement | null): { w: number; h: number } {
@@ -1025,7 +1116,9 @@ function canvasBounds(): { w: number; h: number } {
   const baseH = board?.clientHeight ?? 600;
   let maxX = baseW;
   let maxY = baseH;
+  const hidden = hiddenNodeIdSet();
   for (const n of nodes) {
+    if (hidden.has(n.id)) continue;
     const el = document.querySelector(
       `.notes-clue-node[data-clue-id="${CSS.escape(n.id)}"]`
     ) as HTMLElement | null;
@@ -1188,7 +1281,7 @@ function applyDotNodeLayout(el: HTMLElement, n: ClueNode) {
 
   const label = el.querySelector(".notes-clue-dot-label") as HTMLElement | null;
   if (label) {
-    label.textContent = clueDotLabel(n.text);
+    label.textContent = clueDotLabel(n.text, n);
     label.style.fontSize = `${dotLabelFontPx()}px`;
     label.style.marginTop = `${CLUE_DOT_LABEL_MARGIN_TOP_PX}px`;
     label.style.maxWidth = `${CLUE_DOT_LABEL_MAX_WIDTH_PX}px`;
@@ -1333,23 +1426,51 @@ function scheduleSave() {
   }, SAVE_DEBOUNCE_MS);
 }
 
-function normalizeLoadedNodes(raw: Array<ClueNode & { rotation?: number }>): ClueNode[] {
-  return (raw ?? []).map(({ rotation: _rot, ...n }) => {
-    const out: ClueNode = {
+function normalizeLoadedNodes(
+  raw: Array<ClueNode & { rotation?: number; parent_id?: string }>
+): ClueNode[] {
+  const out = (raw ?? []).map(({ rotation: _rot, parent_id, ...n }) => {
+    const kind = parseClueKind(n.kind);
+    const parentRaw = (n.parentId ?? parent_id ?? "").trim();
+    const node: ClueNode = {
       id: n.id,
       text: n.text ?? "",
       x: n.x,
       y: n.y,
     };
-    if (n.color != null && n.color !== "") out.color = n.color;
+    if (n.color != null && n.color !== "") node.color = n.color;
     if (n.w != null && Number.isFinite(n.w)) {
-      out.w = Math.min(CLUE_MAX_W, Math.max(CLUE_MIN_W, n.w));
+      node.w = Math.min(CLUE_MAX_W, Math.max(CLUE_MIN_W, n.w));
     }
     if (n.h != null && Number.isFinite(n.h)) {
-      out.h = Math.min(CLUE_MAX_H, Math.max(CLUE_MIN_H, n.h));
+      node.h = Math.min(CLUE_MAX_H, Math.max(CLUE_MIN_H, n.h));
     }
-    return out;
+    if (parentRaw) node.parentId = parentRaw;
+    if (n.collapsed === true) node.collapsed = true;
+    if (kind) node.kind = kind;
+    return node;
   });
+  const ids = new Set(out.map((n) => n.id));
+  for (const n of out) {
+    const p = nodeParentId(n);
+    if (!p || p === n.id || !ids.has(p) || wouldCycleParentOn(out, n.id, p)) {
+      delete n.parentId;
+    }
+  }
+  return out;
+}
+
+function wouldCycleParentOn(list: ClueNode[], nodeId: string, parentId: string): boolean {
+  if (!parentId || parentId === nodeId) return true;
+  const byId = new Map(list.map((n) => [n.id, n]));
+  let cur: string | undefined = parentId;
+  const seen = new Set<string>([nodeId]);
+  while (cur) {
+    if (seen.has(cur)) return true;
+    seen.add(cur);
+    cur = nodeParentId(byId.get(cur));
+  }
+  return false;
 }
 
 async function persistNow() {
@@ -1450,7 +1571,9 @@ function showZoomToast() {
 /** Frame all notes into the current board viewport (pan + zoom). */
 function fitClueViewToContent() {
   const board = boardEl();
-  if (!board || nodes.length === 0) {
+  const hidden = hiddenNodeIdSet();
+  const visible = nodes.filter((n) => !hidden.has(n.id));
+  if (!board || visible.length === 0) {
     stopPanInertia();
     panX = 0;
     panY = 0;
@@ -1461,7 +1584,7 @@ function fitClueViewToContent() {
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
-  for (const n of nodes) {
+  for (const n of visible) {
     const { w, h } = nodeLogicalSize(n);
     minX = Math.min(minX, n.x);
     minY = Math.min(minY, n.y);
@@ -1588,8 +1711,10 @@ function nodesInMarquee(
   const right = Math.max(x0, x1);
   const bottom = Math.max(y0, y1);
   const marquee = { left, top, right, bottom };
+  const hidden = hiddenNodeIdSet();
   const hits: string[] = [];
   for (const n of nodes) {
+    if (hidden.has(n.id)) continue;
     const nr = nodeBoardRect(n);
     if (nr && rectsIntersect(marquee, nr)) hits.push(n.id);
   }
@@ -1610,7 +1735,7 @@ function updateMarqueeVisual(x0: number, y0: number, x1: number, y1: number) {
 
 function isBoardInteractiveTarget(target: HTMLElement): boolean {
   return !!target.closest(
-    ".notes-clue-toolbar, .notes-clue-history-panel, .notes-clue-history-tools, button, textarea, .notes-clue-grip, .notes-clue-resize, .notes-clue-dot"
+    ".notes-clue-toolbar, .notes-clue-history-panel, .notes-clue-history-tools, button, textarea, .notes-clue-grip, .notes-clue-resize, .notes-clue-dot, .notes-clue-fold"
   );
 }
 
@@ -1665,6 +1790,17 @@ function handleClueContextMenu(e: MouseEvent): boolean {
     e.stopImmediatePropagation();
     hideClueContextMenu();
     showTextareaContextMenu(e, ta);
+    return true;
+  }
+  const nodeEl = target.closest(".notes-clue-node") as HTMLElement | null;
+  if (nodeEl?.dataset.clueId) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    const id = nodeEl.dataset.clueId;
+    if (!selectedIds.has(id)) selectNode(id);
+    showNodeClueContextMenu(e.clientX, e.clientY, id);
+    suppressBoardClick = true;
     return true;
   }
   const edgeHit = edgeHitFromTarget(target);
@@ -1835,6 +1971,7 @@ function hideClueContextMenu() {
   hideFloat(ctxMenuEl);
   ctxMenuCanvasPt = null;
   ctxMenuEdgeId = null;
+  ctxMenuNodeId = null;
 }
 
 function hideTextareaContextMenu() {
@@ -1925,7 +2062,34 @@ function ensureClueContextMenu(): HTMLElement {
   delEdgeBtn.setAttribute("role", "menuitem");
   delEdgeBtn.textContent = shellT("notes.clue.ctx.deleteEdge");
 
-  menu.append(newNoteBtn, delEdgeBtn);
+  const collapseBtn = document.createElement("button");
+  collapseBtn.type = "button";
+  collapseBtn.dataset.action = "toggle-fold";
+  collapseBtn.setAttribute("role", "menuitem");
+
+  const adoptBtn = document.createElement("button");
+  adoptBtn.type = "button";
+  adoptBtn.dataset.action = "adopt-selected";
+  adoptBtn.setAttribute("role", "menuitem");
+
+  const attachBtn = document.createElement("button");
+  attachBtn.type = "button";
+  attachBtn.dataset.action = "attach-selected";
+  attachBtn.setAttribute("role", "menuitem");
+
+  const clearParentBtn = document.createElement("button");
+  clearParentBtn.type = "button";
+  clearParentBtn.dataset.action = "clear-parent";
+  clearParentBtn.setAttribute("role", "menuitem");
+
+  menu.append(
+    newNoteBtn,
+    delEdgeBtn,
+    collapseBtn,
+    adoptBtn,
+    attachBtn,
+    clearParentBtn
+  );
   document.body.appendChild(menu);
 
   menu.addEventListener("click", (e) => {
@@ -1937,9 +2101,14 @@ function ensureClueContextMenu(): HTMLElement {
     const action = btn.dataset.action;
     const pt = ctxMenuCanvasPt;
     const edgeId = ctxMenuEdgeId;
+    const nodeId = ctxMenuNodeId;
     hideClueContextMenu();
     if (action === "new-note" && pt) addClueNodeAt(pt.x, pt.y);
     else if (action === "delete-edge" && edgeId) deleteEdgeById(edgeId);
+    else if (action === "toggle-fold" && nodeId) toggleNodeCollapsed(nodeId);
+    else if (action === "adopt-selected" && nodeId) adoptSelectedAsChildren(nodeId);
+    else if (action === "attach-selected" && nodeId) attachNodeToSelected(nodeId);
+    else if (action === "clear-parent" && nodeId) clearNodeParent(nodeId);
   });
 
   ctxMenuEl = menu;
@@ -1950,17 +2119,55 @@ function refreshClueContextMenuLabels() {
   const menu = ensureClueContextMenu();
   const newNoteBtn = menu.querySelector<HTMLButtonElement>('button[data-action="new-note"]');
   const delEdgeBtn = menu.querySelector<HTMLButtonElement>('button[data-action="delete-edge"]');
+  const collapseBtn = menu.querySelector<HTMLButtonElement>('button[data-action="toggle-fold"]');
+  const adoptBtn = menu.querySelector<HTMLButtonElement>('button[data-action="adopt-selected"]');
+  const attachBtn = menu.querySelector<HTMLButtonElement>('button[data-action="attach-selected"]');
+  const clearParentBtn = menu.querySelector<HTMLButtonElement>('button[data-action="clear-parent"]');
   if (newNoteBtn) newNoteBtn.textContent = shellT("notes.clue.ctx.newNote");
   if (delEdgeBtn) delEdgeBtn.textContent = shellT("notes.clue.ctx.deleteEdge");
+  if (collapseBtn) {
+    const n = ctxMenuNodeId ? nodeById(ctxMenuNodeId) : undefined;
+    collapseBtn.textContent = n?.collapsed
+      ? shellT("notes.clue.ctx.expand")
+      : shellT("notes.clue.ctx.collapse");
+  }
+  if (adoptBtn) adoptBtn.textContent = shellT("notes.clue.ctx.adoptSelected");
+  if (attachBtn) attachBtn.textContent = shellT("notes.clue.ctx.attachSelected");
+  if (clearParentBtn) clearParentBtn.textContent = shellT("notes.clue.ctx.clearParent");
 }
 
-function openClueContextMenu(clientX: number, clientY: number, mode: "blank" | "edge") {
+function openClueContextMenu(
+  clientX: number,
+  clientY: number,
+  mode: "blank" | "edge" | "node"
+) {
   const menu = ensureClueContextMenu();
   refreshClueContextMenuLabels();
   const newNoteBtn = menu.querySelector<HTMLButtonElement>('button[data-action="new-note"]');
   const delEdgeBtn = menu.querySelector<HTMLButtonElement>('button[data-action="delete-edge"]');
+  const collapseBtn = menu.querySelector<HTMLButtonElement>('button[data-action="toggle-fold"]');
+  const adoptBtn = menu.querySelector<HTMLButtonElement>('button[data-action="adopt-selected"]');
+  const attachBtn = menu.querySelector<HTMLButtonElement>('button[data-action="attach-selected"]');
+  const clearParentBtn = menu.querySelector<HTMLButtonElement>('button[data-action="clear-parent"]');
   if (newNoteBtn) newNoteBtn.hidden = mode !== "blank";
   if (delEdgeBtn) delEdgeBtn.hidden = mode !== "edge";
+  const nodeMode = mode === "node";
+  const node = ctxMenuNodeId ? nodeById(ctxMenuNodeId) : undefined;
+  const others = [...selectedIds].filter((id) => id !== ctxMenuNodeId);
+  if (collapseBtn) {
+    collapseBtn.hidden = !nodeMode || descendantIds(ctxMenuNodeId ?? "").length === 0;
+  }
+  if (adoptBtn) {
+    adoptBtn.hidden = !nodeMode;
+    adoptBtn.disabled = others.length === 0;
+  }
+  if (attachBtn) {
+    attachBtn.hidden = !nodeMode;
+    attachBtn.disabled = others.length !== 1;
+  }
+  if (clearParentBtn) {
+    clearParentBtn.hidden = !nodeMode || !nodeParentId(node);
+  }
   revealFloat(menu);
   placeFloatAtPoint(menu, clientX, clientY);
   requestAnimationFrame(() => placeFloatAtPoint(menu, clientX, clientY));
@@ -1969,13 +2176,64 @@ function openClueContextMenu(clientX: number, clientY: number, mode: "blank" | "
 function showBlankClueContextMenu(clientX: number, clientY: number) {
   ctxMenuCanvasPt = clientToCanvas(clientX, clientY);
   ctxMenuEdgeId = null;
+  ctxMenuNodeId = null;
   openClueContextMenu(clientX, clientY, "blank");
 }
 
 function showEdgeClueContextMenu(clientX: number, clientY: number, edgeId: string) {
   ctxMenuCanvasPt = null;
   ctxMenuEdgeId = edgeId;
+  ctxMenuNodeId = null;
   openClueContextMenu(clientX, clientY, "edge");
+}
+
+function showNodeClueContextMenu(clientX: number, clientY: number, nodeId: string) {
+  ctxMenuCanvasPt = null;
+  ctxMenuEdgeId = null;
+  ctxMenuNodeId = nodeId;
+  openClueContextMenu(clientX, clientY, "node");
+}
+
+function adoptSelectedAsChildren(parentId: string) {
+  const others = [...selectedIds].filter((id) => id !== parentId);
+  if (!nodeById(parentId) || others.length === 0) return;
+  let changed = 0;
+  for (const id of others) {
+    if (setNodeParent(id, parentId)) changed += 1;
+  }
+  if (!changed) {
+    showHint(t("无法设为子项（会成环）", "Could not nest (would cycle)"));
+    return;
+  }
+  renderNodes();
+  recordClueHistory(CLUE_HISTORY_LABELS.setParent);
+  scheduleSave();
+  scheduleDrawClueWires();
+  showHint(t("已收为子项", "Nested under this note"));
+}
+
+function attachNodeToSelected(nodeId: string) {
+  const others = [...selectedIds].filter((id) => id !== nodeId);
+  if (others.length !== 1) return;
+  const parentId = others[0]!;
+  if (!setNodeParent(nodeId, parentId)) {
+    showHint(t("无法挂到所选便签下", "Could not attach to selected note"));
+    return;
+  }
+  renderNodes();
+  recordClueHistory(CLUE_HISTORY_LABELS.setParent);
+  scheduleSave();
+  scheduleDrawClueWires();
+  showHint(t("已挂到所选便签下", "Attached under selected note"));
+}
+
+function clearNodeParent(nodeId: string) {
+  if (!setNodeParent(nodeId, null)) return;
+  renderNodes();
+  recordClueHistory(CLUE_HISTORY_LABELS.setParent);
+  scheduleSave();
+  scheduleDrawClueWires();
+  showHint(t("已取消父子", "Parent cleared"));
 }
 
 function clearLeftPressState() {
@@ -2076,8 +2334,9 @@ function beginNodeDrag(
   }
   cancelGripPress();
   gripEl.classList.add("is-grabbing");
-  const dragIds =
-    selectedIds.has(nodeId) && selectedIds.size > 1 ? [...selectedIds] : [nodeId];
+  const dragIds = dragIdsWithDescendants(
+    selectedIds.has(nodeId) && selectedIds.size > 1 ? [...selectedIds] : [nodeId]
+  );
   const origins = new Map<string, { x: number; y: number }>();
   for (const id of dragIds) {
     const hit = nodeById(id);
@@ -2177,11 +2436,17 @@ function onResizePointerUp(e: PointerEvent) {
 function renderNodes() {
   const host = nodesHost();
   if (!host) return;
+  const hidden = hiddenNodeIdSet();
+  for (const id of [...selectedIds]) {
+    if (hidden.has(id)) selectedIds.delete(id);
+  }
   host.innerHTML = "";
   for (const n of nodes) {
+    if (hidden.has(n.id)) continue;
     const wrap = document.createElement("div");
     wrap.className = "notes-clue-node";
     wrap.dataset.clueId = n.id;
+    if (n.kind) wrap.dataset.kind = n.kind;
     if (n.w != null && Number.isFinite(n.w)) wrap.classList.add("has-size");
     if (n.h != null && Number.isFinite(n.h)) wrap.classList.add("has-size");
     if (selectedIds.has(n.id)) wrap.classList.add("is-selected");
@@ -2243,7 +2508,7 @@ function renderNodes() {
         scheduleSave();
         scheduleTextHistory();
       }
-      dotLabel.textContent = clueDotLabel(ta.value);
+      dotLabel.textContent = clueDotLabel(ta.value, hit ?? n);
     });
     ta.addEventListener("pointerdown", (e) => {
       e.stopPropagation();
@@ -2360,7 +2625,7 @@ function renderNodes() {
     wrap.addEventListener("click", (e) => {
       if (
         (e.target as HTMLElement).closest(
-          "button, textarea, .notes-clue-grip, .notes-clue-resize, .notes-clue-dot"
+          "button, textarea, .notes-clue-grip, .notes-clue-resize, .notes-clue-dot, .notes-clue-fold"
         )
       ) {
         return;
@@ -2370,12 +2635,47 @@ function renderNodes() {
     });
 
     wrap.addEventListener("dblclick", (e) => {
-      if ((e.target as HTMLElement).closest("textarea, button, .notes-clue-grip, .notes-clue-resize, .notes-clue-dot")) return;
+      if ((e.target as HTMLElement).closest("textarea, button, .notes-clue-grip, .notes-clue-resize, .notes-clue-dot, .notes-clue-fold")) return;
       if (pendingFrom) cancelWirePick();
       deleteNode(n.id);
     });
 
-    wrap.append(port, grip, del, ta, resizeHandle, dotEl, dotLabel);
+    const descCount = descendantIds(n.id).length;
+    const meta = document.createElement("div");
+    meta.className = "notes-clue-meta";
+    if (n.kind) {
+      const kindEl = document.createElement("span");
+      kindEl.className = "notes-clue-kind";
+      kindEl.textContent = n.kind === "project"
+        ? shellT("notes.clue.kind.project")
+        : shellT("notes.clue.kind.research");
+      meta.appendChild(kindEl);
+    }
+    if (descCount > 0) {
+      const fold = document.createElement("button");
+      fold.type = "button";
+      fold.className = "notes-clue-fold";
+      fold.dataset.collapsed = n.collapsed ? "1" : "0";
+      const chev = n.collapsed ? "▸" : "▾";
+      fold.textContent = `${chev} ${descCount}`;
+      fold.title = n.collapsed
+        ? t(`展开 ${descCount} 条下级`, `Expand ${descCount} nested notes`)
+        : t(`折叠 ${descCount} 条下级`, `Collapse ${descCount} nested notes`);
+      fold.setAttribute("aria-label", fold.title);
+      fold.setAttribute("aria-expanded", n.collapsed ? "false" : "true");
+      fold.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleNodeCollapsed(n.id);
+      });
+      fold.addEventListener("pointerdown", (e) => e.stopPropagation());
+      meta.appendChild(fold);
+    }
+    if (meta.childNodes.length > 0) {
+      wrap.append(port, grip, del, ta, meta, resizeHandle, dotEl, dotLabel);
+    } else {
+      wrap.append(port, grip, del, ta, resizeHandle, dotEl, dotLabel);
+    }
     applyNodeLayout(wrap, n);
     host.appendChild(wrap);
   }
@@ -2483,6 +2783,9 @@ function onPortClick(id: string, clientX: number, clientY: number) {
 }
 
 function deleteNode(id: string) {
+  for (const n of nodes) {
+    if (n.parentId === id) delete n.parentId;
+  }
   nodes = nodes.filter((n) => n.id !== id);
   edges = edges.filter((e) => e.from !== id && e.to !== id);
   selectedIds.delete(id);
@@ -2503,6 +2806,10 @@ function pruneSelectedEdgeIds() {
 function deleteSelectedNodes() {
   if (selectedIds.size === 0) return;
   const ids = [...selectedIds];
+  const idSet = new Set(ids);
+  for (const n of nodes) {
+    if (n.parentId && idSet.has(n.parentId) && !idSet.has(n.id)) delete n.parentId;
+  }
   for (const id of ids) {
     nodes = nodes.filter((n) => n.id !== id);
     edges = edges.filter((e) => e.from !== id && e.to !== id);

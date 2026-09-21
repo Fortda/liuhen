@@ -1227,10 +1227,31 @@
       min-height: 0;
       width: 100%;
     }
-    #settings-playback .notes-settings-sticky h2 {
+    #settings-playback .notes-settings-sticky h2,
+    #settings-about .notes-settings-sticky h2 {
       margin: 0;
       flex: 1 1 auto;
       min-width: 0;
+      font-size: 16px;
+      font-weight: 650;
+      font-family: var(--font-serif);
+    }
+    #settings-about {
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+    }
+    .settings-about-body .dlg-body {
+      padding: 0;
+      color: var(--text);
+    }
+    .settings-about-feedback {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+    .settings-about-feedback h3 {
+      margin: 0 0 10px;
       font-size: 16px;
       font-weight: 650;
       font-family: var(--font-serif);
@@ -2533,8 +2554,6 @@
 
     #page-notes { background: var(--bg); overflow: hidden; position: relative; min-height: 0; }
     body.shell-notes #nav { display: none; }
-    body.shell-notes #btn-about,
-    body.shell-notes #btn-feedback { display: none; }
     body.shell-notes #notes-undock-btn { display: none !important; }
     body.shell-notes #page-settings,
     body.shell-notes #page-player,
@@ -3005,8 +3024,12 @@
     }
     .notes-clue-sidebar-head {
       flex: 0 0 auto;
-      padding: 10px 12px 6px;
+      padding: 8px 8px 6px 12px;
       border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
     }
     .notes-clue-sidebar-head h2 {
       margin: 0;
@@ -3014,6 +3037,28 @@
       font-weight: 650;
       color: var(--muted);
       letter-spacing: 0.02em;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .notes-clue-board-new {
+      flex: 0 0 auto;
+      width: 26px;
+      height: 22px;
+      margin: 0;
+      padding: 0;
+      border: none;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .notes-clue-board-new:hover {
+      background: var(--nav-hover);
+      color: var(--text);
     }
   #notes-clue-board-list {
       flex: 1 1 auto;
@@ -3085,11 +3130,6 @@
       font: inherit;
       font-size: 13px;
       font-weight: 600;
-    }
-    .notes-clue-sidebar-foot {
-      flex: 0 0 auto;
-      padding: 8px;
-      border-top: 1px solid var(--line);
     }
     .notes-clue-stage {
       position: relative;
@@ -3601,6 +3641,45 @@
       color: var(--danger);
       box-shadow: 0 2px 6px color-mix(in srgb, var(--danger) 16%, transparent);
     }
+    .notes-clue-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+      min-height: 16px;
+      flex: 0 0 auto;
+    }
+    .notes-clue-kind {
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      color: color-mix(in srgb, #000 38%, transparent);
+      user-select: none;
+    }
+    .notes-clue-fold {
+      margin: 0;
+      padding: 0;
+      border: none;
+      background: transparent;
+      color: color-mix(in srgb, #000 42%, transparent);
+      font: inherit;
+      font-size: 11px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .notes-clue-fold:hover {
+      color: #0078d4;
+    }
+    .notes-clue-node[data-kind="project"] {
+      border-left-width: 2px;
+      border-left-color: color-mix(in srgb, #c47a3a 70%, var(--line));
+    }
+    .notes-clue-node[data-kind="research"] {
+      border-left-width: 2px;
+      border-left-color: color-mix(in srgb, #3a6ea5 70%, var(--line));
+    }
     .notes-clue-grip {
       --notes-clue-grip-width: 24px;
       --notes-clue-grip-height: 12px;
@@ -3753,7 +3832,8 @@
     .notes-clue-board.is-dot-mode .notes-clue-grip,
     .notes-clue-board.is-dot-mode .notes-clue-del,
     .notes-clue-board.is-dot-mode .notes-clue-text,
-    .notes-clue-board.is-dot-mode .notes-clue-resize {
+    .notes-clue-board.is-dot-mode .notes-clue-resize,
+    .notes-clue-board.is-dot-mode .notes-clue-meta {
       display: none !important;
     }
     .notes-clue-board.is-dot-mode .notes-clue-dot {
@@ -7115,10 +7195,6 @@
         </div>
       </nav>
       <div class="titlebar-drag" data-tauri-drag-region></div>
-      <div class="shell-btns" data-tauri-drag-region="false">
-        <button type="button" id="btn-about" data-i18n="shell.about" data-i18n-title="shell.aboutTitle">关于</button>
-        <button type="button" id="btn-feedback" data-i18n="shell.feedback" data-i18n-title="shell.feedbackTitle">反馈</button>
-      </div>
       <div class="win-btns" data-tauri-drag-region="false">
         <button type="button" id="btn-min" data-i18n-title="win.min">─</button>
         <button type="button" id="btn-max" data-i18n-title="win.max">□</button>
@@ -7131,7 +7207,7 @@
           <div id="settings-home">
           <div class="settings-wrap">
             <h1 data-i18n="settings.title">设置</h1>
-            <p class="sub" data-i18n="settings.sub">WinRecorder 采集、开机行为、数据存放位置、语言模型、滚动缩放与外观。健康与统计见「仪表盘」。</p>
+            <p class="sub" data-i18n="settings.sub">WinRecorder 采集、开机行为、数据存放位置、语言模型、滚动缩放、检查更新、关于与反馈与外观。健康与统计见「仪表盘」。</p>
             <div class="settings-card">
               <div class="settings-row">
                 <div class="copy">
@@ -7190,6 +7266,38 @@
                 <div class="copy">
                   <div class="label" data-i18n="settings.playback.label">滚动与缩放</div>
                   <div class="desc" data-i18n="settings.playback.desc">播放器和时间轴滚轮一次走多远、缩多快。改完立刻生效。</div>
+                </div>
+                <span class="settings-chevron" aria-hidden="true">›</span>
+              </button>
+            </div>
+            <div class="settings-card" style="margin-top: 14px">
+              <div class="settings-row">
+                <div class="copy">
+                  <div class="label" data-i18n="settings.update.label">检查更新</div>
+                  <div class="desc" data-i18n="settings.update.desc">从 GitHub Release 只换程序文件（写入 incoming 后替换 exe），不改 OmniDatabase。</div>
+                  <div class="meta" id="settings-update-meta">当前版本</div>
+                </div>
+                <div class="settings-data-actions">
+                  <button type="button" class="notes-btn" id="settings-update-check" data-i18n="settings.update.check">检查更新</button>
+                  <button type="button" class="notes-btn hidden" id="settings-update-apply" data-i18n="settings.update.apply">立即更新</button>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div class="copy">
+                  <div class="label" data-i18n="settings.update.launchCheck">启动时检查更新</div>
+                  <div class="desc" data-i18n="settings.update.launchCheck.desc">每次启动安静检查一次；已是最新不会打扰。</div>
+                </div>
+                <label class="switch" data-i18n-title="settings.update.launchCheck.switchTitle">
+                  <input type="checkbox" id="toggle-update-launch" checked />
+                  <span></span>
+                </label>
+              </div>
+            </div>
+            <div class="settings-card" style="margin-top: 14px">
+              <button type="button" id="settings-open-about" class="settings-row settings-row-nav" aria-haspopup="true" aria-expanded="false" data-i18n-aria="settings.about.aria">
+                <div class="copy">
+                  <div class="label" data-i18n="settings.about.label">关于与反馈</div>
+                  <div class="desc" data-i18n="settings.about.desc">版本、仓库链接、统计口径，以及 GitHub Issue / 复制反馈。</div>
                 </div>
                 <span class="settings-chevron" aria-hidden="true">›</span>
               </button>
@@ -7375,393 +7483,15 @@
               </div>
             </div>
           </div>
-        </section>
-
-        <section id="page-player" class="page">
-          <div id="player-body">
-            <div id="stage">
-              <canvas id="omni-canvas"></canvas>
-              <div id="load-overlay" aria-live="polite">
-                <div class="load-card">
-                  <div class="load-label" id="load-label">载入中…</div>
-                  <div class="load-bar"><div class="load-bar-fill" id="load-bar-fill"></div></div>
-                  <div class="load-pct" id="load-pct">0%</div>
-                </div>
-              </div>
-              <div id="timeline-ui" class="show">
-                <div class="tl-toolbar">
-                  <div class="data-group">
-                    <button id="btn-live" class="btn-data">🔴 直播</button>
-                  </div>
-    <div class="play-group">
-                    <button id="btn-play" title="播放/暂停 (空格)">▶</button>
-                    <select id="playback-speed" title="播放倍速" aria-label="播放倍速">
-                      <option value="1">1×</option>
-                      <option value="2">2×</option>
-                      <option value="8">8×</option>
-                      <option value="32">32×</option>
-                      <option value="64">64×</option>
-                      <option value="128">128×</option>
-                      <option value="256">256×</option>
-                      <option value="512">512×</option>
-                      <option value="1024">1024×</option>
-                      <option value="2048">2048×</option>
-                      <option value="custom">自定义…</option>
-                    </select>
-                    <span id="speed-custom" title="现实 1 秒对应多少播放时间">
-                      <label for="speed-amount">1秒=</label>
-                      <input type="number" id="speed-amount" min="0.001" step="any" value="1" />
-                      <select id="speed-unit" aria-label="时间单位">
-                        <option value="1">秒</option>
-                        <option value="60" selected>分</option>
-                        <option value="3600">时</option>
-                        <option value="86400">天</option>
-                      </select>
-                      <span id="speed-eff">×60</span>
-                    </span>
-      <span id="time-display">00:00.00 / 00:00.00</span>
-                  </div>
-                  <span class="tl-spacer"></span>
-                  <button type="button" id="btn-fullscreen" title="全屏 (Enter)">⛶ 全屏</button>
-                </div>
-                <canvas id="player-timeline" tabindex="0" aria-label="播放时间轴"></canvas>
-                <input type="range" id="time-slider" min="0" max="100" value="0" step="1" tabindex="-1" aria-hidden="true">
-              </div>
+          <div id="settings-about" class="notes-settings-view hidden">
+            <div class="notes-settings-sticky">
+              <button type="button" id="settings-about-back" class="notes-btn" data-i18n="settings.about.back">← 设置</button>
+              <h2 data-i18n="settings.about.title">关于与反馈</h2>
             </div>
-          </div>
-        </section>
-
-        <section id="page-dashboard" class="page">
-          <div class="dash-wrap">
-            <div id="dash-tabs">
-              <div id="dash-pill" aria-hidden="true"></div>
-              <button type="button" data-dash="health" class="active">运作时间轴</button>
-              <button type="button" data-dash="stats">统计图表</button>
-              <button type="button" data-dash="live">运行状态</button>
-              <button type="button" data-dash="sleep">睡眠猜测</button>
-            </div>
-            <div class="dash-panels">
-              <div id="dash-health" class="dash-panel active">
-                <div class="dash-panel-head dash-health-head">
-                  <h2>运行时间轴</h2>
-                  <div class="dash-health-head-right">
-                    <div id="dash-tick-lod" title="Alt缩%：每次 Alt+滚轮改变观察窗跨度的百分比">
-                      <label>Alt缩% <input type="number" id="alt-zoom-pct" min="1" max="50" step="1" value="4" /></label>
-                    </div>
-                  </div>
-                </div>
-                <div class="dash-health-toolbar">
-                  <button type="button" id="btn-toggle-lanes" class="dash-chip">收起程序轴</button>
-                </div>
-                <div id="dash-health-frame">
-                  <div id="dash-health-load" class="dash-health-load is-loading" hidden aria-live="polite">
-                    <div class="dash-health-load-bar" aria-hidden="true"><div class="dash-health-load-fill"></div></div>
-                    <span class="dash-health-load-label" id="dash-health-load-label">加载时间轴…</span>
-                  </div>
-                  <div id="dash-health-sizer" aria-hidden="true">
-                    <canvas id="dash-health-canvas"></canvas>
-                  </div>
-                </div>
-              </div>
-              <div id="dash-stats" class="dash-panel">
-                <div class="dash-panel-head">
-                  <h2>统计图表</h2>
-                  <span class="meta">近 7 日焦点 · 总数据量</span>
-                </div>
-                <p class="dash-caliber-hint">「仅有人操作」打开后，近 7 日焦点三张图会去掉可能被判成 AFK 的段。定义见<button type="button" class="dash-text-link" data-open-about data-about-anchor="about-caliber-focus">关于</button>。</p>
-                <div id="dash-stats-progress" class="stats-progress" hidden>
-                  <div class="stats-progress-track"><div class="stats-progress-fill"></div></div>
-                  <span id="dash-stats-progress-label" class="stats-progress-label"></span>
-                </div>
-                <div id="dash-stats-body"></div>
-              </div>
-              <div id="dash-live" class="dash-panel">
-                <div class="dash-panel-head">
-                  <h2>运行状态</h2>
-                  <span class="meta" id="dash-status-meta">近 30 分钟 · 约 4s 刷新</span>
-                </div>
-                <div id="dash-live-body"></div>
-              </div>
-              <div id="dash-sleep" class="dash-panel">
-                <div class="dash-panel-head">
-                  <h2>睡眠猜测</h2>
-                  <span class="meta">近 14 日 · 猜测起床与焦点顺序</span>
-                </div>
-                <p class="dash-caliber-hint">根据键鼠空闲（≥10 分钟代理熄屏）与可选手机旁路猜测起床，非医学睡眠监测。条带：浅金黄＝5 分钟内手机 GPS/亮屏；浅天青＝电脑键鼠。细则见<button type="button" class="dash-text-link" data-open-about data-about-anchor="about-caliber-sleep">关于</button>。</p>
-                <canvas id="dash-sleep-strip" width="800" height="56" aria-label="睡眠活跃条"></canvas>
-                <div id="dash-sleep-body"></div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section id="page-notes" class="page">
-          <div class="notes-wrap">
-            <div class="notes-top">
-              <div class="notes-top-left">
-                <h1 data-i18n="notes.title">笔记</h1>
-                <div class="theme-seg notes-mode-seg" id="notes-mode-seg" role="radiogroup" data-i18n-aria="notes.mode.aria">
-                  <button type="button" class="active" data-notes-mode="stream" data-i18n="notes.mode.stream">流式笔记</button>
-                  <button type="button" data-notes-mode="clue" data-i18n="notes.mode.clue">线索板</button>
-                  <button type="button" data-notes-mode="timeline" data-i18n="notes.mode.timeline">时间轴</button>
-                </div>
-                <button type="button" id="notes-undock-btn" class="notes-btn notes-undock-btn" data-i18n="notes.undock" data-i18n-title="notes.undockTitle" title="摘出为独立窗口">↗ 摘出</button>
-                <button type="button" id="notes-dock-btn" class="notes-btn notes-dock-btn hidden" data-i18n="notes.dock" data-i18n-title="notes.dockTitle" title="收回到主窗口">↙ 收回</button>
-              </div>
-              <div class="notes-top-right">
-                <div id="notes-stream-status">
-                  <div id="notes-inline-task" class="notes-inline-task hidden" aria-live="polite">
-                    <div id="notes-inline-task-bar" class="notes-inline-task-bar indeterminate"><span></span></div>
-                    <span id="notes-inline-task-label" class="notes-inline-task-label"></span>
-                  </div>
-                  <span id="notes-sidecar-status" class="notes-sidecar-status" data-i18n="notes.sidecar.idle">未连接</span>
-                </div>
-              </div>
-            </div>
-            <div id="notes-undocked-placeholder" class="notes-undocked-placeholder hidden" aria-live="polite">
-              <p data-i18n="notes.undocked.hint">笔记已在独立窗口中打开。</p>
-              <button type="button" id="notes-undocked-focus" class="notes-btn primary" data-i18n="notes.undocked.focus">显示笔记窗口</button>
-              <button type="button" id="notes-undocked-redock" class="notes-btn" data-i18n="notes.dock">收回到主窗口</button>
-            </div>
-            <div id="notes-chat-apps-placeholder" class="hidden" data-i18n="shell.apps.chatMoved">流式笔记已在右侧应用栏打开</div>
-            <div id="notes-chat-view" class="notes-chat-view">
-              <div class="notes-stage">
-              <aside class="notes-preset-sidebar" id="notes-preset-sidebar" data-i18n-aria="notes.preset.aria">
-                <div class="notes-preset-sidebar-head">
-                  <h2 data-i18n="notes.preset.title">连线存档</h2>
-                  <label class="notes-preset-hide-notes" data-i18n-title="notes.preset.hideNotesHint" title="打开后列表瓷砖不显示备注行，悬停仍可看全文">
-                    <input type="checkbox" id="notes-preset-hide-notes" />
-                    <span data-i18n="notes.preset.hideNotes">是否隐藏备注</span>
-                  </label>
-                </div>
-                <div id="notes-preset-list"></div>
-                <div class="notes-preset-sidebar-foot">
-                  <p id="notes-preset-toast" class="notes-preset-toast hidden" role="status"></p>
-                  <button type="button" id="notes-preset-save-open" class="notes-btn" data-i18n="notes.preset.saveCurrent">保存当前组合</button>
-                  <button type="button" id="notes-preset-new" class="notes-btn primary" data-i18n="notes.preset.new">+ 新对话</button>
-                </div>
-              </aside>
-              <div class="notes-stage-main">
-              <div class="notes-feed-column">
-                <div id="notes-feed" aria-live="polite"></div>
-                <div id="notes-card-rail-host" class="notes-card-rail-host" hidden>
-                  <div class="notes-rail-preview-panel" hidden>
-                    <div class="notes-rail-dates"></div>
-                    <div class="notes-rail-preview">
-                      <div class="notes-rail-preview-inner"></div>
-                      <div class="notes-rail-preview-thumb-wrap">
-                        <div class="notes-rail-preview-thumb"></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="notes-rail-ticks-wrap">
-                    <div class="notes-rail-viewport" aria-label="卡片导航">
-                      <div class="notes-rail-track"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="notes-composer-wrap">
-                <div class="notes-composer">
-                  <div id="notes-composer-attachments" hidden></div>
-                  <div class="notes-composer-input-wrap">
-                    <div id="notes-temp-live" class="notes-temp-tape" aria-hidden="true"></div>
-                    <textarea id="notes-input" rows="1" placeholder="单轮提问（接线后带上历史）…"></textarea>
-                  </div>
-                  <div class="notes-composer-toolbar">
-                    <div class="notes-composer-toolbar-left">
-                      <button type="button" id="notes-composer-add-btn" aria-haspopup="menu" aria-expanded="false" aria-label="添加附件" title="添加附件">+</button>
-                      <button type="button" id="notes-model-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="选模型">
-                        <span class="notes-composer-model-label">选模型</span>
-                      </button>
-                      <button type="button" id="notes-params-btn" class="notes-params-btn" aria-haspopup="dialog" aria-expanded="false" aria-label="协议参数" title="协议参数">参数</button>
-                      <button type="button" id="notes-color-temp-btn" class="notes-color-temp-btn" aria-haspopup="dialog" aria-expanded="false" aria-pressed="false" data-i18n="notes.colorTemp.btn" data-i18n-title="notes.colorTemp.btnTitle" data-i18n-aria="notes.colorTemp.btnTitle">色温</button>
-                    </div>
-                    <div class="notes-composer-toolbar-right">
-                      <button type="button" id="notes-mcp-btn" class="notes-mcp-btn" aria-haspopup="dialog" aria-expanded="false" aria-label="MCP 工具" title="MCP 工具">MCP</button>
-                      <button type="button" id="notes-ctx-usage-btn" class="notes-ctx-ring-btn" aria-haspopup="dialog" aria-expanded="false" aria-label="上下文用量" title="上下文用量">
-                      </button>
-                      <button type="button" id="notes-send" aria-label="发送">
-                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M12 19V6.8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-                          <path d="M7.2 11.2 12 6.4l4.8 4.8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div id="notes-model-detail-pane" class="omni-float hidden" aria-live="polite"></div>
-                <div id="notes-model-popover" class="notes-model-popover omni-float hidden" aria-hidden="true">
-                  <input type="search" id="notes-model-search" class="notes-model-search" placeholder="Search models" autocomplete="off" />
-                  <div class="notes-model-popover-inner">
-                    <div id="notes-model-list"></div>
-                  </div>
-                  <p id="notes-model-picker-status" class="notes-model-picker-status" hidden></p>
-                  <div class="notes-model-popover-tools">
-                    <button type="button" id="notes-refresh-models" data-i18n="notes.model.refresh">刷新模型</button>
-                    <button type="button" id="notes-edit-models" data-i18n="notes.model.edit" aria-haspopup="dialog" aria-expanded="false">编辑模型</button>
-                  </div>
-                  <button type="button" id="notes-add-api" data-i18n="notes.addApi">管理连接…</button>
-                </div>
-                <div id="notes-model-editor" class="notes-model-editor omni-float hidden" role="dialog" aria-labelledby="notes-model-editor-title" aria-hidden="true">
-                  <div class="notes-model-editor-head">
-                    <h2 id="notes-model-editor-title" data-i18n="notes.model.editorTitle">模型</h2>
-                    <button type="button" id="notes-model-editor-close" aria-label="关闭">×</button>
-                  </div>
-                  <input type="search" id="notes-model-editor-search" class="notes-model-search" data-i18n-placeholder="notes.model.editorSearch" placeholder="搜索模型" autocomplete="off" />
-                  <div id="notes-model-editor-list" class="notes-model-editor-list"></div>
-                  <button type="button" id="notes-model-editor-add" data-i18n="notes.model.addProvider">添加提供方...</button>
-                </div>
-              </div>
-              </div>
-              <svg id="notes-wire-layer" class="notes-wire-layer" aria-hidden="true" preserveAspectRatio="none">
-                <g id="notes-wire-draw"></g>
-              </svg>
-              </div>
-            </div>
-            <div id="notes-clue-apps-placeholder" class="hidden" data-i18n="shell.apps.clueMoved">线索板已在右侧应用栏打开</div>
-            <div id="notes-clue-board-view" class="notes-clue-view hidden">
-              <div class="notes-clue-body">
-              <aside id="notes-clue-sidebar" class="notes-clue-sidebar" data-i18n-aria="notes.clue.boards.aria">
-                <div class="notes-clue-sidebar-head">
-                  <h2 data-i18n="notes.clue.boards.title">线索板</h2>
-                </div>
-                <div id="notes-clue-board-list" role="listbox" aria-label="线索板列表"></div>
-                <div class="notes-clue-sidebar-foot">
-                  <button type="button" id="notes-clue-board-new" class="notes-btn primary" data-i18n="notes.clue.boards.new">+ 新建线索板</button>
-                </div>
-              </aside>
-              <div class="notes-clue-stage">
-              <div class="notes-clue-toolbar">
-                <div class="notes-clue-history-tools">
-                  <button type="button" id="notes-clue-undo" class="notes-btn" data-i18n-title="notes.clue.undo" title="撤销" aria-label="撤销" disabled>↶</button>
-                  <button type="button" id="notes-clue-redo" class="notes-btn" data-i18n-title="notes.clue.redo" title="重做" aria-label="重做" disabled>↷</button>
-                  <button type="button" id="notes-clue-history-toggle" class="notes-btn" data-i18n="notes.clue.history.toggle" aria-pressed="false">历史</button>
-                </div>
-                <button type="button" id="notes-clue-add" class="notes-btn primary" data-i18n="notes.clue.add">+ 添加线索</button>
-                <button type="button" id="notes-clue-clear-links" class="notes-btn" data-i18n="notes.clue.clearLinks">清除选中连线</button>
-                <button type="button" id="notes-clue-reset-view" class="notes-btn notes-clue-reset-view" data-i18n="notes.clue.resetView">还原视图</button>
-                <span id="notes-clue-hint" aria-live="polite"></span>
-              </div>
-              <aside id="notes-clue-history-panel" class="notes-clue-history-panel" aria-hidden="true">
-                <div class="notes-clue-history-head" data-i18n="notes.clue.history.title">操作历史</div>
-                <ul id="notes-clue-history-list"></ul>
-              </aside>
-              <div class="notes-clue-board" id="notes-clue-board">
-                <div id="notes-clue-zoom-toast" aria-live="polite" aria-hidden="true"></div>
-                <div id="notes-clue-pan-tuner" class="notes-clue-pan-tuner is-collapsed hidden" aria-label="Pan inertia tuner">
-                  <button type="button" id="notes-clue-pan-tuner-toggle" class="notes-clue-pan-tuner-toggle" aria-expanded="false">
-                    <span data-i18n="notes.clue.panTuner.title">平移惯性</span>
-                  </button>
-                  <div class="notes-clue-pan-tuner-body">
-                    <div class="notes-clue-pan-tuner-chart-wrap">
-                      <svg id="notes-clue-pan-curve-svg" viewBox="0 0 220 120" aria-hidden="true">
-                        <g class="notes-clue-pan-curve-grid">
-                          <line x1="28" y1="10" x2="28" y2="98" class="notes-clue-pan-curve-axis" />
-                          <line x1="28" y1="98" x2="210" y2="98" class="notes-clue-pan-curve-axis" />
-                          <line x1="28" y1="54" x2="210" y2="54" />
-                          <line x1="119" y1="10" x2="119" y2="98" />
-                        </g>
-                        <text id="notes-clue-pan-curve-ylabel" class="notes-clue-pan-curve-label" x="4" y="56" transform="rotate(-90 4 56)">速度</text>
-                        <text id="notes-clue-pan-curve-xlabel" class="notes-clue-pan-curve-label" x="119" y="115" text-anchor="middle">时间</text>
-                        <path id="notes-clue-pan-curve-path" />
-                        <g id="notes-clue-pan-curve-handles" />
-                      </svg>
-                      <label class="notes-clue-pan-damping">
-                        <span data-i18n="notes.clue.panTuner.damping">阻尼</span>
-                        <input type="number" id="notes-clue-pan-damping" min="0.1" max="5" step="0.05" value="1" />
-                      </label>
-                    </div>
-                    <p id="notes-clue-pan-tuner-hint" class="notes-clue-pan-tuner-hint" data-i18n="notes.clue.panTuner.hint">拖动中间圆柄改衰减曲线；阻尼越大停得越快。</p>
-                  </div>
-                </div>
-                <div class="notes-clue-pan" id="notes-clue-pan">
-                  <div class="notes-clue-canvas" id="notes-clue-canvas">
-                    <div id="notes-clue-nodes" class="notes-clue-nodes"></div>
-                    <svg id="notes-clue-wire-layer" class="notes-clue-wire-layer" aria-hidden="true" preserveAspectRatio="none">
-                      <g id="notes-clue-wire-draw"></g>
-                    </svg>
-                    <div id="notes-clue-empty" class="notes-clue-empty" data-i18n="notes.clue.empty">添加第一条线索，用圆点连起疑点。</div>
-                  </div>
-                </div>
-              </div>
-              </div>
-              </div>
-            </div>
-            <div id="notes-timeline-view" class="notes-timeline-view hidden">
-              <div class="notes-timeline-toolbar">
-                <button type="button" id="notes-timeline-ingest" class="notes-btn">收入资料</button>
-                <button type="button" id="notes-timeline-funnel" class="notes-btn notes-timeline-funnel-btn" aria-haspopup="dialog" aria-expanded="false" title="筛选" aria-label="筛选时间轴">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 5h16l-6 7v5l-4 2v-7L4 5z"/></svg>
-                </button>
-                <p class="notes-timeline-hint">滚轮平移 · Alt+滚轮缩放 · 长按拖移</p>
-              </div>
-              <canvas id="notes-timeline-canvas" aria-label="笔记时间轴"></canvas>
-            </div>
-            <div id="notes-research-detail" class="omni-float hidden" aria-live="polite"></div>
-          </div>
-          <div id="notes-log-drawer" class="notes-log-drawer hidden" aria-hidden="true">
-            <div class="notes-log-head">
-              <div class="notes-log-head-title">
-                <strong data-i18n="notes.log.title">协议日志</strong>
-                <span
-                  role="button"
-                  tabindex="0"
-                  id="btn-protocol-log-plain"
-                  class="caliber-plain-btn"
-                  aria-pressed="false"
-                  data-i18n="notes.log.plainBtn"
-                  data-i18n-title="notes.log.plainBtnTitle"
-                  data-i18n-aria="notes.log.plainBtnAria"
-                >人话</span>
-                <span
-                  role="button"
-                  tabindex="0"
-                  id="btn-protocol-log-envelope"
-                  class="caliber-plain-btn"
-                  aria-pressed="false"
-                  data-i18n="notes.log.envelopeBtn"
-                  data-i18n-title="notes.log.envelopeBtnTitle"
-                  data-i18n-aria="notes.log.envelopeBtnAria"
-                >输入信封</span>
-              </div>
-              <button type="button" id="notes-log-close" class="notes-btn" data-i18n="notes.log.close">关闭</button>
-            </div>
-            <div id="notes-log-mcp" class="notes-log-mcp is-empty" aria-live="polite">MCP：未使用</div>
-            <pre id="notes-log-body"></pre>
-            <div id="notes-log-envelopes" class="notes-log-envelopes hidden" aria-live="polite"></div>
-          </div>
-        </section>
-      </div>
-      <div id="shell-apps-launcher" class="shell-apps-launcher" aria-hidden="false">
-        <button type="button" id="btn-shell-apps" aria-pressed="false" data-i18n-title="shell.apps.show" aria-label="显示应用栏" title="显示应用栏">
-          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <rect x="1.75" y="2.25" width="8.5" height="11.5" rx="1.2" stroke="currentColor" stroke-width="1.35"/>
-            <path d="M12.4 2.4v11.2" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/>
-            <path d="M14.15 5.2v5.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity="0.55"/>
-          </svg>
-        </button>
-      </div>
-      <aside id="shell-apps" class="hidden" aria-hidden="true" aria-label="应用栏">
-        <div id="shell-apps-resize" title="调整宽度"></div>
-        <div class="shell-apps-head">
-          <div id="shell-apps-tabstrip" class="shell-apps-tabstrip" role="tablist"></div>
-          <button type="button" id="shell-apps-plus" aria-haspopup="menu" aria-expanded="false" data-i18n-title="shell.apps.add" title="添加面板">+</button>
-          <div class="shell-apps-chrome-spacer" aria-hidden="true"></div>
-        </div>
-        <div id="shell-apps-panes"></div>
-        <div id="shell-apps-clue-stash" class="hidden" aria-hidden="true"></div>
-      </aside>
-    </div>
-
-        <div id="dlg-overlay" class="dlg-overlay hidden" aria-hidden="true">
-          <div id="dlg-about" class="dlg dlg-wide hidden" role="dialog" aria-labelledby="dlg-about-title" aria-modal="true">
-            <div class="dlg-head">
-              <h2 id="dlg-about-title" data-i18n="dlg.about.title">关于</h2>
-              <button type="button" data-dlg-close data-i18n-title="dlg.close">✕</button>
-            </div>
-            <div class="dlg-body">
-              <div class="about-brand" aria-hidden="true">
+            <div class="notes-settings-scroll">
+              <div class="settings-wrap settings-about-body">
+                <div class="dlg-body">
+<div class="about-brand" aria-hidden="true">
                 <svg class="omni-logo" viewBox="0 0 24 24" fill="none">
                   <defs>
                     <clipPath id="omni-eye-open-about">
@@ -7798,10 +7528,7 @@
               <p class="dlg-meta" style="margin-top:0.35rem;">
                 <button type="button" class="dash-text-link" id="btn-about-repo" data-i18n="dlg.about.repo" data-i18n-title="dlg.about.repoTitle">GitHub 仓库</button>
               </p>
-              <p class="dlg-meta" style="margin-top:0.55rem;display:flex;flex-wrap:wrap;align-items:center;gap:0.55rem 0.75rem;">
-                <button type="button" id="btn-about-update" class="dlg-btn">更新</button>
-                <span>只替换程序文件，不碰 OmniDatabase</span>
-              </p>
+              
 
               <hr class="dlg-section-divider" />
 
@@ -8067,32 +7794,402 @@
                   </div>
                 </div>
               </section>
-            </div>
-            <div class="dlg-body" style="padding-top:0">
-              <div class="dlg-actions">
-                <button type="button" class="dlg-btn" data-dlg-close data-i18n="dlg.close">关闭</button>
-              </div>
-            </div>
-          </div>
-          <div id="dlg-feedback" class="dlg hidden" role="dialog" aria-labelledby="dlg-feedback-title" aria-modal="true">
-            <div class="dlg-head">
-              <h2 id="dlg-feedback-title" data-i18n="dlg.feedback.title">反馈</h2>
-              <button type="button" data-dlg-close data-i18n-title="dlg.close">✕</button>
-            </div>
-            <div class="dlg-body">
-              <p data-i18n="dlg.feedback.intro1">可在 GitHub 开 Issue，或把下面写好的内容复制后自行发送。此处不会自动联网提交正文。</p>
+                </div>
+                <div class="settings-about-feedback">
+                  <h3 data-i18n="dlg.feedback.title">反馈</h3>
+                  <div class="dlg-body">
+<p data-i18n="dlg.feedback.intro1">可在 GitHub 开 Issue，或把下面写好的内容复制后自行发送。此处不会自动联网提交正文。</p>
               <p data-i18n="dlg.feedback.intro2">可写：时间轴、仪表盘、采集器上的异常、复现步骤、大概发生时间。复制内容仍只留在本机剪贴板。</p>
               <textarea id="feedback-text" rows="6" data-i18n-placeholder="dlg.feedback.placeholder" placeholder="例如：仪表盘左右拖到某天后折线卡住……"></textarea>
               <div class="dlg-actions">
                 <button type="button" class="dlg-btn primary" id="btn-feedback-issue" data-i18n="dlg.feedback.issue" data-i18n-title="dlg.feedback.issueTitle">在 GitHub 提交 Issue</button>
                 <button type="button" class="dlg-btn" id="btn-copy-feedback" data-i18n="dlg.feedback.copy">复制到剪贴板</button>
-                <button type="button" class="dlg-btn" data-dlg-close data-i18n="dlg.close">关闭</button>
+                
               </div>
               <p id="feedback-copy-status"></p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+        </section>
+
+        <section id="page-player" class="page">
+          <div id="player-body">
+            <div id="stage">
+              <canvas id="omni-canvas"></canvas>
+              <div id="load-overlay" aria-live="polite">
+                <div class="load-card">
+                  <div class="load-label" id="load-label">载入中…</div>
+                  <div class="load-bar"><div class="load-bar-fill" id="load-bar-fill"></div></div>
+                  <div class="load-pct" id="load-pct">0%</div>
+                </div>
+              </div>
+              <div id="timeline-ui" class="show">
+                <div class="tl-toolbar">
+                  <div class="data-group">
+                    <button id="btn-live" class="btn-data">🔴 直播</button>
+                  </div>
+    <div class="play-group">
+                    <button id="btn-play" title="播放/暂停 (空格)">▶</button>
+                    <select id="playback-speed" title="播放倍速" aria-label="播放倍速">
+                      <option value="1">1×</option>
+                      <option value="2">2×</option>
+                      <option value="8">8×</option>
+                      <option value="32">32×</option>
+                      <option value="64">64×</option>
+                      <option value="128">128×</option>
+                      <option value="256">256×</option>
+                      <option value="512">512×</option>
+                      <option value="1024">1024×</option>
+                      <option value="2048">2048×</option>
+                      <option value="custom">自定义…</option>
+                    </select>
+                    <span id="speed-custom" title="现实 1 秒对应多少播放时间">
+                      <label for="speed-amount">1秒=</label>
+                      <input type="number" id="speed-amount" min="0.001" step="any" value="1" />
+                      <select id="speed-unit" aria-label="时间单位">
+                        <option value="1">秒</option>
+                        <option value="60" selected>分</option>
+                        <option value="3600">时</option>
+                        <option value="86400">天</option>
+                      </select>
+                      <span id="speed-eff">×60</span>
+                    </span>
+      <span id="time-display">00:00.00 / 00:00.00</span>
+                  </div>
+                  <span class="tl-spacer"></span>
+                  <button type="button" id="btn-fullscreen" title="全屏 (Enter)">⛶ 全屏</button>
+                </div>
+                <canvas id="player-timeline" tabindex="0" aria-label="播放时间轴"></canvas>
+                <input type="range" id="time-slider" min="0" max="100" value="0" step="1" tabindex="-1" aria-hidden="true">
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="page-dashboard" class="page">
+          <div class="dash-wrap">
+            <div id="dash-tabs">
+              <div id="dash-pill" aria-hidden="true"></div>
+              <button type="button" data-dash="health" class="active">运作时间轴</button>
+              <button type="button" data-dash="stats">统计图表</button>
+              <button type="button" data-dash="live">运行状态</button>
+              <button type="button" data-dash="sleep">睡眠猜测</button>
+            </div>
+            <div class="dash-panels">
+              <div id="dash-health" class="dash-panel active">
+                <div class="dash-panel-head dash-health-head">
+                  <h2>运行时间轴</h2>
+                  <div class="dash-health-head-right">
+                    <div id="dash-tick-lod" title="Alt缩%：每次 Alt+滚轮改变观察窗跨度的百分比">
+                      <label>Alt缩% <input type="number" id="alt-zoom-pct" min="1" max="50" step="1" value="4" /></label>
+                    </div>
+                  </div>
+                </div>
+                <div class="dash-health-toolbar">
+                  <button type="button" id="btn-toggle-lanes" class="dash-chip">收起程序轴</button>
+                </div>
+                <div id="dash-health-frame">
+                  <div id="dash-health-load" class="dash-health-load is-loading" hidden aria-live="polite">
+                    <div class="dash-health-load-bar" aria-hidden="true"><div class="dash-health-load-fill"></div></div>
+                    <span class="dash-health-load-label" id="dash-health-load-label">加载时间轴…</span>
+                  </div>
+                  <div id="dash-health-sizer" aria-hidden="true">
+                    <canvas id="dash-health-canvas"></canvas>
+                  </div>
+                </div>
+              </div>
+              <div id="dash-stats" class="dash-panel">
+                <div class="dash-panel-head">
+                  <h2>统计图表</h2>
+                  <span class="meta">近 7 日焦点 · 总数据量</span>
+                </div>
+                <p class="dash-caliber-hint">「仅有人操作」打开后，近 7 日焦点三张图会去掉可能被判成 AFK 的段。定义见<button type="button" class="dash-text-link" data-open-about data-about-anchor="about-caliber-focus">关于</button>。</p>
+                <div id="dash-stats-progress" class="stats-progress" hidden>
+                  <div class="stats-progress-track"><div class="stats-progress-fill"></div></div>
+                  <span id="dash-stats-progress-label" class="stats-progress-label"></span>
+                </div>
+                <div id="dash-stats-body"></div>
+              </div>
+              <div id="dash-live" class="dash-panel">
+                <div class="dash-panel-head">
+                  <h2>运行状态</h2>
+                  <span class="meta" id="dash-status-meta">近 30 分钟 · 约 4s 刷新</span>
+                </div>
+                <div id="dash-live-body"></div>
+              </div>
+              <div id="dash-sleep" class="dash-panel">
+                <div class="dash-panel-head">
+                  <h2>睡眠猜测</h2>
+                  <span class="meta">近 14 日 · 猜测起床与焦点顺序</span>
+                </div>
+                <p class="dash-caliber-hint">根据键鼠空闲（≥10 分钟代理熄屏）与可选手机旁路猜测起床，非医学睡眠监测。条带：浅金黄＝5 分钟内手机 GPS/亮屏；浅天青＝电脑键鼠。细则见<button type="button" class="dash-text-link" data-open-about data-about-anchor="about-caliber-sleep">关于</button>。</p>
+                <canvas id="dash-sleep-strip" width="800" height="56" aria-label="睡眠活跃条"></canvas>
+                <div id="dash-sleep-body"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="page-notes" class="page">
+          <div class="notes-wrap">
+            <div class="notes-top">
+              <div class="notes-top-left">
+                <h1 data-i18n="notes.title">笔记</h1>
+                <div class="theme-seg notes-mode-seg" id="notes-mode-seg" role="radiogroup" data-i18n-aria="notes.mode.aria">
+                  <button type="button" class="active" data-notes-mode="stream" data-i18n="notes.mode.stream">流式笔记</button>
+                  <button type="button" data-notes-mode="clue" data-i18n="notes.mode.clue">线索板</button>
+                  <button type="button" data-notes-mode="timeline" data-i18n="notes.mode.timeline">时间轴</button>
+                </div>
+                <button type="button" id="notes-undock-btn" class="notes-btn notes-undock-btn" data-i18n="notes.undock" data-i18n-title="notes.undockTitle" title="摘出为独立窗口">↗ 摘出</button>
+                <button type="button" id="notes-dock-btn" class="notes-btn notes-dock-btn hidden" data-i18n="notes.dock" data-i18n-title="notes.dockTitle" title="收回到主窗口">↙ 收回</button>
+              </div>
+              <div class="notes-top-right">
+                <div id="notes-stream-status">
+                  <div id="notes-inline-task" class="notes-inline-task hidden" aria-live="polite">
+                    <div id="notes-inline-task-bar" class="notes-inline-task-bar indeterminate"><span></span></div>
+                    <span id="notes-inline-task-label" class="notes-inline-task-label"></span>
+                  </div>
+                  <span id="notes-sidecar-status" class="notes-sidecar-status" data-i18n="notes.sidecar.idle">未连接</span>
+                </div>
+              </div>
+            </div>
+            <div id="notes-undocked-placeholder" class="notes-undocked-placeholder hidden" aria-live="polite">
+              <p data-i18n="notes.undocked.hint">笔记已在独立窗口中打开。</p>
+              <button type="button" id="notes-undocked-focus" class="notes-btn primary" data-i18n="notes.undocked.focus">显示笔记窗口</button>
+              <button type="button" id="notes-undocked-redock" class="notes-btn" data-i18n="notes.dock">收回到主窗口</button>
+            </div>
+            <div id="notes-chat-apps-placeholder" class="hidden" data-i18n="shell.apps.chatMoved">流式笔记已在右侧应用栏打开</div>
+            <div id="notes-chat-view" class="notes-chat-view">
+              <div class="notes-stage">
+              <aside class="notes-preset-sidebar" id="notes-preset-sidebar" data-i18n-aria="notes.preset.aria">
+                <div class="notes-preset-sidebar-head">
+                  <h2 data-i18n="notes.preset.title">连线存档</h2>
+                  <label class="notes-preset-hide-notes" data-i18n-title="notes.preset.hideNotesHint" title="打开后列表瓷砖不显示备注行，悬停仍可看全文">
+                    <input type="checkbox" id="notes-preset-hide-notes" />
+                    <span data-i18n="notes.preset.hideNotes">是否隐藏备注</span>
+                  </label>
+                </div>
+                <div id="notes-preset-list"></div>
+                <div class="notes-preset-sidebar-foot">
+                  <p id="notes-preset-toast" class="notes-preset-toast hidden" role="status"></p>
+                  <button type="button" id="notes-preset-save-open" class="notes-btn" data-i18n="notes.preset.saveCurrent">保存当前组合</button>
+                  <button type="button" id="notes-preset-new" class="notes-btn primary" data-i18n="notes.preset.new">+ 新对话</button>
+                </div>
+              </aside>
+              <div class="notes-stage-main">
+              <div class="notes-feed-column">
+                <div id="notes-feed" aria-live="polite"></div>
+                <div id="notes-card-rail-host" class="notes-card-rail-host" hidden>
+                  <div class="notes-rail-preview-panel" hidden>
+                    <div class="notes-rail-dates"></div>
+                    <div class="notes-rail-preview">
+                      <div class="notes-rail-preview-inner"></div>
+                      <div class="notes-rail-preview-thumb-wrap">
+                        <div class="notes-rail-preview-thumb"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="notes-rail-ticks-wrap">
+                    <div class="notes-rail-viewport" aria-label="卡片导航">
+                      <div class="notes-rail-track"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="notes-composer-wrap">
+                <div class="notes-composer">
+                  <div id="notes-composer-attachments" hidden></div>
+                  <div class="notes-composer-input-wrap">
+                    <div id="notes-temp-live" class="notes-temp-tape" aria-hidden="true"></div>
+                    <textarea id="notes-input" rows="1" placeholder="单轮提问（接线后带上历史）…"></textarea>
+                  </div>
+                  <div class="notes-composer-toolbar">
+                    <div class="notes-composer-toolbar-left">
+                      <button type="button" id="notes-composer-add-btn" aria-haspopup="menu" aria-expanded="false" aria-label="添加附件" title="添加附件">+</button>
+                      <button type="button" id="notes-model-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="选模型">
+                        <span class="notes-composer-model-label">选模型</span>
+                      </button>
+                      <button type="button" id="notes-params-btn" class="notes-params-btn" aria-haspopup="dialog" aria-expanded="false" aria-label="协议参数" title="协议参数">参数</button>
+                      <button type="button" id="notes-color-temp-btn" class="notes-color-temp-btn" aria-haspopup="dialog" aria-expanded="false" aria-pressed="false" data-i18n="notes.colorTemp.btn" data-i18n-title="notes.colorTemp.btnTitle" data-i18n-aria="notes.colorTemp.btnTitle">色温</button>
+                    </div>
+                    <div class="notes-composer-toolbar-right">
+                      <button type="button" id="notes-mcp-btn" class="notes-mcp-btn" aria-haspopup="dialog" aria-expanded="false" aria-label="MCP 工具" title="MCP 工具">MCP</button>
+                      <button type="button" id="notes-ctx-usage-btn" class="notes-ctx-ring-btn" aria-haspopup="dialog" aria-expanded="false" aria-label="上下文用量" title="上下文用量">
+                      </button>
+                      <button type="button" id="notes-send" aria-label="发送">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M12 19V6.8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                          <path d="M7.2 11.2 12 6.4l4.8 4.8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div id="notes-model-detail-pane" class="omni-float hidden" aria-live="polite"></div>
+                <div id="notes-model-popover" class="notes-model-popover omni-float hidden" aria-hidden="true">
+                  <input type="search" id="notes-model-search" class="notes-model-search" placeholder="Search models" autocomplete="off" />
+                  <div class="notes-model-popover-inner">
+                    <div id="notes-model-list"></div>
+                  </div>
+                  <p id="notes-model-picker-status" class="notes-model-picker-status" hidden></p>
+                  <div class="notes-model-popover-tools">
+                    <button type="button" id="notes-refresh-models" data-i18n="notes.model.refresh">刷新模型</button>
+                    <button type="button" id="notes-edit-models" data-i18n="notes.model.edit" aria-haspopup="dialog" aria-expanded="false">编辑模型</button>
+                  </div>
+                  <button type="button" id="notes-add-api" data-i18n="notes.addApi">管理连接…</button>
+                </div>
+                <div id="notes-model-editor" class="notes-model-editor omni-float hidden" role="dialog" aria-labelledby="notes-model-editor-title" aria-hidden="true">
+                  <div class="notes-model-editor-head">
+                    <h2 id="notes-model-editor-title" data-i18n="notes.model.editorTitle">模型</h2>
+                    <button type="button" id="notes-model-editor-close" aria-label="关闭">×</button>
+                  </div>
+                  <input type="search" id="notes-model-editor-search" class="notes-model-search" data-i18n-placeholder="notes.model.editorSearch" placeholder="搜索模型" autocomplete="off" />
+                  <div id="notes-model-editor-list" class="notes-model-editor-list"></div>
+                  <button type="button" id="notes-model-editor-add" data-i18n="notes.model.addProvider">添加提供方...</button>
+                </div>
+              </div>
+              </div>
+              <svg id="notes-wire-layer" class="notes-wire-layer" aria-hidden="true" preserveAspectRatio="none">
+                <g id="notes-wire-draw"></g>
+              </svg>
+              </div>
+            </div>
+            <div id="notes-clue-apps-placeholder" class="hidden" data-i18n="shell.apps.clueMoved">线索板已在右侧应用栏打开</div>
+            <div id="notes-clue-board-view" class="notes-clue-view hidden">
+              <div class="notes-clue-body">
+              <aside id="notes-clue-sidebar" class="notes-clue-sidebar" data-i18n-aria="notes.clue.boards.aria">
+                <div class="notes-clue-sidebar-head">
+                  <h2 data-i18n="notes.clue.boards.title">线索板</h2>
+                  <button type="button" id="notes-clue-board-new" class="notes-clue-board-new" data-i18n-title="notes.clue.boards.new" data-i18n-aria="notes.clue.boards.new" title="新建" aria-label="新建">+</button>
+                </div>
+                <div id="notes-clue-board-list" role="listbox" aria-label="线索板列表"></div>
+              </aside>
+              <div class="notes-clue-stage">
+              <div class="notes-clue-toolbar">
+                <div class="notes-clue-history-tools">
+                  <button type="button" id="notes-clue-undo" class="notes-btn" data-i18n-title="notes.clue.undo" title="撤销" aria-label="撤销" disabled>↶</button>
+                  <button type="button" id="notes-clue-redo" class="notes-btn" data-i18n-title="notes.clue.redo" title="重做" aria-label="重做" disabled>↷</button>
+                  <button type="button" id="notes-clue-history-toggle" class="notes-btn" data-i18n="notes.clue.history.toggle" aria-pressed="false">历史</button>
+                </div>
+                <button type="button" id="notes-clue-add" class="notes-btn primary" data-i18n="notes.clue.add">+ 添加线索</button>
+                <button type="button" id="notes-clue-clear-links" class="notes-btn" data-i18n="notes.clue.clearLinks">清除选中连线</button>
+                <button type="button" id="notes-clue-reset-view" class="notes-btn notes-clue-reset-view" data-i18n="notes.clue.resetView">还原视图</button>
+                <span id="notes-clue-hint" aria-live="polite"></span>
+              </div>
+              <aside id="notes-clue-history-panel" class="notes-clue-history-panel" aria-hidden="true">
+                <div class="notes-clue-history-head" data-i18n="notes.clue.history.title">操作历史</div>
+                <ul id="notes-clue-history-list"></ul>
+              </aside>
+              <div class="notes-clue-board" id="notes-clue-board">
+                <div id="notes-clue-zoom-toast" aria-live="polite" aria-hidden="true"></div>
+                <div id="notes-clue-pan-tuner" class="notes-clue-pan-tuner is-collapsed hidden" aria-label="Pan inertia tuner">
+                  <button type="button" id="notes-clue-pan-tuner-toggle" class="notes-clue-pan-tuner-toggle" aria-expanded="false">
+                    <span data-i18n="notes.clue.panTuner.title">平移惯性</span>
+                  </button>
+                  <div class="notes-clue-pan-tuner-body">
+                    <div class="notes-clue-pan-tuner-chart-wrap">
+                      <svg id="notes-clue-pan-curve-svg" viewBox="0 0 220 120" aria-hidden="true">
+                        <g class="notes-clue-pan-curve-grid">
+                          <line x1="28" y1="10" x2="28" y2="98" class="notes-clue-pan-curve-axis" />
+                          <line x1="28" y1="98" x2="210" y2="98" class="notes-clue-pan-curve-axis" />
+                          <line x1="28" y1="54" x2="210" y2="54" />
+                          <line x1="119" y1="10" x2="119" y2="98" />
+                        </g>
+                        <text id="notes-clue-pan-curve-ylabel" class="notes-clue-pan-curve-label" x="4" y="56" transform="rotate(-90 4 56)">速度</text>
+                        <text id="notes-clue-pan-curve-xlabel" class="notes-clue-pan-curve-label" x="119" y="115" text-anchor="middle">时间</text>
+                        <path id="notes-clue-pan-curve-path" />
+                        <g id="notes-clue-pan-curve-handles" />
+                      </svg>
+                      <label class="notes-clue-pan-damping">
+                        <span data-i18n="notes.clue.panTuner.damping">阻尼</span>
+                        <input type="number" id="notes-clue-pan-damping" min="0.1" max="5" step="0.05" value="1" />
+                      </label>
+                    </div>
+                    <p id="notes-clue-pan-tuner-hint" class="notes-clue-pan-tuner-hint" data-i18n="notes.clue.panTuner.hint">拖动中间圆柄改衰减曲线；阻尼越大停得越快。</p>
+                  </div>
+                </div>
+                <div class="notes-clue-pan" id="notes-clue-pan">
+                  <div class="notes-clue-canvas" id="notes-clue-canvas">
+                    <div id="notes-clue-nodes" class="notes-clue-nodes"></div>
+                    <svg id="notes-clue-wire-layer" class="notes-clue-wire-layer" aria-hidden="true" preserveAspectRatio="none">
+                      <g id="notes-clue-wire-draw"></g>
+                    </svg>
+                    <div id="notes-clue-empty" class="notes-clue-empty" data-i18n="notes.clue.empty">添加第一条线索，用圆点连起疑点。</div>
+                  </div>
+                </div>
+              </div>
+              </div>
+              </div>
+            </div>
+            <div id="notes-timeline-view" class="notes-timeline-view hidden">
+              <div class="notes-timeline-toolbar">
+                <button type="button" id="notes-timeline-ingest" class="notes-btn">收入资料</button>
+                <button type="button" id="notes-timeline-funnel" class="notes-btn notes-timeline-funnel-btn" aria-haspopup="dialog" aria-expanded="false" title="筛选" aria-label="筛选时间轴">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 5h16l-6 7v5l-4 2v-7L4 5z"/></svg>
+                </button>
+                <p class="notes-timeline-hint">滚轮平移 · Alt+滚轮缩放 · 长按拖移</p>
+              </div>
+              <canvas id="notes-timeline-canvas" aria-label="笔记时间轴"></canvas>
+            </div>
+            <div id="notes-research-detail" class="omni-float hidden" aria-live="polite"></div>
+          </div>
+          <div id="notes-log-drawer" class="notes-log-drawer hidden" aria-hidden="true">
+            <div class="notes-log-head">
+              <div class="notes-log-head-title">
+                <strong data-i18n="notes.log.title">协议日志</strong>
+                <span
+                  role="button"
+                  tabindex="0"
+                  id="btn-protocol-log-plain"
+                  class="caliber-plain-btn"
+                  aria-pressed="false"
+                  data-i18n="notes.log.plainBtn"
+                  data-i18n-title="notes.log.plainBtnTitle"
+                  data-i18n-aria="notes.log.plainBtnAria"
+                >人话</span>
+                <span
+                  role="button"
+                  tabindex="0"
+                  id="btn-protocol-log-envelope"
+                  class="caliber-plain-btn"
+                  aria-pressed="false"
+                  data-i18n="notes.log.envelopeBtn"
+                  data-i18n-title="notes.log.envelopeBtnTitle"
+                  data-i18n-aria="notes.log.envelopeBtnAria"
+                >输入信封</span>
+              </div>
+              <button type="button" id="notes-log-close" class="notes-btn" data-i18n="notes.log.close">关闭</button>
+            </div>
+            <div id="notes-log-mcp" class="notes-log-mcp is-empty" aria-live="polite">MCP：未使用</div>
+            <pre id="notes-log-body"></pre>
+            <div id="notes-log-envelopes" class="notes-log-envelopes hidden" aria-live="polite"></div>
+          </div>
+        </section>
+      </div>
+      <div id="shell-apps-launcher" class="shell-apps-launcher" aria-hidden="false">
+        <button type="button" id="btn-shell-apps" aria-pressed="false" data-i18n-title="shell.apps.show" aria-label="显示应用栏" title="显示应用栏">
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <rect x="1.75" y="2.25" width="8.5" height="11.5" rx="1.2" stroke="currentColor" stroke-width="1.35"/>
+            <path d="M12.4 2.4v11.2" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/>
+            <path d="M14.15 5.2v5.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity="0.55"/>
+          </svg>
+        </button>
+      </div>
+      <aside id="shell-apps" class="hidden" aria-hidden="true" aria-label="应用栏">
+        <div id="shell-apps-resize" title="调整宽度"></div>
+        <div class="shell-apps-head">
+          <div id="shell-apps-tabstrip" class="shell-apps-tabstrip" role="tablist"></div>
+          <button type="button" id="shell-apps-plus" aria-haspopup="menu" aria-expanded="false" data-i18n-title="shell.apps.add" title="添加面板">+</button>
+          <div class="shell-apps-chrome-spacer" aria-hidden="true"></div>
         </div>
-        <div id="dlg-archive-save-overlay" class="dlg-overlay hidden" aria-hidden="true">
+        <div id="shell-apps-panes"></div>
+        <div id="shell-apps-clue-stash" class="hidden" aria-hidden="true"></div>
+      </aside>
+    </div>
+
+                <div id="dlg-archive-save-overlay" class="dlg-overlay hidden" aria-hidden="true">
           <div id="dlg-archive-save" class="dlg" role="dialog" aria-labelledby="dlg-archive-save-title" aria-modal="true">
             <div class="dlg-head">
               <h2 id="dlg-archive-save-title" data-i18n="notes.preset.saveDlgTitle">保存对话</h2>

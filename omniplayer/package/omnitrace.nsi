@@ -6,7 +6,7 @@ SetCompressor /SOLID lzma
 RequestExecutionLevel user
 
 !ifndef PRODUCT_VERSION
-  !define PRODUCT_VERSION "0.1.3"
+  !define PRODUCT_VERSION "0.1.4"
 !endif
 !ifndef OUTFILE
   !error "Pass /DOUTFILE=...setup.exe"

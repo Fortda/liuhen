@@ -4,9 +4,17 @@
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-09-21
+
 ### Changed
 
 - 对外显示名改为 **留痕**（英文 Liuhen）。磁盘数据目录仍为 `%USERPROFILE%\OmniTrace\OmniDatabase`，程序目录仍为 `%LOCALAPPDATA%\OmniTrace`，采集 exe 仍为 `omnitrace_input.exe`（兼容旧路径与自动更新）。公开仓库迁至 <https://github.com/Fortda/liuhen>。新发版安装包文件名为 `Liuhen-*-windows-x64-setup.exe`；旧 Release 上的 `OmniTrace-*` 资源仍可用。
+
+### Added
+
+- 设置 → **检查更新**：向 `Fortda/liuhen` 的 GitHub Release 拉取增量包 `Liuhen-*-windows-x64-update.zip`（两 exe + 图标），只换程序文件，不改 `OmniDatabase`。可开「启动时检查更新」。首次安装仍用 setup.exe。
+- GitHub Release 可另挂边载 **`Liuhen-*-android.apk`**（与 Windows setup.exe / zip 并列）。几乎没法用；数据只留在手机；包内无 `OmniDatabase`。维护者本机 `omnitrace_android/package.ps1`；Actions 里的 Android 任务是可选的，失败不挡 Windows 包。
+- 线索板 MCP：新建板、便签的父子 / 折叠 / 种类，以及操作历史与回退。
 
 ## [0.1.3] - 2026-09-19
 
@@ -45,6 +53,7 @@
 
 - 运行时库 `OmniDatabase/`、API Key、提示词原文不进 Git。
 
-[Unreleased]: https://github.com/Fortda/liuhen/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/Fortda/liuhen/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/Fortda/liuhen/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Fortda/liuhen/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Fortda/liuhen/releases/tag/v0.1.2

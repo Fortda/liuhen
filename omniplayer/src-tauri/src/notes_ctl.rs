@@ -1173,6 +1173,10 @@ pub fn notes_wire_presets_delete(preset_id: String) -> Result<WirePresetsFile, S
     Ok(file)
 }
 
+fn skip_collapsed(v: &Option<bool>) -> bool {
+    !matches!(v, Some(true))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ClueBoardNode {
     pub id: String,
@@ -1188,6 +1192,17 @@ pub struct ClueBoardNode {
     pub w: Option<f64>,
     #[serde(default)]
     pub h: Option<f64>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "parentId",
+        alias = "parent_id"
+    )]
+    pub parent_id: Option<String>,
+    #[serde(default, skip_serializing_if = "skip_collapsed")]
+    pub collapsed: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1304,6 +1319,81 @@ fn normalize_clue_view(view: &mut Option<ClueBoardView>) {
     }
 }
 
+pub fn clue_kind_from_str(s: &str) -> Option<String> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "project" => Some("project".into()),
+        "research" => Some("research".into()),
+        _ => None,
+    }
+}
+
+pub fn clue_parent_would_cycle(nodes: &[ClueBoardNode], node_id: &str, parent_id: &str) -> bool {
+    if parent_id.is_empty() || parent_id == node_id {
+        return true;
+    }
+    let mut by_id = std::collections::BTreeMap::<&str, &ClueBoardNode>::new();
+    for n in nodes {
+        by_id.insert(n.id.as_str(), n);
+    }
+    let mut cur = Some(parent_id);
+    let mut seen = std::collections::BTreeSet::<&str>::new();
+    seen.insert(node_id);
+    while let Some(pid) = cur {
+        if !seen.insert(pid) {
+            return true;
+        }
+        cur = by_id
+            .get(pid)
+            .and_then(|n| n.parent_id.as_deref())
+            .map(str::trim)
+            .filter(|s| !s.is_empty());
+    }
+    false
+}
+
+fn sanitize_clue_parents(nodes: &mut [ClueBoardNode]) {
+    let ids: std::collections::BTreeSet<String> = nodes.iter().map(|n| n.id.clone()).collect();
+    for n in nodes.iter_mut() {
+        match n.parent_id.as_deref().map(str::trim) {
+            Some(p) if !p.is_empty() && p != n.id && ids.contains(p) => {
+                n.parent_id = Some(p.to_string());
+            }
+            _ => n.parent_id = None,
+        }
+        if n.collapsed != Some(true) {
+            n.collapsed = None;
+        }
+        n.kind = n
+            .kind
+            .as_deref()
+            .and_then(clue_kind_from_str);
+    }
+    let snapshot: Vec<(String, Option<String>)> = nodes
+        .iter()
+        .map(|n| (n.id.clone(), n.parent_id.clone()))
+        .collect();
+    for n in nodes.iter_mut() {
+        if let Some(ref p) = n.parent_id {
+            let mut cur = Some(p.clone());
+            let mut seen = std::collections::BTreeSet::from([n.id.clone()]);
+            let mut cyclic = false;
+            while let Some(pid) = cur {
+                if !seen.insert(pid.clone()) {
+                    cyclic = true;
+                    break;
+                }
+                cur = snapshot
+                    .iter()
+                    .find(|(id, _)| id == &pid)
+                    .and_then(|(_, parent)| parent.clone());
+            }
+            if cyclic {
+                n.parent_id = None;
+            }
+        }
+    }
+}
+
 fn normalize_clue_nodes_edges(
     nodes: Vec<ClueBoardNode>,
     edges: Vec<ClueBoardEdge>,
@@ -1350,6 +1440,7 @@ fn normalize_clue_nodes_edges(
     if out_nodes.len() > 500 {
         out_nodes.truncate(500);
     }
+    sanitize_clue_parents(&mut out_nodes);
     let node_ids: std::collections::BTreeSet<String> =
         out_nodes.iter().map(|n| n.id.clone()).collect();
 
@@ -2948,6 +3039,9 @@ mod clue_boards_merge_tests {
                 rotation: None,
                 w: None,
                 h: None,
+                parent_id: None,
+                collapsed: None,
+                kind: None,
             }],
             edges: vec![],
             view: None,
@@ -2986,6 +3080,9 @@ mod clue_boards_merge_tests {
             rotation: None,
             w: None,
             h: None,
+            parent_id: None,
+            collapsed: None,
+            kind: None,
         });
         let existing = ClueBoardsFile {
             v: 2,

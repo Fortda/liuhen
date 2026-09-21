@@ -398,7 +398,10 @@ pub fn openai_tools_for_prefs(prefs: &McpPrefs) -> Vec<Value> {
                     "board_id": { "type": "string" },
                     "w": { "type": "number" },
                     "h": { "type": "number" },
-                    "color": { "type": "string" }
+                    "color": { "type": "string" },
+                    "parent_id": { "type": "string", "description": "Parent note id for expand/collapse grouping" },
+                    "collapsed": { "type": "boolean", "description": "If true, hide descendants until expanded" },
+                    "kind": { "type": "string", "description": "Optional tag: project | research" }
                 },
                 "required": ["text"],
                 "additionalProperties": false
@@ -406,7 +409,7 @@ pub fn openai_tools_for_prefs(prefs: &McpPrefs) -> Vec<Value> {
         ));
         tools.push(tool_def(
             "clue_board_update_note",
-            "Update a note's text, position, or size.",
+            "Update a note's text, position, size, parent, collapsed state, or kind.",
             json!({
                 "type": "object",
                 "properties": {
@@ -417,7 +420,10 @@ pub fn openai_tools_for_prefs(prefs: &McpPrefs) -> Vec<Value> {
                     "y": { "type": "number" },
                     "w": { "type": "number" },
                     "h": { "type": "number" },
-                    "color": { "type": "string" }
+                    "color": { "type": "string" },
+                    "parent_id": { "type": "string", "description": "Parent note id; empty clears parent" },
+                    "collapsed": { "type": "boolean" },
+                    "kind": { "type": "string", "description": "project | research; empty clears" }
                 },
                 "required": ["node_id"],
                 "additionalProperties": false
@@ -501,6 +507,43 @@ pub fn openai_tools_for_prefs(prefs: &McpPrefs) -> Vec<Value> {
         ));
     }
     tools
+}
+
+fn apply_clue_group_json(
+    board_nodes: &[crate::notes_ctl::ClueBoardNode],
+    node: &mut crate::notes_ctl::ClueBoardNode,
+    args: &Value,
+) -> Result<(), String> {
+    if let Some(v) = args.get("parent_id") {
+        if v.is_null() || v.as_str() == Some("") {
+            node.parent_id = None;
+        } else if let Some(pid) = v.as_str().map(str::trim).filter(|s| !s.is_empty()) {
+            if pid == node.id {
+                return Err("parent cannot be self".into());
+            }
+            if !board_nodes.iter().any(|n| n.id == pid) {
+                return Err(format!("parent not found: {pid}"));
+            }
+            if crate::notes_ctl::clue_parent_would_cycle(board_nodes, &node.id, pid) {
+                return Err(format!("parent would create a cycle: {pid}"));
+            }
+            node.parent_id = Some(pid.to_string());
+        }
+    }
+    if let Some(c) = args.get("collapsed").and_then(|v| v.as_bool()) {
+        node.collapsed = if c { Some(true) } else { None };
+    }
+    if let Some(v) = args.get("kind") {
+        if v.is_null() || v.as_str() == Some("") {
+            node.kind = None;
+        } else if let Some(s) = v.as_str() {
+            node.kind = Some(
+                crate::notes_ctl::clue_kind_from_str(s)
+                    .ok_or_else(|| "kind must be project or research".to_string())?,
+            );
+        }
+    }
+    Ok(())
 }
 
 fn tool_def(name: &str, description: &str, parameters: Value) -> Value {
@@ -778,15 +821,22 @@ pub async fn execute_tool(name: &str, args: &Value, prefs: &McpPrefs) -> Result<
                         "board not found: {bid}. Call clue_board_list and use an existing board_id; only call clue_board_create_board if the user asked for a new board."
                     )
                 })?;
-                board.nodes.push(crate::notes_ctl::ClueBoardNode {
-                    id: node_id.clone(),
-                    text: text.clone(),
-                    x,
-                    y,
-                    w,
-                    h,
-                    color: color.clone(),
-                    rotation: None,
+                board.nodes.push({
+                    let mut node = crate::notes_ctl::ClueBoardNode {
+                        id: node_id.clone(),
+                        text: text.clone(),
+                        x,
+                        y,
+                        w,
+                        h,
+                        color: color.clone(),
+                        rotation: None,
+                        parent_id: None,
+                        collapsed: None,
+                        kind: None,
+                    };
+                    apply_clue_group_json(&board.nodes, &mut node, args)?;
+                    node
                 });
                 Ok((bid, board.clone()))
             })?;
@@ -821,30 +871,35 @@ pub async fn execute_tool(name: &str, args: &Value, prefs: &McpPrefs) -> Result<
                     .iter_mut()
                     .find(|b| b.id == bid)
                     .ok_or("board not found")?;
-                let node = board
+                let idx = board
                     .nodes
-                    .iter_mut()
-                    .find(|n| n.id == node_id)
+                    .iter()
+                    .position(|n| n.id == node_id)
                     .ok_or_else(|| format!("node not found: {node_id}"))?;
-                if let Some(t) = args.get("text").and_then(|v| v.as_str()) {
-                    node.text = t.to_string();
+                {
+                    let node = &mut board.nodes[idx];
+                    if let Some(t) = args.get("text").and_then(|v| v.as_str()) {
+                        node.text = t.to_string();
+                    }
+                    if let Some(x) = args.get("x").and_then(|v| v.as_f64()) {
+                        node.x = x;
+                    }
+                    if let Some(y) = args.get("y").and_then(|v| v.as_f64()) {
+                        node.y = y;
+                    }
+                    if let Some(w) = args.get("w").and_then(|v| v.as_f64()) {
+                        node.w = Some(w);
+                    }
+                    if let Some(h) = args.get("h").and_then(|v| v.as_f64()) {
+                        node.h = Some(h);
+                    }
+                    if let Some(c) = args.get("color").and_then(|v| v.as_str()) {
+                        node.color = Some(c.to_string());
+                    }
                 }
-                if let Some(x) = args.get("x").and_then(|v| v.as_f64()) {
-                    node.x = x;
-                }
-                if let Some(y) = args.get("y").and_then(|v| v.as_f64()) {
-                    node.y = y;
-                }
-                if let Some(w) = args.get("w").and_then(|v| v.as_f64()) {
-                    node.w = Some(w);
-                }
-                if let Some(h) = args.get("h").and_then(|v| v.as_f64()) {
-                    node.h = Some(h);
-                }
-                if let Some(c) = args.get("color").and_then(|v| v.as_str()) {
-                    node.color = Some(c.to_string());
-                }
-                let updated = node.clone();
+                let nodes_snap = board.nodes.clone();
+                apply_clue_group_json(&nodes_snap, &mut board.nodes[idx], args)?;
+                let updated = board.nodes[idx].clone();
                 Ok((bid, updated, board.clone()))
             })?;
             let _ = crate::notes_clue_history::append_from_board(
@@ -883,6 +938,11 @@ pub async fn execute_tool(name: &str, args: &Value, prefs: &McpPrefs) -> Result<
                 board.nodes.retain(|n| n.id != node_id);
                 if board.nodes.len() == before_n {
                     return Err(format!("node not found: {node_id}"));
+                }
+                for n in board.nodes.iter_mut() {
+                    if n.parent_id.as_deref() == Some(node_id.as_str()) {
+                        n.parent_id = None;
+                    }
                 }
                 board.edges.retain(|e| e.from != node_id && e.to != node_id);
                 let removed_edges = before_e - board.edges.len();

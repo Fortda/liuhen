@@ -865,6 +865,9 @@ pub fn run() {
             apps_ctl::apps_list_dir,
             portable_update::apply_portable_update,
             portable_update::probe_portable_update,
+            portable_update::github_check_update,
+            portable_update::github_download_update,
+            portable_update::quit_for_update,
         ])
         .build(tauri::generate_context!())
         .expect("启动留痕失败")

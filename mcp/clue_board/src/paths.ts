@@ -38,6 +38,9 @@ export function resolveDataRoot(): string {
     if (looksLikeDb(candidate)) return resolve(candidate);
   }
 
+  const userOmni = join(homedir(), "OmniTrace", "OmniDatabase");
+  if (looksLikeDb(userOmni) || existsSync(userOmni)) return userOmni;
+
   const dl = join(homedir(), "Downloads", "OmniTrace", "OmniDatabase");
   if (looksLikeDb(dl)) return dl;
 

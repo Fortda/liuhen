@@ -4,7 +4,8 @@
 # - 产出目录只放程序与说明（OmniPlayer.exe、采集 exe、bat、使用说明等）
 # - 切勿把运行时数据根 OmniDatabase 打进发布包（发布物与数据根分离）
 # - 稳定版：-Install → %LOCALAPPDATA%\OmniTrace（磁盘目录名兼容旧版）+ 桌面「留痕」快捷方式 + HKCU 卸载项（DisplayName=留痕）
-# - 增量：覆盖 dist 后，若稳定版在跑则写入 incoming，壳内「关于→更新」换 exe
+# - 增量：覆盖 dist 后，若稳定版在跑则写入 incoming；另打 *-update.zip（两 exe + ico）
+#   设置「检查更新」从 GitHub 拉 zip 写入 incoming，再换 exe（不改 OmniDatabase）
 #
 param(
   [switch]$Install,
@@ -149,6 +150,40 @@ function Publish-PortableZip([string]$Version) {
   [System.IO.Compression.ZipFile]::CreateFromDirectory($wrap, $zip)
   Remove-Item -LiteralPath $wrap -Recurse -Force
   Write-Host "portable zip:" -ForegroundColor Green
+  Write-Host "  $zip"
+}
+
+function Publish-UpdateZip([string]$Version) {
+  $distRoot = Join-Path $Repo "dist"
+  $wrap = Join-Path $distRoot "_update_zip_stage"
+  if (Test-Path -LiteralPath $wrap) {
+    Remove-Item -LiteralPath $wrap -Recurse -Force
+  }
+  New-Item -ItemType Directory -Force -Path $wrap | Out-Null
+  $copied = 0
+  foreach ($name in @("OmniPlayer.exe", "omnitrace_input.exe", "OmniTrace.ico")) {
+    $src = Join-Path $Dist $name
+    if (Test-Path -LiteralPath $src) {
+      Copy-Item -LiteralPath $src -Destination (Join-Path $wrap $name) -Force
+      $copied++
+    }
+  }
+  if (-not (Test-Path -LiteralPath (Join-Path $wrap "OmniPlayer.exe"))) {
+    Write-Error "update zip: OmniPlayer.exe missing under $Dist"
+    exit 1
+  }
+  if (-not (Test-Path -LiteralPath (Join-Path $wrap "omnitrace_input.exe"))) {
+    Write-Error "update zip: omnitrace_input.exe missing — incremental payload must include the recorder"
+    exit 1
+  }
+  $zip = Join-Path $distRoot ("Liuhen-" + $Version + "-windows-x64-update.zip")
+  if (Test-Path -LiteralPath $zip) {
+    Remove-Item -LiteralPath $zip -Force
+  }
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  [System.IO.Compression.ZipFile]::CreateFromDirectory($wrap, $zip)
+  Remove-Item -LiteralPath $wrap -Recurse -Force
+  Write-Host "incremental update zip ($copied files: two exes + ico):" -ForegroundColor Green
   Write-Host "  $zip"
 }
 
@@ -386,6 +421,7 @@ Write-Host "portable folder:" -ForegroundColor Green
 Write-Host "  $Dist"
 $appVer = Get-AppVersion
 Publish-PortableZip $appVer
+Publish-UpdateZip $appVer
 Publish-SetupExe $appVer
 
 if (-not $Install) {
@@ -405,7 +441,7 @@ if ($running) {
   # 仅在稳定版占用 exe 时写入 incoming，供关于→更新旁路替换；勿在空闲安装时留一份同内容 twin
   Copy-ReleaseBits $IncomingDir
   Write-DataRootPointer $IncomingDir
-  Write-Host "stable app is running; wrote incoming. Use About -> Update." -ForegroundColor Yellow
+  Write-Host "stable app is running; wrote incoming. Use Settings -> Check for updates." -ForegroundColor Yellow
 } else {
   Copy-ReleaseBits $InstallDir
   Write-DataRootPointer $InstallDir

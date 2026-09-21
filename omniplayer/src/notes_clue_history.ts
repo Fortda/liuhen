@@ -14,6 +14,9 @@ export type ClueBoardSnapshot = {
     w?: number;
     h?: number;
     color?: string;
+    parentId?: string;
+    collapsed?: boolean;
+    kind?: "project" | "research";
   }>;
   edges: Array<{ id: string; from: string; to: string }>;
   panX: number;
@@ -103,6 +106,24 @@ export const CLUE_HISTORY_LABELS = {
     zh: "重命名线索板",
     en: "Rename board",
     action: "rename_board",
+  },
+  collapse: {
+    key: "notes.clue.history.collapse",
+    zh: "折叠便签",
+    en: "Collapse note",
+    action: "collapse_node",
+  },
+  expand: {
+    key: "notes.clue.history.expand",
+    zh: "展开便签",
+    en: "Expand note",
+    action: "expand_node",
+  },
+  setParent: {
+    key: "notes.clue.history.setParent",
+    zh: "设置父子",
+    en: "Set parent",
+    action: "set_parent",
   },
   rollback: {
     key: "notes.clue.history.rollback",

@@ -2,7 +2,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { findBoard } from "./normalize.js";
+import { applyClueGroupFields, findBoard } from "./normalize.js";
 import { appendFromBoard, listHistory, rollbackHistory } from "./history.js";
 import { getDataRootInfo, readClueBoards, withClueBoards } from "./store.js";
 import type { ClueBoardNode } from "./types.js";
@@ -91,8 +91,22 @@ server.tool(
     w: z.number().optional().describe("Width 120–1600 (UI clamp)"),
     h: z.number().optional().describe("Height 72–1200 (UI clamp)"),
     color: z.string().optional().describe("Optional color string"),
+    parent_id: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("Parent note id for expand/collapse grouping"),
+    collapsed: z
+      .boolean()
+      .optional()
+      .describe("If true, hide descendants until expanded"),
+    kind: z
+      .string()
+      .nullable()
+      .optional()
+      .describe('Optional tag: "project" or "research" (same plane, not a layer)'),
   },
-  async ({ board_id, text, x, y, w, h, color }) =>
+  async ({ board_id, text, x, y, w, h, color, parent_id, collapsed, kind }) =>
     runTool(async () => {
       const node = await withClueBoards((data) => {
         const board = findBoard(data, board_id);
@@ -106,6 +120,11 @@ server.tool(
         if (w != null) n.w = w;
         if (h != null) n.h = h;
         if (color != null) n.color = color;
+        applyClueGroupFields(board.nodes, n, {
+          parentId: parent_id,
+          collapsed,
+          kind,
+        });
         board.nodes.push(n);
         appendFromBoard(board, "ai", "add_node", {
           tool: "clue_board_create_note",
@@ -157,7 +176,7 @@ server.tool(
 
 server.tool(
   "clue_board_update_note",
-  "Update a note's text, position, or size.",
+  "Update a note's text, position, size, parent, collapsed state, or kind.",
   {
     board_id: boardIdSchema,
     node_id: z.string().describe("Node id to update"),
@@ -167,8 +186,31 @@ server.tool(
     w: z.number().optional(),
     h: z.number().optional(),
     color: z.string().optional(),
+    parent_id: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("Parent note id; empty/null clears parent"),
+    collapsed: z.boolean().optional().describe("Hide descendants when true"),
+    kind: z
+      .string()
+      .nullable()
+      .optional()
+      .describe('Optional tag: "project" or "research"; empty/null clears'),
   },
-  async ({ board_id, node_id, text, x, y, w, h, color }) =>
+  async ({
+    board_id,
+    node_id,
+    text,
+    x,
+    y,
+    w,
+    h,
+    color,
+    parent_id,
+    collapsed,
+    kind,
+  }) =>
     runTool(async () => {
       const updated = await withClueBoards((data) => {
         const board = findBoard(data, board_id);
@@ -181,6 +223,11 @@ server.tool(
         if (w !== undefined) node.w = w;
         if (h !== undefined) node.h = h;
         if (color !== undefined) node.color = color;
+        applyClueGroupFields(board.nodes, node, {
+          parentId: parent_id,
+          collapsed,
+          kind,
+        });
         appendFromBoard(board, "ai", "update_note", {
           tool: "clue_board_update_note",
           label_key: "notes.clue.history.editText",
@@ -208,6 +255,9 @@ server.tool(
         board.nodes = board.nodes.filter((n) => n.id !== node_id);
         if (board.nodes.length === beforeNodes) {
           throw new Error(`node not found: ${node_id}`);
+        }
+        for (const n of board.nodes) {
+          if (n.parentId === node_id) n.parentId = undefined;
         }
         board.edges = board.edges.filter(
           (e) => e.from !== node_id && e.to !== node_id,

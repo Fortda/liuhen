@@ -2,12 +2,7 @@
   "mcpServers": {
     "omnitrace-clue-board": {
       "command": "node",
-      "args": [
-        "mcp/clue_board/dist/index.js"
-      ],
-      "env": {
-        "OMNI_DATABASE": "OmniDatabase"
-      }
+      "args": ["mcp/clue_board/dist/index.js"]
     }
   }
 }

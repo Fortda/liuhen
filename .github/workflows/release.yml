@@ -37,6 +37,7 @@ jobs:
           path: |
             dist/Liuhen-*-windows-x64-setup.exe
             dist/Liuhen-*-windows-x64.zip
+            dist/Liuhen-*-windows-x64-update.zip
           if-no-files-found: error
 
       - name: Attach artifacts to GitHub Release
@@ -46,9 +47,10 @@ jobs:
           files: |
             dist/Liuhen-*-windows-x64-setup.exe
             dist/Liuhen-*-windows-x64.zip
+            dist/Liuhen-*-windows-x64-update.zip
           generate_release_notes: true
           body: |
-            **给朋友：** 下载 **`Liuhen-…-windows-x64-setup.exe`**，下一步下一步即可（当前用户，一般不用管理员）。里面是播放器 + 采集器。
+            **给朋友：** 首次安装下载 **`Liuhen-…-windows-x64-setup.exe`**，下一步下一步即可（当前用户，一般不用管理员）。里面是播放器 + 采集器。已装过的可在设置里「检查更新」，不必再下完整包。
 
             数据在本机 `%USERPROFILE%\OmniTrace\OmniDatabase`，不进安装包（磁盘目录名未改）。卸载（设置 → 应用 → 留痕）不删库。
 
@@ -56,8 +58,55 @@ jobs:
 
             也可以下 zip，解压后双击「安装到本机.bat」。
 
-            **For friends:** download **`Liuhen-…-windows-x64-setup.exe`**, Next Next Next (per-user, usually no UAC). Player + recorder included.
+            **For friends:** first install: download **`Liuhen-…-windows-x64-setup.exe`**, Next Next Next (per-user, usually no UAC). Player + recorder included. Later updates: Settings → Check for updates (program files only).
 
             Data stays in `%USERPROFILE%\OmniTrace\OmniDatabase` and is not in the package (folder name unchanged for compatibility). Uninstall keeps the library.
 
             SmartScreen: **More info → Run anyway** (unsigned). Zip is still attached.
+
+            若本页还有 **`Liuhen-…-android.apk`**：手机打开文件边载。几乎没法用；数据只留在手机；调试证书，系统会提示未知来源。没有 APK 不代表 Windows 包坏了（Android 任务是可选的）。
+
+            If **`Liuhen-…-android.apk`** is attached: sideload it. Almost unusable; data stays on the phone; debug-signed. A missing APK does not mean the Windows build failed.
+
+  # Optional: a real APK if ubuntu + SDK + Gradle succeed. Failure must not
+  # fail the Windows release or pretend an APK always exists.
+  android-apk:
+    name: android-apk (optional)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Build sideload APK
+        working-directory: omnitrace_android
+        run: bash ./package.sh
+
+      - name: Upload workflow artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: liuhen-android
+          path: dist/Liuhen-*-android.apk
+          if-no-files-found: ignore
+
+      - name: Attach APK to GitHub Release
+        if: success() && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/Liuhen-*-android.apk
+          fail_on_unmatched_files: false

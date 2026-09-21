@@ -1,3 +1,5 @@
+export type ClueNoteKind = "project" | "research";
+
 export interface ClueBoardNode {
   id: string;
   text?: string;
@@ -7,6 +9,12 @@ export interface ClueBoardNode {
   rotation?: number | null;
   w?: number | null;
   h?: number | null;
+  /** Tree parent for expand/collapse. Missing = root. */
+  parentId?: string | null;
+  /** When true, hide descendants (and edges to them). */
+  collapsed?: boolean | null;
+  /** Light tag; mixed on one plane for now (not a 2.5D layer). */
+  kind?: ClueNoteKind | string | null;
 }
 
 export interface ClueBoardEdge {

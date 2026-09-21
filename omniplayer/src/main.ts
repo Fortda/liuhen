@@ -1,5 +1,5 @@
 /**
- * 留痕壳：标题栏 / 设置 / 导航 / 关于与反馈。播放器见 ./player.ts，仪表盘见 ./dashboard.ts。
+ * 留痕壳：标题栏 / 设置 / 导航 / 关于与反馈（设置子页）。播放器见 ./player.ts，仪表盘见 ./dashboard.ts。
  */
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
@@ -232,7 +232,21 @@ async function focusNotesWindow() {
 
 
 /** 回退值；运行时优先用 getVersion()（与 tauri.conf.json 对齐）。 */
-let APP_VERSION = "0.1.2";
+let APP_VERSION = "0.1.4";
+
+const UPDATE_LAUNCH_KEY = "omnitrace.update.checkOnLaunch.v1";
+
+type GithubUpdateInfo = {
+  current_version: string;
+  latest_tag: string;
+  latest_version: string;
+  newer: boolean;
+  asset_name: string;
+  asset_size: number;
+  incoming: { path: string; source: string } | null;
+};
+
+let openAboutSettings: (anchor?: string) => void = () => {};
 
 async function resolveAppVersion(): Promise<string> {
   try {
@@ -488,7 +502,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   let pageActivateGen = 0;
-  type SettingsPane = "home" | "llm" | "playback";
+  type SettingsPane = "home" | "llm" | "playback" | "about";
   let settingsPane: SettingsPane = "home";
 
   function syncLlmBackLabel() {
@@ -514,11 +528,17 @@ window.addEventListener("DOMContentLoaded", async () => {
       .getElementById("settings-playback")
       ?.classList.toggle("hidden", pane !== "playback");
     document
+      .getElementById("settings-about")
+      ?.classList.toggle("hidden", pane !== "about");
+    document
       .getElementById("settings-open-llm")
       ?.setAttribute("aria-expanded", pane === "llm" ? "true" : "false");
     document
       .getElementById("settings-open-playback")
       ?.setAttribute("aria-expanded", pane === "playback" ? "true" : "false");
+    document
+      .getElementById("settings-open-about")
+      ?.setAttribute("aria-expanded", pane === "about" ? "true" : "false");
     syncLlmBackLabel();
     if (pane === "llm" && !opts?.skipMount) {
       void ensureNotes()
@@ -620,9 +640,252 @@ window.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("settings-playback-back")?.addEventListener("click", () => {
     closeLlmSettings();
   });
+  document.getElementById("settings-open-about")?.addEventListener("click", () => {
+    if (SHELL_NOTES) document.body.classList.add("shell-notes-llm");
+    switchPage("settings", { settingsPane: "about" });
+  });
+  document.getElementById("settings-about-back")?.addEventListener("click", () => {
+    closeLlmSettings();
+  });
+  openAboutSettings = (anchor) => {
+    if (SHELL_NOTES) document.body.classList.add("shell-notes-llm");
+    switchPage("settings", { settingsPane: "about" });
+    if (anchor) {
+      window.setTimeout(() => scrollCaliberAnchor(anchor), 80);
+    }
+  };
   window.addEventListener("omnitrace-open-llm-settings", () => {
     openLlmSettings();
   });
+
+  const updateMeta = document.getElementById("settings-update-meta");
+  const updateCheckBtn = document.getElementById(
+    "settings-update-check"
+  ) as HTMLButtonElement | null;
+  const updateApplyBtn = document.getElementById(
+    "settings-update-apply"
+  ) as HTMLButtonElement | null;
+  const updateLaunchToggle = document.getElementById(
+    "toggle-update-launch"
+  ) as HTMLInputElement | null;
+  let lastUpdateInfo: GithubUpdateInfo | null = null;
+  let updateBusy = false;
+
+  function readLaunchCheck(): boolean {
+    try {
+      const raw = localStorage.getItem(UPDATE_LAUNCH_KEY);
+      if (raw === "0") return false;
+      if (raw === "1") return true;
+    } catch {
+      /* private mode */
+    }
+    return true;
+  }
+
+  function writeLaunchCheck(on: boolean) {
+    try {
+      localStorage.setItem(UPDATE_LAUNCH_KEY, on ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function setUpdateBusy(on: boolean) {
+    updateBusy = on;
+    if (updateCheckBtn) updateCheckBtn.disabled = on;
+    if (updateApplyBtn) updateApplyBtn.disabled = on;
+  }
+
+  function showApplyButton(show: boolean) {
+    updateApplyBtn?.classList.toggle("hidden", !show);
+  }
+
+  function renderUpdateMeta(info: GithubUpdateInfo | null, extra?: string) {
+    if (!updateMeta) return;
+    if (extra) {
+      updateMeta.textContent = extra;
+      return;
+    }
+    if (!info) {
+      updateMeta.textContent = shellT("settings.update.meta.idle", {
+        version: APP_VERSION,
+      });
+      return;
+    }
+    if (info.newer) {
+      updateMeta.textContent = shellT("settings.update.available", {
+        latest: info.latest_version,
+        current: info.current_version,
+      });
+      return;
+    }
+    if (info.incoming) {
+      updateMeta.textContent = shellT("settings.update.incoming");
+      return;
+    }
+    updateMeta.textContent = shellT("settings.update.uptodate", {
+      version: info.current_version,
+    });
+  }
+
+  async function checkGithubUpdate(opts?: { quiet?: boolean }) {
+    if (updateBusy) return;
+    setUpdateBusy(true);
+    if (!opts?.quiet) {
+      renderUpdateMeta(null, shellT("settings.update.checking"));
+    }
+    try {
+      const info = await invoke<GithubUpdateInfo>("github_check_update");
+      lastUpdateInfo = info;
+      if (info.current_version) APP_VERSION = info.current_version;
+      const canApply = info.newer || !!info.incoming;
+      showApplyButton(canApply);
+      renderUpdateMeta(info);
+      if (opts?.quiet) {
+        if (info.newer) {
+          showSettingsToast(
+            shellT("settings.update.launchNewer", {
+              latest: info.latest_version,
+            }),
+            true
+          );
+        }
+        return;
+      }
+      if (!canApply) {
+        showSettingsToast(
+          shellT("settings.update.uptodate", { version: info.current_version }),
+          true
+        );
+      }
+    } catch (err) {
+      lastUpdateInfo = null;
+      showApplyButton(false);
+      const msg = err instanceof Error ? err.message : String(err);
+      try {
+        const incoming = await invoke<{ path: string; source: string } | null>(
+          "probe_portable_update"
+        );
+        if (incoming) {
+          lastUpdateInfo = {
+            current_version: APP_VERSION,
+            latest_tag: "",
+            latest_version: "",
+            newer: false,
+            asset_name: "",
+            asset_size: 0,
+            incoming,
+          };
+          showApplyButton(true);
+          renderUpdateMeta(lastUpdateInfo);
+          if (!opts?.quiet) {
+            showSettingsToast(shellT("settings.update.incoming"), true);
+          }
+          return;
+        }
+      } catch {
+        /* ignore probe */
+      }
+      renderUpdateMeta(null, msg || shellT("settings.update.err.network"));
+      if (!opts?.quiet) {
+        showSettingsToast(msg || shellT("settings.update.err.network"));
+      }
+    } finally {
+      setUpdateBusy(false);
+    }
+  }
+
+  async function applyGithubOrIncoming() {
+    if (updateBusy) return;
+    const info = lastUpdateInfo;
+    const fromGithub = !!info?.newer;
+    const incomingPath = info?.incoming?.path;
+    if (!fromGithub && !incomingPath) {
+      await checkGithubUpdate();
+      return;
+    }
+    const ok = window.confirm(
+      shellT(
+        fromGithub
+          ? "settings.update.confirm"
+          : "settings.update.confirmIncoming"
+      )
+    );
+    if (!ok) return;
+    setUpdateBusy(true);
+    try {
+      let exePath = incomingPath ?? "";
+      if (fromGithub) {
+        renderUpdateMeta(info, shellT("settings.update.downloading", {
+          name: info?.asset_name || "update.zip",
+          pct: 0,
+        }));
+        const pending = await invoke<{ path: string; source: string }>(
+          "github_download_update"
+        );
+        exePath = pending.path;
+      }
+      renderUpdateMeta(info, shellT("settings.update.applying"));
+      const msg = await invoke<string>("apply_portable_update", {
+        newExePath: exePath,
+      });
+      showSettingsToast(msg || shellT("settings.update.relaunch"), true);
+      renderUpdateMeta(info, shellT("settings.update.relaunch"));
+      window.setTimeout(() => {
+        void invoke("quit_for_update").catch(() => {
+          void resolveShellAppWin()?.close();
+        });
+      }, 400);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      renderUpdateMeta(info, msg || shellT("settings.update.err.download"));
+      showSettingsToast(msg || shellT("settings.update.err.download"));
+      setUpdateBusy(false);
+    }
+  }
+
+  if (updateLaunchToggle) {
+    updateLaunchToggle.checked = readLaunchCheck();
+    updateLaunchToggle.addEventListener("change", () => {
+      writeLaunchCheck(updateLaunchToggle.checked);
+    });
+  }
+  updateCheckBtn?.addEventListener("click", () => {
+    void checkGithubUpdate();
+  });
+  updateApplyBtn?.addEventListener("click", () => {
+    void applyGithubOrIncoming();
+  });
+  void listen<{
+    downloaded: number;
+    total: number;
+    asset_name: string;
+  }>("github-update-progress", (ev) => {
+    const { downloaded, total, asset_name } = ev.payload;
+    const pct =
+      total > 0 ? Math.min(100, Math.round((downloaded / total) * 100)) : 0;
+    renderUpdateMeta(
+      lastUpdateInfo,
+      shellT("settings.update.downloading", {
+        name: asset_name || "update.zip",
+        pct,
+      })
+    );
+  }).catch(() => {
+    /* 非 Tauri */
+  });
+  renderUpdateMeta(null);
+  void resolveAppVersion().then(() => {
+    if (!lastUpdateInfo) renderUpdateMeta(null);
+  });
+  window.addEventListener("omnitrace-lang", () => {
+    renderUpdateMeta(lastUpdateInfo);
+  });
+  if (!SHELL_NOTES && readLaunchCheck()) {
+    window.setTimeout(() => {
+      void checkGithubUpdate({ quiet: true });
+    }, 1800);
+  }
 
   document.getElementById("notes-undock-btn")?.addEventListener("click", () => {
     void undockNotes();
@@ -897,9 +1160,6 @@ function initAboutCaliberCollapses(): void {
 }
 
 function initShellDialogs() {
-  const overlay = document.getElementById("dlg-overlay");
-  const aboutDlg = document.getElementById("dlg-about");
-  const feedbackDlg = document.getElementById("dlg-feedback");
   const versionEls = document.querySelectorAll("[data-app-version]");
   void resolveAppVersion().then((v) => {
     versionEls.forEach((el) => {
@@ -907,31 +1167,9 @@ function initShellDialogs() {
     });
   });
 
-  function closeDialogs() {
-    overlay?.classList.add("hidden");
-    overlay?.setAttribute("aria-hidden", "true");
-    aboutDlg?.classList.add("hidden");
-    feedbackDlg?.classList.add("hidden");
-  }
-
-  function openDialog(which: "about" | "feedback", scrollAnchor?: string) {
-    overlay?.classList.remove("hidden");
-    overlay?.setAttribute("aria-hidden", "false");
-    aboutDlg?.classList.toggle("hidden", which !== "about");
-    feedbackDlg?.classList.toggle("hidden", which !== "feedback");
-    if (which === "feedback") {
-      const ta = document.getElementById(
-        "feedback-text"
-      ) as HTMLTextAreaElement | null;
-      window.setTimeout(() => ta?.focus(), 0);
-    } else if (scrollAnchor) {
-      window.setTimeout(() => scrollCaliberAnchor(scrollAnchor), 0);
-    }
-  }
-
   document.addEventListener("omni:open-about", (ev) => {
     const anchor = (ev as CustomEvent<{ anchor?: string }>).detail?.anchor;
-    openDialog("about", anchor);
+    openAboutSettings(anchor);
   });
 
   initAboutCaliberCollapses();
@@ -943,69 +1181,6 @@ function initShellDialogs() {
       if (!id) return;
       scrollCaliberAnchor(id);
     });
-  });
-
-  document.getElementById("btn-about")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    openDialog("about");
-  });
-  document.getElementById("btn-feedback")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    openDialog("feedback");
-  });
-  document.getElementById("btn-about-update")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    void (async () => {
-      try {
-        const pending = await invoke<{ path: string; source: string } | null>(
-          "probe_portable_update"
-        );
-        let selected: string | null = pending?.path ?? null;
-        if (!selected) {
-          const picked = await open({
-            multiple: false,
-            filters: [{ name: "OmniPlayer", extensions: ["exe"] }],
-          });
-          if (!picked || typeof picked !== "string") return;
-          selected = picked;
-        }
-        const where = pending
-          ? pending.source === "incoming"
-            ? "安装目录 incoming"
-            : "仓库 dist"
-          : selected;
-        const ok = window.confirm(
-          `将用所选程序替换当前 OmniPlayer。\n来源：${where}\nOmniDatabase 不会被改动。\n继续？`
-        );
-        if (!ok) return;
-        const msg = await invoke<string>("apply_portable_update", {
-          newExePath: selected,
-        });
-        window.alert(msg || "已准备更新，请关闭并重启 OmniPlayer。");
-      } catch (err) {
-        window.alert(
-          `更新失败：${err instanceof Error ? err.message : String(err)}`
-        );
-      }
-    })();
-  });
-  document.querySelectorAll("[data-dlg-close]").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      closeDialogs();
-    });
-  });
-  overlay?.addEventListener("click", (e) => {
-    if (e.target === overlay) closeDialogs();
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && overlay && !overlay.classList.contains("hidden")) {
-      e.preventDefault();
-      closeDialogs();
-    }
   });
 
   async function openExternal(url: string, failKey: string) {

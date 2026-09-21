@@ -38,6 +38,8 @@ Screenshots sit next to each feature below.
 
   <p align="center"><img src="docs/images/player.png" alt="Player: live replay and timeline" width="880"></p>
 
+- **Input method (study in progress)**: On Windows, Weasel (小狼毫) can already log composition and candidate lists via a sidecar; the player redraws that structure (it does not copy the official skin). We are also identifying visualization architectures of some open-source IMEs — this is not a finished generic IME visualizer.
+
 - **Dashboard**: see which programs you spent time on. Preparing and loading is a bit slow here too. Charts, timelines, and how things look can be kneaded by the in-app assistant with the tools you have checked; a share/install workshop is on the roadmap, not a store you can browse today.
 
   <p align="center"><img src="docs/images/dashboard-timeline.png" alt="Dashboard: activity timeline" width="880"></p>
@@ -91,7 +93,7 @@ Screenshots sit next to each feature below.
 
   <p align="center"><img src="docs/images/notes-clue.jpg" alt="Clue board" width="880"></p>
 
-- **Android** (`omnitrace_android/`): a phone trial you install yourself. **Almost unusable today.** The plan is later to talk to the PC on your own local network. It is not in the Windows app yet.
+- **Android** (`omnitrace_android/`): a phone trial you sideload from Releases. **Almost unusable today.** Data stays on the phone. The plan is later to talk to the PC on your own local network. It is not in the Windows app yet.
 
 **Keyboard-log warning:** Capture files record real keystrokes. Sending them to any cloud model is sending passwords, DMs, one-time codes, and everything you typed. The in-app assistant must not read the keyboard capture file (`trace_DD.bin`). If you enlarge what tools the assistant can use, make sure it still cannot see keystrokes.
 
@@ -125,6 +127,8 @@ For everyday use you do not need a developer toolchain. You need **Windows 10 or
 
 Data lives under your user folder `OmniTrace\OmniDatabase`. It is **not uploaded** and is **not** inside the installer. Uninstall (Settings → Apps → Liuhen / 留痕) removes the program only, not that folder.
 
+Friends who already installed can use **Settings → Check for updates** instead of downloading the full setup.exe in a browser each time (setup.exe is still the first-install path).
+
 A **zip** is still attached: unzip and run **安装到本机.bat** (Install on this PC) for the same result.
 
 Windows may say “Windows protected your PC”: **More info → Run anyway** (builds are unsigned). If a double-click does nothing: Properties on the exe → Unblock.
@@ -145,6 +149,17 @@ The stable copy goes to `%LOCALAPPDATA%\OmniTrace`, with a pointer at the repo `
 
 Development: `cd omniplayer && npm run tauri dev`, or `scripts/run-app.bat` at the repo root. The recorder is a detached background process; quitting the window does not stop it.
 
+## Install (Android)
+
+This is a sideload trial APK for ordinary people. It is **almost unusable** (lots of bugs), not a daily driver. Data stays on the phone. It is **not uploaded** and is **not** inside the APK. LAN talk with the PC is later, not now.
+
+1. Open [Releases](https://github.com/Fortda/liuhen/releases/latest)
+2. Download **`Liuhen-…-android.apk`**
+3. Open that file on the phone to install (the system will warn about unknown sources: allow this one file)
+4. On many phones, also ignore battery optimization and allow autostart, or the recorder will be killed
+
+Do not upload traces off the phone. If a Release has no APK yet, wait for the next one, or have someone who can build run `omnitrace_android/package.ps1`.
+
 ## Docs
 
 | Doc | Audience |
@@ -154,7 +169,7 @@ Development: `cd omniplayer && npm run tauri dev`, or `scripts/run-app.bat` at t
 | [CHANGELOG.md](CHANGELOG.md) | What changed in a release |
 | [docs/architecture/](docs/architecture/README.md) | How the system is shaped (overview in Chinese) |
 | [docs/adr/](docs/adr/README.md) | Why we chose it (ADRs) |
-| [docs/releasing.md](docs/releasing.md) | Download notes; how we cut setup.exe / zip |
+| [docs/releasing.md](docs/releasing.md) | Download notes; how we cut setup.exe / zip / APK |
 
 ## Roadmap
 
@@ -169,7 +184,7 @@ Local-first stays the rule: capture, notes, and any future bill import do not sh
 
 ## Contributing
 
-Bugs and ideas: [GitHub Issues](https://github.com/Fortda/liuhen/issues). The in-app Feedback button opens the same place.
+Bugs and ideas: [GitHub Issues](https://github.com/Fortda/liuhen/issues). Settings → About & Feedback opens the same place.
 
 Keep `OmniDatabase/`, secrets, recordings, and prompt files on your machine. Screenshot notes: [docs/images/README.md](docs/images/README.md).
 
