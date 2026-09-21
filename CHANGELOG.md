@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- PR / `main` 检查：GitHub Actions `ci`（OmniPlayer 前端 `tsc`+Vite、Windows 采集器 `cargo test`、MCP 构建；线索板带 smoke）。完整 Windows setup.exe / zip 仍只在 `release-windows` / `v*` tag 上打。
+
+### Fixed
+
+- MCP `omni_arch`：补上缺失的 `McpServer` 实例，使 `tsc` 能通过。
+
 ## [0.1.5] - 2026-09-22
 
 ### Added
