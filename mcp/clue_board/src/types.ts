@@ -15,6 +15,11 @@ export interface ClueBoardNode {
   collapsed?: boolean | null;
   /** Light tag; mixed on one plane for now (not a 2.5D layer). */
   kind?: ClueNoteKind | string | null;
+  /**
+   * Relative file under notes/config, e.g. `clue_images/<file>.png`.
+   * Bytes live beside the JSON. History stores this ref only, not the binary.
+   */
+  image?: string | null;
 }
 
 export interface ClueBoardEdge {

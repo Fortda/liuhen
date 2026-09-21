@@ -1,7 +1,7 @@
 /**
  * 笔记「线索板」模式：浅底钉板 + 白色便签 + 有向箭头连线（与流式笔记绿线独立）。
  */
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { hideGroupMetaPopover, showGroupMetaPopover, uiLang } from "./notes_cards";
 import { shellT } from "./shell_i18n";
@@ -27,6 +27,17 @@ import {
   type HistoryLabel,
 } from "./notes_clue_history";
 import {
+  clueClipboardPlainText,
+  clueShortcutAction,
+  decodeClueClipboardHtml,
+  encodeClueClipboardHtml,
+  fieldHasCharacterSelection,
+  isTextEditingField,
+  normalizeClueImageRef,
+  remapCluePaste,
+  type ClueClipboardPayload,
+} from "./notes_clue_clipboard";
+import {
   hideFloat,
   placeFloatAtPoint,
   revealFloat,
@@ -45,6 +56,8 @@ export type ClueNode = {
   parentId?: string;
   collapsed?: boolean;
   kind?: ClueNoteKind;
+  /** Relative ref `clue_images/<file>` under notes/config. Not base64. */
+  image?: string;
 };
 
 export type ClueEdge = {
@@ -116,6 +129,9 @@ const CLUE_NODE_PAD_PX = 8;
 /** 内容区最小高度 = 便签最小高度 − 上下 padding，保证视觉四边 8px 一致 */
 const CLUE_TEXT_MIN_H_PX = CLUE_MIN_H - CLUE_NODE_PAD_PX * 2;
 const CLUE_DEFAULT_MAX_W = 240;
+const CLUE_IMAGE_W = 280;
+const CLUE_IMAGE_H = 220;
+const CLUE_PASTE_STEP = 28;
 const TEXT_HISTORY_DEBOUNCE_MS = 500;
 let nodes: ClueNode[] = [];
 let edges: ClueEdge[] = [];
@@ -245,8 +261,14 @@ type RightPressState = {
 };
 
 let gripPress: GripPressState | null = null;
-/** 左键拖把手时按住右键平移视口：记录上一帧 client，松右键即停（无惯性）。 */
-let gripPanLast: { x: number; y: number } | null = null;
+/** 左键拖便签时按住右键平移视口：跟 RMB pointerId，松右键即停（无惯性）。 */
+type GripPanState = {
+  pointerId: number;
+  lastX: number;
+  lastY: number;
+  didPan: boolean;
+};
+let gripPan: GripPanState | null = null;
 let resize: ResizeState | null = null;
 let panX = 0;
 let panY = 0;
@@ -277,6 +299,16 @@ let clueModeActive = false;
 let suppressNativeMenuUntil = 0;
 const SUPPRESS_NATIVE_MENU_MS = 600;
 let textHistoryTimer = 0;
+/** Repeated Ctrl+V steps further from the copied originals. Reset on copy. */
+let pasteSeq = 0;
+let memoryClipboard: ClueClipboardPayload | null = null;
+/** True when OS clipboard write failed and in-app paste should trust memoryClipboard. */
+let memoryClipboardUnsynced = false;
+/** Set when Ctrl+V should hit the board; cleared if the paste event handles it. */
+let pendingPasteFallback = false;
+let imageFileInput: HTMLInputElement | null = null;
+let pendingImagePoint: { x: number; y: number } | null = null;
+const imageSrcCache = new Map<string, string>();
 
 function syncSelectionClasses() {
   document.querySelectorAll(".notes-clue-node").forEach((el) => {
@@ -887,7 +919,7 @@ function isDotMode(): boolean {
 
 function clueDotLabel(text: string, n?: ClueNode): string {
   const trimmed = text.trim();
-  let base = trimmed ? [...trimmed].slice(0, CLUE_DOT_LABEL_MAX).join("") : "…";
+  let base = trimmed ? [...trimmed].slice(0, CLUE_DOT_LABEL_MAX).join("") : n?.image ? t("图", "Img") : "…";
   if (n?.collapsed) {
     const count = descendantIds(n.id).length;
     if (count > 0) base = `${base} ·${count}`;
@@ -1448,6 +1480,8 @@ function normalizeLoadedNodes(
     if (parentRaw) node.parentId = parentRaw;
     if (n.collapsed === true) node.collapsed = true;
     if (kind) node.kind = kind;
+    const image = normalizeClueImageRef(n.image);
+    if (image) node.image = image;
     return node;
   });
   const ids = new Set(out.map((n) => n.id));
@@ -1749,7 +1783,8 @@ function extendSuppressNativeMenu(ms = SUPPRESS_NATIVE_MENU_MS) {
 function shouldSuppressNativeClueMenu(): boolean {
   if (marqueeState) return true;
   if (rightPress?.didMarquee) return true;
-  if (gripPress || gripPanLast) return true;
+  // 拖便签期间一律吞右键菜单；刚松右键后若发生过平移再延一段时间
+  if (gripPress || gripPan) return true;
   return performance.now() < suppressNativeMenuUntil;
 }
 
@@ -2056,6 +2091,24 @@ function ensureClueContextMenu(): HTMLElement {
   newNoteBtn.setAttribute("role", "menuitem");
   newNoteBtn.textContent = shellT("notes.clue.ctx.newNote");
 
+  const addImageBtn = document.createElement("button");
+  addImageBtn.type = "button";
+  addImageBtn.dataset.action = "add-image";
+  addImageBtn.setAttribute("role", "menuitem");
+  addImageBtn.textContent = shellT("notes.clue.ctx.addImage");
+
+  const copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.dataset.action = "copy";
+  copyBtn.setAttribute("role", "menuitem");
+  copyBtn.textContent = shellT("notes.clue.ctx.copy");
+
+  const pasteBtn = document.createElement("button");
+  pasteBtn.type = "button";
+  pasteBtn.dataset.action = "paste";
+  pasteBtn.setAttribute("role", "menuitem");
+  pasteBtn.textContent = shellT("notes.clue.ctx.paste");
+
   const delEdgeBtn = document.createElement("button");
   delEdgeBtn.type = "button";
   delEdgeBtn.dataset.action = "delete-edge";
@@ -2084,6 +2137,9 @@ function ensureClueContextMenu(): HTMLElement {
 
   menu.append(
     newNoteBtn,
+    addImageBtn,
+    copyBtn,
+    pasteBtn,
     delEdgeBtn,
     collapseBtn,
     adoptBtn,
@@ -2104,6 +2160,14 @@ function ensureClueContextMenu(): HTMLElement {
     const nodeId = ctxMenuNodeId;
     hideClueContextMenu();
     if (action === "new-note" && pt) addClueNodeAt(pt.x, pt.y);
+    else if (action === "add-image") {
+      const node = nodeId ? nodeById(nodeId) : undefined;
+      const at =
+        pt ??
+        (node ? { x: node.x + CLUE_PASTE_STEP, y: node.y + CLUE_PASTE_STEP } : null);
+      openImageFilePicker(at);
+    } else if (action === "copy") void copySelectedNotes();
+    else if (action === "paste") void pasteClueFromClipboard(pt);
     else if (action === "delete-edge" && edgeId) deleteEdgeById(edgeId);
     else if (action === "toggle-fold" && nodeId) toggleNodeCollapsed(nodeId);
     else if (action === "adopt-selected" && nodeId) adoptSelectedAsChildren(nodeId);
@@ -2118,12 +2182,18 @@ function ensureClueContextMenu(): HTMLElement {
 function refreshClueContextMenuLabels() {
   const menu = ensureClueContextMenu();
   const newNoteBtn = menu.querySelector<HTMLButtonElement>('button[data-action="new-note"]');
+  const addImageBtn = menu.querySelector<HTMLButtonElement>('button[data-action="add-image"]');
+  const copyBtn = menu.querySelector<HTMLButtonElement>('button[data-action="copy"]');
+  const pasteBtn = menu.querySelector<HTMLButtonElement>('button[data-action="paste"]');
   const delEdgeBtn = menu.querySelector<HTMLButtonElement>('button[data-action="delete-edge"]');
   const collapseBtn = menu.querySelector<HTMLButtonElement>('button[data-action="toggle-fold"]');
   const adoptBtn = menu.querySelector<HTMLButtonElement>('button[data-action="adopt-selected"]');
   const attachBtn = menu.querySelector<HTMLButtonElement>('button[data-action="attach-selected"]');
   const clearParentBtn = menu.querySelector<HTMLButtonElement>('button[data-action="clear-parent"]');
   if (newNoteBtn) newNoteBtn.textContent = shellT("notes.clue.ctx.newNote");
+  if (addImageBtn) addImageBtn.textContent = shellT("notes.clue.ctx.addImage");
+  if (copyBtn) copyBtn.textContent = shellT("notes.clue.ctx.copy");
+  if (pasteBtn) pasteBtn.textContent = shellT("notes.clue.ctx.paste");
   if (delEdgeBtn) delEdgeBtn.textContent = shellT("notes.clue.ctx.deleteEdge");
   if (collapseBtn) {
     const n = ctxMenuNodeId ? nodeById(ctxMenuNodeId) : undefined;
@@ -2144,12 +2214,21 @@ function openClueContextMenu(
   const menu = ensureClueContextMenu();
   refreshClueContextMenuLabels();
   const newNoteBtn = menu.querySelector<HTMLButtonElement>('button[data-action="new-note"]');
+  const addImageBtn = menu.querySelector<HTMLButtonElement>('button[data-action="add-image"]');
+  const copyBtn = menu.querySelector<HTMLButtonElement>('button[data-action="copy"]');
+  const pasteBtn = menu.querySelector<HTMLButtonElement>('button[data-action="paste"]');
   const delEdgeBtn = menu.querySelector<HTMLButtonElement>('button[data-action="delete-edge"]');
   const collapseBtn = menu.querySelector<HTMLButtonElement>('button[data-action="toggle-fold"]');
   const adoptBtn = menu.querySelector<HTMLButtonElement>('button[data-action="adopt-selected"]');
   const attachBtn = menu.querySelector<HTMLButtonElement>('button[data-action="attach-selected"]');
   const clearParentBtn = menu.querySelector<HTMLButtonElement>('button[data-action="clear-parent"]');
   if (newNoteBtn) newNoteBtn.hidden = mode !== "blank";
+  if (addImageBtn) addImageBtn.hidden = mode === "edge";
+  if (copyBtn) {
+    copyBtn.hidden = mode === "edge";
+    copyBtn.disabled = selectedIds.size === 0;
+  }
+  if (pasteBtn) pasteBtn.hidden = mode === "edge";
   if (delEdgeBtn) delEdgeBtn.hidden = mode !== "edge";
   const nodeMode = mode === "node";
   const node = ctxMenuNodeId ? nodeById(ctxMenuNodeId) : undefined;
@@ -2257,47 +2336,93 @@ function clampSize(w: number, h: number): { w: number; h: number } {
   };
 }
 
+function applyGripPanDelta(dpx: number, dpy: number) {
+  if (!gripPress || (!dpx && !dpy)) return;
+  panX += dpx;
+  panY += dpy;
+  // 相机动、便签跟手：补偿 start，世界相对位置不变
+  gripPress.startX += dpx;
+  gripPress.startY += dpy;
+  if (gripPan) gripPan.didPan = true;
+  applyPanTransform();
+  refreshPendingPt();
+}
+
 function endGripPan() {
-  if (!gripPanLast) return;
-  gripPanLast = null;
+  if (!gripPan) return;
+  const didPan = gripPan.didPan;
+  window.removeEventListener("pointermove", onGripPanPointerMove);
+  window.removeEventListener("pointerup", onGripPanPointerUp);
+  window.removeEventListener("pointercancel", onGripPanPointerUp);
+  gripPan = null;
   if (!panState) boardEl()?.classList.remove("is-panning");
-  extendSuppressNativeMenu();
+  if (didPan) extendSuppressNativeMenu();
 }
 
 function cancelGripPress() {
   endGripPan();
+  window.removeEventListener("pointerdown", onGripAuxPointerDown, true);
   if (!gripPress) return;
   gripPress.gripEl.classList.remove("is-grabbing");
   gripPress = null;
 }
 
 function beginGripPan(e: PointerEvent) {
-  if (!gripPress || gripPanLast) return;
+  if (!gripPress || gripPan) return;
+  if (e.button !== 2) return;
   extendSuppressNativeMenu();
   stopPanInertia();
   clearRightPressState();
   clearMarqueeState();
   hideClueContextMenu();
-  gripPanLast = { x: e.clientX, y: e.clientY };
+  hideTextareaContextMenu();
+  gripPan = {
+    pointerId: e.pointerId,
+    lastX: e.clientX,
+    lastY: e.clientY,
+    didPan: false,
+  };
   boardEl()?.classList.add("is-panning");
+  window.addEventListener("pointermove", onGripPanPointerMove);
+  window.addEventListener("pointerup", onGripPanPointerUp);
+  window.addEventListener("pointercancel", onGripPanPointerUp);
+}
+
+/** 拖便签期间：任意目标上的 RMB 接管空白处 LMB 平移（capture，避开 textarea stopPropagation）。 */
+function onGripAuxPointerDown(e: PointerEvent) {
+  if (!gripPress || e.button !== 2) return;
+  if (!clueModeActive) return;
+  const target = e.target as HTMLElement;
+  if (
+    !isClueBoardSurfaceTarget(target) &&
+    !target.closest(".notes-clue-node, .notes-clue-wire-layer")
+  ) {
+    return;
+  }
+  e.preventDefault();
+  e.stopPropagation();
+  beginGripPan(e);
+}
+
+function onGripPanPointerMove(e: PointerEvent) {
+  if (!gripPan || e.pointerId !== gripPan.pointerId) return;
+  const dpx = e.clientX - gripPan.lastX;
+  const dpy = e.clientY - gripPan.lastY;
+  gripPan.lastX = e.clientX;
+  gripPan.lastY = e.clientY;
+  applyGripPanDelta(dpx, dpy);
+}
+
+function onGripPanPointerUp(e: PointerEvent) {
+  if (!gripPan || e.pointerId !== gripPan.pointerId) return;
+  if (e.button !== 2 && e.type !== "pointercancel") return;
+  endGripPan();
 }
 
 function onGripPointerMove(e: PointerEvent) {
   if (!gripPress || e.pointerId !== gripPress.pointerId) return;
-  // 拖把手时按住右键：平移视口，并补偿 start 使便签仍跟手
-  if (gripPanLast && e.buttons & 2) {
-    const dpx = e.clientX - gripPanLast.x;
-    const dpy = e.clientY - gripPanLast.y;
-    gripPanLast = { x: e.clientX, y: e.clientY };
-    if (dpx || dpy) {
-      panX += dpx;
-      panY += dpy;
-      gripPress.startX += dpx;
-      gripPress.startY += dpy;
-      applyPanTransform();
-      refreshPendingPt();
-    }
-  } else if (gripPanLast) {
+  // 鼠标同 pointerId：RMB 已由 onGripPanPointerMove 平移；这里只侦测松右键
+  if (gripPan && e.pointerId === gripPan.pointerId && !(e.buttons & 2)) {
     endGripPan();
   }
   const dx = e.clientX - gripPress.startX;
@@ -2356,20 +2481,24 @@ function beginNodeDrag(
   window.addEventListener("pointermove", onGripPointerMove);
   window.addEventListener("pointerup", onGripPointerUp);
   window.addEventListener("pointercancel", onGripPointerUp);
+  // capture：拖便签期间 RMB 在 textarea/图片上也能开平移
+  window.addEventListener("pointerdown", onGripAuxPointerDown, true);
   return true;
 }
 
 function onGripPointerUp(e: PointerEvent) {
-  if (!gripPress || e.pointerId !== gripPress.pointerId) return;
-  // 同 pointer 上松右键：只结束把手期间的视口平移
-  if (e.button === 2) {
+  if (!gripPress) return;
+  // 同 pointer 上松右键：只结束把手期间的视口平移（鼠标常共用 pointerId）
+  if (e.pointerId === gripPress.pointerId && e.button === 2) {
     endGripPan();
     return;
   }
+  if (e.pointerId !== gripPress.pointerId) return;
   if (e.button !== 0 && e.type !== "pointercancel") return;
   window.removeEventListener("pointermove", onGripPointerMove);
   window.removeEventListener("pointerup", onGripPointerUp);
   window.removeEventListener("pointercancel", onGripPointerUp);
+  window.removeEventListener("pointerdown", onGripAuxPointerDown, true);
   try {
     gripPress.gripEl.releasePointerCapture(e.pointerId);
   } catch {
@@ -2484,8 +2613,22 @@ function renderNodes() {
     const ta = document.createElement("textarea");
     ta.className = "notes-clue-text";
     ta.value = n.text;
-    ta.placeholder = t("写下线索…", "Write a clue…");
-    ta.rows = 3;
+    ta.placeholder = n.image
+      ? t("说明…", "Caption…")
+      : t("写下线索…", "Write a clue…");
+    ta.rows = n.image ? 1 : 3;
+
+    const imageRef = normalizeClueImageRef(n.image);
+    let imgEl: HTMLImageElement | null = null;
+    if (imageRef) {
+      wrap.classList.add("has-image");
+      imgEl = document.createElement("img");
+      imgEl.className = "notes-clue-image";
+      imgEl.alt = "";
+      imgEl.draggable = false;
+      imgEl.addEventListener("dragstart", (ev) => ev.preventDefault());
+      void fillClueImage(imgEl, imageRef);
+    }
 
     const resizeHandle = document.createElement("div");
     resizeHandle.className = "notes-clue-resize";
@@ -2635,7 +2778,7 @@ function renderNodes() {
     });
 
     wrap.addEventListener("dblclick", (e) => {
-      if ((e.target as HTMLElement).closest("textarea, button, .notes-clue-grip, .notes-clue-resize, .notes-clue-dot, .notes-clue-fold")) return;
+      if ((e.target as HTMLElement).closest("textarea, button, .notes-clue-grip, .notes-clue-resize, .notes-clue-dot, .notes-clue-fold, .notes-clue-image")) return;
       if (pendingFrom) cancelWirePick();
       deleteNode(n.id);
     });
@@ -2672,9 +2815,9 @@ function renderNodes() {
       meta.appendChild(fold);
     }
     if (meta.childNodes.length > 0) {
-      wrap.append(port, grip, del, ta, meta, resizeHandle, dotEl, dotLabel);
+      wrap.append(port, grip, del, ...(imgEl ? [imgEl] : []), ta, meta, resizeHandle, dotEl, dotLabel);
     } else {
-      wrap.append(port, grip, del, ta, resizeHandle, dotEl, dotLabel);
+      wrap.append(port, grip, del, ...(imgEl ? [imgEl] : []), ta, resizeHandle, dotEl, dotLabel);
     }
     applyNodeLayout(wrap, n);
     host.appendChild(wrap);
@@ -2854,6 +2997,320 @@ function deleteEdgesForSelected() {
   scheduleSave();
   scheduleDrawClueWires();
   showHint(t("已清除选中线索的连线", "Cleared links for selected clues"));
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+function uniqueClueId(prefix: string, seq: number): string {
+  const ts = Date.now();
+  const n = (ts ^ seq ^ (ts >> 11)) & 0xffff;
+  return `${prefix}_${ts}_${seq.toString(16)}_${n.toString(16).padStart(4, "0")}`;
+}
+
+function viewCenterForImage(): { x: number; y: number } {
+  const board = boardEl();
+  if (!board) return { x: 80, y: 80 };
+  const visW = board.clientWidth / zoom;
+  const visH = board.clientHeight / zoom;
+  return {
+    x: -panX / zoom + visW / 2 - CLUE_IMAGE_W / 2,
+    y: -panY / zoom + visH / 2 - CLUE_IMAGE_H / 2,
+  };
+}
+
+async function fillClueImage(img: HTMLImageElement, ref: string) {
+  const cached = imageSrcCache.get(ref);
+  if (cached) {
+    img.src = cached;
+    return;
+  }
+  try {
+    const abs = await invoke<string>("notes_clue_image_abs", { imageRef: ref });
+    const url = convertFileSrc(abs);
+    imageSrcCache.set(ref, url);
+    if (img.isConnected) img.src = url;
+  } catch {
+    img.classList.add("is-missing");
+  }
+}
+
+async function saveClueImageBlob(file: Blob): Promise<string> {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const ref = await invoke<string>("notes_clue_image_save", {
+    dataBase64: bytesToBase64(buf),
+  });
+  const norm = normalizeClueImageRef(ref);
+  if (!norm) throw new Error("bad image ref");
+  return norm;
+}
+
+async function addImageFilesAt(files: File[], origin: { x: number; y: number }) {
+  const images = files.filter(
+    (f) => f.type.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp)$/i.test(f.name)
+  );
+  if (!images.length) {
+    showHint(t("不是图片", "Not an image"));
+    return;
+  }
+  const added: string[] = [];
+  for (let i = 0; i < images.length; i++) {
+    try {
+      const image = await saveClueImageBlob(images[i]!);
+      const node: ClueNode = {
+        id: uniqueClueId("clue", i + 1),
+        text: "",
+        x: origin.x + i * CLUE_PASTE_STEP,
+        y: origin.y + i * CLUE_PASTE_STEP,
+        w: CLUE_IMAGE_W,
+        h: CLUE_IMAGE_H,
+        image,
+      };
+      nodes.push(node);
+      added.push(node.id);
+    } catch (err) {
+      console.error(err);
+      showHint(t("图片未能保存", "Could not save image"));
+    }
+  }
+  if (!added.length) return;
+  selectNodes(added);
+  renderNodes();
+  recordClueHistory(CLUE_HISTORY_LABELS.addImage);
+  scheduleSave();
+  scheduleDrawClueWires();
+}
+
+function ensureImageFileInput(): HTMLInputElement {
+  if (imageFileInput) return imageFileInput;
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/png,image/jpeg,image/gif,image/webp,image/bmp";
+  input.multiple = true;
+  input.hidden = true;
+  input.addEventListener("change", () => {
+    const files = [...(input.files ?? [])];
+    const pt = pendingImagePoint ?? viewCenterForImage();
+    pendingImagePoint = null;
+    input.value = "";
+    if (files.length) void addImageFilesAt(files, pt);
+  });
+  document.body.appendChild(input);
+  imageFileInput = input;
+  return input;
+}
+
+function openImageFilePicker(pt: { x: number; y: number } | null) {
+  pendingImagePoint = pt;
+  const input = ensureImageFileInput();
+  input.value = "";
+  input.click();
+}
+
+function clipboardPayloadFromSelection(): ClueClipboardPayload | null {
+  const ids = [...selectedIds];
+  if (!ids.length) return null;
+  const set = new Set(ids);
+  const picked = nodes.filter((n) => set.has(n.id));
+  if (!picked.length) return null;
+  return {
+    v: 1,
+    nodes: picked.map((n) => ({ ...n })),
+    edges: edges
+      .filter((e) => set.has(e.from) && set.has(e.to))
+      .map((e) => ({ ...e })),
+  };
+}
+
+async function copySelectedNotes() {
+  const payload = clipboardPayloadFromSelection();
+  if (!payload) return;
+  memoryClipboard = payload;
+  pasteSeq = 0;
+  const html = encodeClueClipboardHtml(payload);
+  const plain = clueClipboardPlainText(payload.nodes) || "[image]";
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        "text/plain": new Blob([plain], { type: "text/plain" }),
+        "text/html": new Blob([html], { type: "text/html" }),
+      }),
+    ]);
+    memoryClipboardUnsynced = false;
+  } catch (err) {
+    console.error(err);
+    memoryClipboardUnsynced = true;
+  }
+  const count = payload.nodes.length;
+  showHint(
+    count > 1
+      ? t(`已复制 ${count} 条`, `Copied ${count} notes`)
+      : t("已复制便签", "Copied note")
+  );
+}
+
+async function readClipboardForClue(): Promise<{
+  payload: ClueClipboardPayload | null;
+  image: Blob | null;
+}> {
+  try {
+    const items = await navigator.clipboard.read();
+    let payload: ClueClipboardPayload | null = null;
+    let image: Blob | null = null;
+    let plain = "";
+    for (const item of items) {
+      if (!payload && item.types.includes("text/html")) {
+        const html = await (await item.getType("text/html")).text();
+        payload = decodeClueClipboardHtml(html);
+      }
+      if (!plain && item.types.includes("text/plain")) {
+        plain = await (await item.getType("text/plain")).text();
+      }
+      if (!image) {
+        const mime = item.types.find((type) => type.startsWith("image/"));
+        if (mime) image = await item.getType(mime);
+      }
+    }
+    if (
+      !payload &&
+      memoryClipboard &&
+      !image &&
+      (memoryClipboardUnsynced ||
+        plain.trim() === (clueClipboardPlainText(memoryClipboard.nodes) || "[image]"))
+    ) {
+      payload = memoryClipboard;
+    }
+    if (payload?.nodes.length) return { payload, image: null };
+    if (image) return { payload: null, image };
+    return { payload: null, image: null };
+  } catch {
+    return { payload: memoryClipboard, image: null };
+  }
+}
+
+function pastePayload(payload: ClueClipboardPayload, anchor: { x: number; y: number } | null) {
+  let dx: number;
+  let dy: number;
+  if (anchor && payload.nodes.length) {
+    const minX = Math.min(...payload.nodes.map((n) => n.x));
+    const minY = Math.min(...payload.nodes.map((n) => n.y));
+    dx = anchor.x - minX;
+    dy = anchor.y - minY;
+  } else {
+    pasteSeq += 1;
+    dx = CLUE_PASTE_STEP * pasteSeq;
+    dy = CLUE_PASTE_STEP * pasteSeq;
+  }
+  let seq = 0;
+  const remapped = remapCluePaste(payload.nodes, payload.edges, {
+    dx,
+    dy,
+    newNodeId: () => uniqueClueId("clue", ++seq),
+    newEdgeId: () => uniqueClueId("edge", ++seq),
+  });
+  const added: ClueNode[] = [];
+  for (const n of remapped.nodes) {
+    const node: ClueNode = {
+      id: n.id,
+      text: n.text ?? "",
+      x: n.x,
+      y: n.y,
+    };
+    if (n.w != null && Number.isFinite(n.w)) node.w = n.w;
+    if (n.h != null && Number.isFinite(n.h)) node.h = n.h;
+    if (n.color) node.color = n.color;
+    if (n.parentId) node.parentId = n.parentId;
+    if (n.collapsed) node.collapsed = true;
+    const kind = parseClueKind(n.kind);
+    if (kind) node.kind = kind;
+    const image = normalizeClueImageRef(n.image);
+    if (image) node.image = image;
+    added.push(node);
+  }
+  if (!added.length) {
+    showHint(t("没有可粘贴的便签", "Nothing to paste"));
+    return;
+  }
+  nodes.push(...added);
+  edges.push(...remapped.edges);
+  selectNodes(added.map((n) => n.id));
+  renderNodes();
+  recordClueHistory(CLUE_HISTORY_LABELS.paste);
+  scheduleSave();
+  scheduleDrawClueWires();
+  showHint(t("已粘贴", "Pasted"));
+}
+
+async function pasteClueFromClipboard(anchor: { x: number; y: number } | null) {
+  const read = await readClipboardForClue();
+  applyClipboardRead(read, anchor);
+}
+
+function applyClipboardRead(
+  read: { payload: ClueClipboardPayload | null; image: Blob | null },
+  anchor: { x: number; y: number } | null
+) {
+  if (read.payload?.nodes.length) {
+    pastePayload(read.payload, anchor);
+    return;
+  }
+  if (read.image) {
+    const file = new File([read.image], "clipboard-image", {
+      type: read.image.type || "image/png",
+    });
+    void addImageFilesAt([file], anchor ?? viewCenterForImage());
+    return;
+  }
+  showHint(t("剪贴板没有便签或图片", "Clipboard has no notes or image"));
+}
+
+function onCluePaste(e: ClipboardEvent) {
+  if (!clueModeActive) return;
+  const target = e.target instanceof Element ? e.target : null;
+  if (isTextEditingField(document.activeElement) || isTextEditingField(target)) return;
+  const data = e.clipboardData;
+  const html = data?.getData("text/html") ?? "";
+  const plain = data?.getData("text/plain") ?? "";
+  let payload = decodeClueClipboardHtml(html);
+  const imageItem = [...(data?.items ?? [])].find((item) => item.type.startsWith("image/"));
+  const imageFile = imageItem?.getAsFile() ?? null;
+  if (
+    !payload &&
+    memoryClipboard &&
+    !imageFile &&
+    (memoryClipboardUnsynced ||
+      plain.trim() === (clueClipboardPlainText(memoryClipboard.nodes) || "[image]"))
+  ) {
+    payload = memoryClipboard;
+  }
+  if (!payload?.nodes.length && !imageFile) return;
+  pendingPasteFallback = false;
+  e.preventDefault();
+  if (payload?.nodes.length) {
+    pastePayload(payload, null);
+    return;
+  }
+  if (imageFile) void addImageFilesAt([imageFile], viewCenterForImage());
+}
+
+function onClueDragOver(e: DragEvent) {
+  if (!e.dataTransfer?.types.includes("Files")) return;
+  e.preventDefault();
+}
+
+function onClueDrop(e: DragEvent) {
+  const files = [...(e.dataTransfer?.files ?? [])];
+  if (!files.some((f) => f.type.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp)$/i.test(f.name))) {
+    return;
+  }
+  e.preventDefault();
+  void addImageFilesAt(files, clientToCanvas(e.clientX, e.clientY));
 }
 
 export function addClueNode() {
@@ -3231,6 +3688,29 @@ function onKeyDown(e: KeyboardEvent) {
     redoClueHistory();
     return;
   }
+  const active = document.activeElement;
+  const shortcut = clueShortcutAction({
+    clueMode: clueModeActive,
+    mod,
+    key: e.key,
+    fieldFocused: isTextEditingField(active),
+    fieldHasCharSelection: fieldHasCharacterSelection(active),
+    selectedNoteCount: selectedIds.size,
+  });
+  if (shortcut === "copy-notes") {
+    e.preventDefault();
+    void copySelectedNotes();
+    return;
+  }
+  if (shortcut === "paste-board") {
+    pendingPasteFallback = true;
+    requestAnimationFrame(() => {
+      if (!pendingPasteFallback) return;
+      pendingPasteFallback = false;
+      void pasteClueFromClipboard(null);
+    });
+    return;
+  }
   if (e.key === "Escape") {
     if (ctxMenuEl?.classList.contains("is-open")) {
       hideClueContextMenu();
@@ -3250,7 +3730,6 @@ function onKeyDown(e: KeyboardEvent) {
     }
   }
   if (e.key !== "Delete" && e.key !== "Backspace") return;
-  const active = document.activeElement;
   if (
     active instanceof HTMLInputElement ||
     active instanceof HTMLTextAreaElement
@@ -3286,6 +3765,7 @@ export function initClueBoard() {
   bindClueHistoryUi();
 
   $("notes-clue-add")?.addEventListener("click", () => addClueNode());
+  $("notes-clue-add-image")?.addEventListener("click", () => openImageFilePicker(null));
   $("notes-clue-clear-links")?.addEventListener("click", () => deleteEdgesForSelected());
   $("notes-clue-reset-view")?.addEventListener("click", () => resetClueView());
   $("notes-clue-board-new")?.addEventListener("click", () => void createBoard());
@@ -3300,6 +3780,8 @@ export function initClueBoard() {
 
   board?.addEventListener("pointerdown", onBoardPointerDown);
   board?.addEventListener("click", onBoardClick);
+  board?.addEventListener("dragover", onClueDragOver);
+  board?.addEventListener("drop", onClueDrop);
   // capture：便签 textarea 上的滚轮先被拦下，避免正文滚动抢事件
   board?.addEventListener("wheel", onBoardWheel, { passive: false, capture: true });
   wires?.addEventListener("pointerdown", onWireEdgePointerDown);
@@ -3312,6 +3794,7 @@ export function initClueBoard() {
   document.addEventListener("pointerdown", onDocPointerDown, true);
   window.addEventListener("pointermove", onWirePointerMove);
   document.addEventListener("keydown", onKeyDown);
+  document.addEventListener("paste", onCluePaste, true);
 
   window.addEventListener("resize", () => scheduleDrawClueWires());
   window.addEventListener("omnitrace-lang", () => {

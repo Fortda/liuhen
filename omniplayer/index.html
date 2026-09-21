@@ -3812,6 +3812,26 @@
     .notes-clue-text:focus {
       outline: none;
     }
+    .notes-clue-image {
+      display: block;
+      width: 100%;
+      flex: 1 1 auto;
+      min-height: 64px;
+      object-fit: contain;
+      background: color-mix(in srgb, #000 4%, #fff);
+      pointer-events: auto;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .notes-clue-image.is-missing {
+      min-height: 72px;
+      background: color-mix(in srgb, #000 8%, #fff);
+    }
+    .notes-clue-node.has-image .notes-clue-text {
+      flex: 0 0 auto;
+      min-height: 1.45em;
+      max-height: 4.6em;
+    }
     .notes-clue-dot,
     .notes-clue-dot-label {
       display: none;
@@ -3832,6 +3852,7 @@
     .notes-clue-board.is-dot-mode .notes-clue-grip,
     .notes-clue-board.is-dot-mode .notes-clue-del,
     .notes-clue-board.is-dot-mode .notes-clue-text,
+    .notes-clue-board.is-dot-mode .notes-clue-image,
     .notes-clue-board.is-dot-mode .notes-clue-resize,
     .notes-clue-board.is-dot-mode .notes-clue-meta {
       display: none !important;
@@ -4728,11 +4749,41 @@
       margin: 0;
       padding: 0;
       border: none;
+      background: none;
     }
     .notes-card-activity-round:first-of-type {
       margin-top: 0;
       padding-top: 0;
       border-top: none;
+    }
+    .notes-card-activity-round-sum {
+      cursor: pointer;
+      list-style: none;
+      color: var(--muted);
+      user-select: none;
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 6px 10px;
+      padding: 2px 0;
+      margin: 0;
+      border: none;
+      background: none;
+      font: inherit;
+      font-size: 12px;
+    }
+    .notes-card-activity-round-sum::-webkit-details-marker {
+      display: none;
+    }
+    .notes-card-activity-round-sum::before {
+      content: "▸";
+      color: var(--muted);
+      font-size: 11px;
+      width: 0.9em;
+      flex: 0 0 auto;
+    }
+    .notes-card-activity-round[open] > .notes-card-activity-round-sum::before {
+      content: "▾";
     }
     .notes-card-activity-round-lab {
       font-family: inherit;
@@ -4742,6 +4793,35 @@
       text-transform: none;
       user-select: none;
       opacity: 0.8;
+      flex: 0 0 auto;
+    }
+    .notes-card-activity-round-overview {
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--muted);
+      opacity: 0.92;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+    .notes-card-activity-round-body {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 0 0 0 1.05em;
+    }
+    .notes-card-activity-round-collapsed > .notes-card-activity-round-sum {
+      opacity: 0.75;
+    }
+    .notes-card-activity-round-live > .notes-card-activity-round-sum .notes-card-activity-round-lab {
+      opacity: 1;
+    }
+    .notes-card-activity-think.is-live > summary,
+    .notes-card-activity-bucket.is-live > summary {
+      color: var(--fg, inherit);
+      opacity: 1;
     }
     .notes-card-activity-think,
     .notes-card-activity-bucket {
@@ -4797,10 +4877,16 @@
       font-size: 12.5px;
       color: var(--muted);
     }
+    .notes-card-activity-bucket[data-bucket="read"] > summary,
     .notes-card-activity-bucket[data-bucket="explore"] > summary {
       color: var(--muted);
     }
+    .notes-card-activity-bucket[data-bucket="edit"] > summary,
     .notes-card-activity-bucket[data-bucket="edited"] > summary {
+      color: var(--muted);
+    }
+    .notes-card-activity-bucket[data-bucket="run"] > summary,
+    .notes-card-activity-bucket[data-bucket="mcp"] > summary {
       color: var(--muted);
     }
     .notes-card-activity-think-body {
@@ -7274,7 +7360,7 @@
               <div class="settings-row">
                 <div class="copy">
                   <div class="label" data-i18n="settings.update.label">检查更新</div>
-                  <div class="desc" data-i18n="settings.update.desc">从 GitHub Release 只换程序文件（写入 incoming 后替换 exe），不改 OmniDatabase。</div>
+                  <div class="desc" data-i18n="settings.update.desc">应用内从 GitHub Release 下载增量包并替换程序文件，不改 OmniDatabase。无需打开浏览器。</div>
                   <div class="meta" id="settings-update-meta">当前版本</div>
                 </div>
                 <div class="settings-data-actions">
@@ -8074,6 +8160,7 @@
                   <button type="button" id="notes-clue-history-toggle" class="notes-btn" data-i18n="notes.clue.history.toggle" aria-pressed="false">历史</button>
                 </div>
                 <button type="button" id="notes-clue-add" class="notes-btn primary" data-i18n="notes.clue.add">+ 添加线索</button>
+                <button type="button" id="notes-clue-add-image" class="notes-btn" data-i18n="notes.clue.addImage">添加图片</button>
                 <button type="button" id="notes-clue-clear-links" class="notes-btn" data-i18n="notes.clue.clearLinks">清除选中连线</button>
                 <button type="button" id="notes-clue-reset-view" class="notes-btn notes-clue-reset-view" data-i18n="notes.clue.resetView">还原视图</button>
                 <span id="notes-clue-hint" aria-live="polite"></span>

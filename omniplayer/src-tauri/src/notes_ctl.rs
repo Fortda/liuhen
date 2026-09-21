@@ -17,9 +17,9 @@ use crate::llm_sidecar_ctl::{
     write_litellm_config_from_providers, LlmSidecarStatus, LLM_SIDECAR_URL,
 };
 use crate::notes_paths::{
-    card_attachments_dir, card_file_path, clue_board_path, clue_boards_path, context_graph_path,
-    ensure_notes_dirs, log_file_path, new_card_id, notes_config_dir, providers_config_path,
-    wire_presets_path,
+    card_attachments_dir, card_file_path, clue_board_path, clue_boards_path, clue_images_dir,
+    context_graph_path, ensure_notes_dirs, log_file_path, new_card_id, notes_config_dir,
+    providers_config_path, wire_presets_path,
 };
 use crate::notes_model_discovery::{
     discover_models_for_provider, ping_provider_model, validate_provider_api_key, ProgressSink,
@@ -1203,6 +1203,9 @@ pub struct ClueBoardNode {
     pub collapsed: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kind: Option<String>,
+    /// Relative ref `clue_images/<file>` under notes/config. Not base64.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1327,6 +1330,134 @@ pub fn clue_kind_from_str(s: &str) -> Option<String> {
     }
 }
 
+/// `clue_images/<stem>.<ext>` only. Rejects traversal, absolutes, and data URLs.
+pub fn normalize_clue_image_ref(raw: &str) -> Option<String> {
+    let s = raw.trim().replace('\\', "/");
+    if s.is_empty() || s.len() > 180 {
+        return None;
+    }
+    let lower = s.to_ascii_lowercase();
+    if s.contains("..") || s.contains(':') || s.starts_with('/') || lower.starts_with("data:") {
+        return None;
+    }
+    let rest = s.strip_prefix("clue_images/")?;
+    if rest.contains('/') {
+        return None;
+    }
+    let (stem, ext) = rest.rsplit_once('.')?;
+    if stem.is_empty()
+        || stem.len() > 80
+        || !stem
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    {
+        return None;
+    }
+    let ext = ext.to_ascii_lowercase();
+    if !matches!(
+        ext.as_str(),
+        "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp"
+    ) {
+        return None;
+    }
+    Some(format!("clue_images/{stem}.{ext}"))
+}
+
+fn sniff_clue_image_ext(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]) {
+        Some("png")
+    } else if bytes.len() >= 3 && bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff {
+        Some("jpg")
+    } else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        Some("gif")
+    } else if bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+        Some("webp")
+    } else if bytes.starts_with(b"BM") {
+        Some("bmp")
+    } else {
+        None
+    }
+}
+
+fn clue_image_fnv(bytes: &[u8]) -> u64 {
+    let mut h = 0xcbf29ce484222325u64;
+    for b in bytes {
+        h ^= u64::from(*b);
+        h = h.wrapping_mul(0x100000001b3);
+    }
+    h
+}
+
+/// Write image bytes under `images_dir`. Returns `clue_images/<file>`.
+/// Same bytes reuse the file. Does not delete files (history keeps refs).
+pub fn save_clue_image_bytes(images_dir: &Path, bytes: &[u8]) -> Result<String, String> {
+    const MAX: usize = 20 * 1024 * 1024;
+    if bytes.is_empty() {
+        return Err("empty image".into());
+    }
+    if bytes.len() > MAX {
+        return Err("image too large".into());
+    }
+    let ext = sniff_clue_image_ext(bytes).ok_or_else(|| "unsupported image".to_string())?;
+    fs::create_dir_all(images_dir).map_err(|e| e.to_string())?;
+    let hash = clue_image_fnv(bytes);
+    let stem = format!("img_{:x}_{hash:016x}", bytes.len());
+    let mut name = format!("{stem}.{ext}");
+    for i in 0..32 {
+        if i > 0 {
+            name = format!("{stem}_{i}.{ext}");
+        }
+        let path = images_dir.join(&name);
+        if path.exists() {
+            if fs::read(&path).ok().as_deref() == Some(bytes) {
+                return Ok(format!("clue_images/{name}"));
+            }
+            continue;
+        }
+        fs::write(&path, bytes).map_err(|e| e.to_string())?;
+        return Ok(format!("clue_images/{name}"));
+    }
+    Err("could not store image".into())
+}
+
+fn clue_image_file(image_ref: &str) -> Result<PathBuf, String> {
+    let rel = normalize_clue_image_ref(image_ref).ok_or_else(|| "bad image ref".to_string())?;
+    let name = rel
+        .strip_prefix("clue_images/")
+        .ok_or_else(|| "bad image ref".to_string())?;
+    if name.contains('/') || name.contains('\\') || name.contains("..") {
+        return Err("bad image path".into());
+    }
+    let dir = clue_images_dir();
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.join(name))
+}
+
+pub(crate) fn clue_image_ref_is_file(image_ref: &str) -> bool {
+    clue_image_file(image_ref)
+        .ok()
+        .map(|p| p.is_file())
+        .unwrap_or(false)
+}
+
+#[tauri::command]
+pub fn notes_clue_image_save(data_base64: String) -> Result<String, String> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data_base64.trim())
+        .map_err(|e| e.to_string())?;
+    save_clue_image_bytes(&clue_images_dir(), &bytes)
+}
+
+#[tauri::command]
+pub fn notes_clue_image_abs(image_ref: String) -> Result<String, String> {
+    let path = clue_image_file(&image_ref)?;
+    if !path.is_file() {
+        return Err("image not found".into());
+    }
+    Ok(path.to_string_lossy().into_owned())
+}
+
 pub fn clue_parent_would_cycle(nodes: &[ClueBoardNode], node_id: &str, parent_id: &str) -> bool {
     if parent_id.is_empty() || parent_id == node_id {
         return true;
@@ -1420,6 +1551,7 @@ fn normalize_clue_nodes_edges(
             }
         }
         n.rotation = None;
+        n.image = n.image.as_deref().and_then(normalize_clue_image_ref);
         // Match UI clampSize (CLUE_MIN/MAX_W/H): clamp finite sizes; never drop on reload.
         n.w = n.w.and_then(|w| {
             if w.is_finite() {
@@ -1611,7 +1743,7 @@ fn clue_boards_text_score(data: &ClueBoardsFile) -> usize {
     data.boards
         .iter()
         .flat_map(|b| b.nodes.iter())
-        .filter(|n| !n.text.trim().is_empty())
+        .filter(|n| !n.text.trim().is_empty() || n.image.as_deref().is_some_and(|s| !s.is_empty()))
         .count()
 }
 
@@ -3042,6 +3174,7 @@ mod clue_boards_merge_tests {
                 parent_id: None,
                 collapsed: None,
                 kind: None,
+                image: None,
             }],
             edges: vec![],
             view: None,
@@ -3083,6 +3216,7 @@ mod clue_boards_merge_tests {
             parent_id: None,
             collapsed: None,
             kind: None,
+            image: None,
         });
         let existing = ClueBoardsFile {
             v: 2,
@@ -3101,6 +3235,44 @@ mod clue_boards_merge_tests {
             "stale UI snapshot must not drop MCP-added nodes"
         );
         assert!(merged.boards.iter().any(|b| b.id == "b"));
+    }
+
+    #[test]
+    fn clue_image_ref_roundtrip_keeps_file() {
+        assert_eq!(
+            normalize_clue_image_ref("clue_images/Ab_1.PNG").as_deref(),
+            Some("clue_images/Ab_1.png")
+        );
+        assert!(normalize_clue_image_ref("../clue_images/a.png").is_none());
+        assert!(normalize_clue_image_ref("clue_images/../a.png").is_none());
+        assert!(normalize_clue_image_ref("C:/secret.png").is_none());
+        assert!(normalize_clue_image_ref("data:image/png;base64,aaaa").is_none());
+
+        let dir = std::env::temp_dir().join(format!("omni_clue_img_{}", now_ms()));
+        let png: &[u8] = &[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 0, 0];
+        let rel = save_clue_image_bytes(&dir, png).unwrap();
+        assert!(rel.starts_with("clue_images/") && rel.ends_with(".png"));
+        let again = save_clue_image_bytes(&dir, png).unwrap();
+        assert_eq!(rel, again);
+        let node = ClueBoardNode {
+            id: "img".into(),
+            text: String::new(),
+            x: 0.0,
+            y: 0.0,
+            color: None,
+            rotation: None,
+            w: Some(280.0),
+            h: Some(220.0),
+            parent_id: None,
+            collapsed: None,
+            kind: None,
+            image: Some(rel.clone()),
+        };
+        let raw = serde_json::to_string(&node).unwrap();
+        assert!(!raw.contains("base64"));
+        let back: ClueBoardNode = serde_json::from_str(&raw).unwrap();
+        assert_eq!(back.image.as_deref(), Some(rel.as_str()));
+        let _ = fs::remove_dir_all(&dir);
     }
 }
 

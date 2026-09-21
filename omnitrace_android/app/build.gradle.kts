@@ -8,7 +8,7 @@ android {
     compileSdk = 34
 
     val omniVersion = (findProperty("omniVersion") as String?)?.trim().orEmpty()
-        .ifEmpty { "0.1.4" }
+        .ifEmpty { "0.1.5" }
     val omniVersionCode = (findProperty("omniVersionCode") as String?)?.toIntOrNull()
         ?: 14
 

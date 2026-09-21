@@ -232,7 +232,7 @@ async function focusNotesWindow() {
 
 
 /** 回退值；运行时优先用 getVersion()（与 tauri.conf.json 对齐）。 */
-let APP_VERSION = "0.1.4";
+let APP_VERSION = "0.1.5";
 
 const UPDATE_LAUNCH_KEY = "omnitrace.update.checkOnLaunch.v1";
 
@@ -734,6 +734,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (!opts?.quiet) {
       renderUpdateMeta(null, shellT("settings.update.checking"));
     }
+    let handoffApply = false;
     try {
       const info = await invoke<GithubUpdateInfo>("github_check_update");
       lastUpdateInfo = info;
@@ -757,7 +758,10 @@ window.addEventListener("DOMContentLoaded", async () => {
           shellT("settings.update.uptodate", { version: info.current_version }),
           true
         );
+        return;
       }
+      // 手动点「检查更新」发现可更新：直接进入确认 → 应用内下载 → 替换重启（不打开浏览器）
+      handoffApply = true;
     } catch (err) {
       lastUpdateInfo = null;
       showApplyButton(false);
@@ -779,7 +783,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           showApplyButton(true);
           renderUpdateMeta(lastUpdateInfo);
           if (!opts?.quiet) {
-            showSettingsToast(shellT("settings.update.incoming"), true);
+            handoffApply = true;
           }
           return;
         }
@@ -792,6 +796,9 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
     } finally {
       setUpdateBusy(false);
+    }
+    if (handoffApply) {
+      await applyGithubOrIncoming();
     }
   }
 

@@ -1,4 +1,4 @@
-﻿# Install the unzipped Liuhen (留痕) folder for the current Windows user.
+# Install the unzipped Liuhen (留痕) folder for the current Windows user.
 # Programs: %LOCALAPPDATA%\OmniTrace  (folder name unchanged for compatibility)
 # Data:     %USERPROFILE%\OmniTrace\OmniDatabase  (created if missing)
 # Uninstall does not delete the data folder.
@@ -58,7 +58,7 @@ if (-not (Test-Path -LiteralPath $ptrFile)) {
   [System.IO.File]::WriteAllText($ptrFile, $ptr, $utf8)
 }
 
-$version = "0.1.4"
+$version = "0.1.5"
 $verFile = Join-Path $InstallDir "VERSION.txt"
 if (Test-Path -LiteralPath $verFile) {
   $line = (Get-Content -LiteralPath $verFile -TotalCount 1 -ErrorAction SilentlyContinue)

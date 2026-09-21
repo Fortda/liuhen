@@ -7,7 +7,8 @@
 | 项 | 值 |
 |---|---|
 | 默认文件 | `<OmniDatabase>/notes/config/clue_boards.json` |
-| 历史日志 | `<OmniDatabase>/notes/config/clue_history/<board_id>.jsonl`（按板 append-only；含 actor=human\|ai） |
+| 图片文件 | `<OmniDatabase>/notes/config/clue_images/<file>`（节点只存相对引用 `image`，不是 base64） |
+| 历史日志 | `<OmniDatabase>/notes/config/clue_history/<board_id>.jsonl`（按板 append-only；含 actor=human\|ai；快照只含 `image` 引用，不嵌二进制，回退不删图片文件） |
 | 旧版迁移 | 若仅有 `clue_board.json`，首次读取时按 v1 结构迁移 |
 | 环境变量 | `OMNI_DATABASE` 或 `OMNITRACE_DATA` → 数据根（**必须用绝对路径**；相对路径会跟进程 cwd 走，可能写到错库） |
 | 自动探测 | 仓库 `OmniDatabase/`（按模块路径，不依赖 cwd）→ `%USERPROFILE%/OmniTrace/OmniDatabase` → `Downloads/OmniTrace/OmniDatabase` |
@@ -33,8 +34,8 @@ node dist/index.js
 | `clue_board_list` | 列出所有板：`id`、`title`、`active`、节点/边数量 |
 | `clue_board_get` | 获取指定板或 active 板的 `nodes` / `edges` / `view` |
 | `clue_board_create_board` | 新建空板（返回 `board_id`，勿臆造 id） |
-| `clue_board_create_note` | 添加便签节点（`text`、`x`、`y`、`w`、`h`、`color`、`parent_id`、`collapsed`、`kind` 可选） |
-| `clue_board_update_note` | 更新节点文本、位置、尺寸、父子、折叠或 kind |
+| `clue_board_create_note` | 添加便签节点（`text`、`x`、`y`、`w`、`h`、`color`、`parent_id`、`collapsed`、`kind`、`image` 可选；`image` 必须是已存在的 `clue_images/<file>` 引用） |
+| `clue_board_update_note` | 更新节点文本、位置、尺寸、父子、折叠、kind 或 `image` 引用 |
 | `clue_board_delete_note` | 删除节点及关联边 |
 | `clue_board_add_edge` | 添加有向边（`from` → `to`） |
 | `clue_board_delete_edge` | 按 `edge_id` 或 `from`+`to` 删除边 |

@@ -61,3 +61,23 @@
 
 - `dashboard_health`（`quick` 可只出采集器轴）、`dashboard_health_snapshot`、`dashboard_stats`、`dashboard_live_feed`、`dashboard_status_charts`、`dashboard_input_histogram`、`dashboard_input_day_series`、`recorder_run_spans`、`dashboard_sleep_guess`、`perf_bench_write_report`。
 - 缓存：`OmniDatabase/cache/health_report_last.json`、`health_span_state.json`、`.otih`、`key_freq/*.otkf`、`perf_bench_last.json` 等。
+
+---
+
+## 7. 磁盘占用与访问覆盖率（`disk_observe`，识别/设计中）
+
+> **不是**当前交付。契约入口见 [OVERVIEW.md](OVERVIEW.md) §7「以后」与非目标。与现有「总数据量 = OmniDatabase 子树」无关：那是库体积，不是整机盘。
+
+**产品动机（自我观测）**：硬盘会满；有的数据珍贵却十年不碰，有的天天热。想用「日常调用覆盖率」看哪些区域/文件常被访问、哪些是冷的，以便清理时不盲删冷归档。空闲备用盘也常让人疑惑「留着干什么」——空间本身有价值，留痕也可观察本机占用与访问率。
+
+**本机优先**：只读本机卷与抽样路径；不上传云；不替用户自动删文件。
+
+**Windows 路径（高阶，分期）**
+
+1. **卷空闲 / 容量**：`GetDiskFreeSpaceEx` / WMI `Win32_LogicalDisk`——先看见各盘还剩多少。
+2. **目录体积抽样**：对用户选定根（或常见 `Users` / 数据根上一级）做有界深度/超时的大小聚合；不是全盘实时 WinDirStat。
+3. **访问热度（可选、后期）**：USN Journal 变更密度、ETW 文件 I/O（成本高）、或 `last-access`——**注意 NTFS 常关 last-access**，不可当可靠热度源。热度用来提示「久未碰」，不自动删除。
+
+**钩子候选**：仪表盘统计「总数据量」旁一行「本机盘（识别中）」或设置子页只读状态；IPC 名预留 `disk_observe_*`（未实现）。
+
+**非目标**：自动删除用户文件；云备份；与 Everything / WinDirStat 功能对标的全量克隆；把 ETW/全盘爬列入本期 WinRecorder 模组闭集。

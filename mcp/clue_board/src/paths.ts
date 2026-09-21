@@ -66,6 +66,11 @@ export function clueHistoryPath(boardId: string): string {
   return join(clueHistoryDir(), `${safe}.jsonl`);
 }
 
+/** Directory of clue-board image bytes (`notes/config/clue_images`). */
+export function clueImagesDir(): string {
+  return join(dirname(clueBoardsPath()), "clue_images");
+}
+
 export function ensureNotesConfigDir(): void {
   const dir = dirname(clueBoardsPath());
   mkdirSync(dir, { recursive: true });

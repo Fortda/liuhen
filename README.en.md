@@ -60,6 +60,8 @@ Screenshots sit next to each feature below.
 
   <p align="center"><img src="docs/images/dashboard-sleep.png" alt="Dashboard: sleep guess" width="880"></p>
 
+- **Disk occupancy and everyday access coverage (study / design in progress)**: the idea is to observe local volume free space and which regions are hot vs cold archives, so cleanup does not blindly delete precious old data; spare idle disks can be seen too. Local-only; nothing is uploaded. No full-disk crawler or heat collector ships yet.
+
 - **Streaming notes**: chat with an assistant on this machine. The page still needs polish; replies through LiteLLM can hitch. The intent is that charts, timelines, and almost any display effect can be kneaded to taste — via the in-app assistant and allowlisted tools, not a shipped workshop store.
 
   <p align="center"><img src="docs/images/omniplayer-notes.png" alt="Streaming notes: chat, tool calls, cost, and protocol log" width="880"></p>
@@ -89,7 +91,7 @@ Screenshots sit next to each feature below.
 
   <p align="center"><img src="docs/images/notes-timeline.png" alt="Notes timeline" width="880"></p>
 
-- **Clue board**: a 2D canvas of sticky notes and lines for ideas, people, and cause-and-effect.
+- **Clue board**: a 2D canvas of sticky notes, pictures, and lines. Select notes and copy or paste them (Ctrl+C / Ctrl+V).
 
   <p align="center"><img src="docs/images/notes-clue.jpg" alt="Clue board" width="880"></p>
 
@@ -179,6 +181,7 @@ Mentioned here only — not implemented yet:
 - **Recorder / player module plugin ABI** (paired interfaces: third-party modules write on the capture side and enact an agreed visualization / window architecture in OmniPlayer; the built-in module list is not a hot-load workshop)
 - **Dashboard workshop** (share/install interfaces for stats charts and dashboard views — modules, charts, layouts; user traces are not uploaded by default)
 - **Phone ↔ PC LAN sync** (the Android capture app is almost unusable today; not a shipping mobile product)
+- **Disk occupancy and everyday access coverage** (self-observation: volume free space, directory size samples, optional later access heat; distinguish hot data from cold archives; no auto-delete, no cloud backup)
 
 Local-first stays the rule: capture, notes, and any future bill import do not ship the library to someone else's server. A later sharing platform would still not upload `OmniDatabase` by default.
 

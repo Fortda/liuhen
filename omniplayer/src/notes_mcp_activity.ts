@@ -2,8 +2,12 @@ import { shellT } from "./shell_i18n";
 
 export type McpToolActivityStatus = "running" | "done" | "error";
 
-/** Cursor 式两大桶：探索 vs 编辑（无「其它」同级桶）。 */
-export type McpToolBucket = "explore" | "edited";
+/**
+ * 助手活动可见动作桶（Cursor 式短标签）。
+ * thinking 不在此桶：它是独立折叠块。
+ * mcp = 第五兜底（无法归入 read/edit/run 时）；优先按动词归入四类。
+ */
+export type McpToolBucket = "read" | "edit" | "run" | "mcp";
 
 /** @deprecated 用 McpToolBucket；保留别名以免旧引用炸。 */
 export type McpToolKind = McpToolBucket;
@@ -17,7 +21,7 @@ export type McpToolActivity = {
   /** 可选：后端若标了轮次则按轮分组；缺省时工具集中在末轮旁展示。 */
   round?: number | null;
   /**
-   * 可选：后端显式桶（explore|edited|read|edit…）。
+   * 可选：后端显式桶（read|edit|run|mcp；旧 explore→read、edited→edit）。
    * 有则优先于工具名启发式。
    */
   bucket?: string | null;
@@ -35,11 +39,16 @@ export type McpStreamActivity = {
   tools?: McpToolActivity[] | null;
 };
 
+/** 轮次渐进折叠：当前最细 / 上一轮概览 / 更早整轮收起。 */
+export type RoundCollapseMode = "live" | "summary" | "collapsed";
+
 /** 后端多轮思考用 `---` 拼接；前端拆成可各自折叠的块。 */
 const THINK_SEP = /\n---\n/;
 
 /** 长思考默认折叠阈值（字）。 */
 const LONG_THINK_CHARS = 280;
+
+const BUCKET_ORDER: McpToolBucket[] = ["read", "edit", "run", "mcp"];
 
 export function hasMcpActivity(a: McpStreamActivity | null | undefined): boolean {
   if (!a) return false;
@@ -53,40 +62,71 @@ function parseExplicitBucket(raw: string | null | undefined): McpToolBucket | nu
   const s = (raw || "").trim().toLowerCase();
   if (!s) return null;
   if (
-    s === "explore" ||
-    s === "explored" ||
     s === "read" ||
     s === "reading" ||
+    s === "explore" ||
+    s === "explored" ||
     s === "search" ||
     s === "inspect"
   ) {
-    return "explore";
+    return "read";
   }
   if (
-    s === "edited" ||
     s === "edit" ||
+    s === "edited" ||
     s === "write" ||
     s === "writing" ||
     s === "mutate" ||
-    s === "mutating"
+    s === "mutating" ||
+    s === "patch"
   ) {
-    return "edited";
+    return "edit";
+  }
+  if (
+    s === "run" ||
+    s === "shell" ||
+    s === "command" ||
+    s === "exec" ||
+    s === "terminal" ||
+    s === "powershell" ||
+    s === "bash" ||
+    s === "cmd"
+  ) {
+    return "run";
+  }
+  if (s === "mcp" || s === "tool" || s === "other") {
+    return "mcp";
   }
   return null;
 }
 
 /**
- * 从工具名推断 Explore / Edited。
- * Explore ≈ list|get|read|grep|search|glob|find|…
- * Edited ≈ create|update|delete|write|edit|patch|…
- * 未知默认归 Explore（不设第三同级桶）。
+ * 从工具名推断 read / edit / run / mcp。
+ * read ≈ list|get|read|grep|search|glob|…
+ * edit ≈ create|update|delete|write|edit|patch|…
+ * run ≈ shell|exec|bash|powershell|apps_run_shell|…
+ * 未知默认归 read（检查类）；不轻易开 mcp 同级桶。
  */
 export function classifyToolBucket(name: string): McpToolBucket {
   const raw = (name || "").trim().toLowerCase();
-  if (!raw) return "explore";
+  if (!raw) return "read";
+
+  // 整名优先：shell / 命令行类
+  if (
+    /^(apps_run_shell|run_shell|run_terminal|run_command|shell_exec|execute_command)$/.test(
+      raw
+    ) ||
+    /(^|_)(shell|powershell|bash|cmd|terminal|exec)(_|$)/.test(raw) ||
+    /^run_/.test(raw)
+  ) {
+    return "run";
+  }
+
   const tokens = raw.split(/[^a-z0-9]+/).filter(Boolean);
-  const exploreHit = (t: string) =>
-    /^(list|get|read|history|tail|search|grep|glob|fetch|load|inspect|show|describe|stat|count|find|query|ls|cat|rg|explore|view|open|head|peek)$/.test(
+  const runHit = (t: string) =>
+    /^(shell|bash|zsh|powershell|pwsh|cmd|terminal|exec|execute|spawn|system)$/.test(t);
+  const readHit = (t: string) =>
+    /^(list|get|read|history|tail|search|grep|glob|fetch|load|inspect|show|describe|stat|count|find|query|ls|cat|rg|explore|view|open|head|peek|websearch|webfetch)$/.test(
       t
     ) ||
     /^(list|get|read|history|tail|search|grep|glob|fetch|load|find|query)_/.test(t);
@@ -99,21 +139,23 @@ export function classifyToolBucket(name: string): McpToolBucket {
   // 优先看末段（clue_board_list_history → history）
   for (let i = tokens.length - 1; i >= 0; i--) {
     const t = tokens[i];
-    if (editHit(t)) return "edited";
-    if (exploreHit(t)) return "explore";
+    if (runHit(t)) return "run";
+    if (editHit(t)) return "edit";
+    if (readHit(t)) return "read";
   }
   for (const t of tokens) {
-    if (editHit(t)) return "edited";
-    if (exploreHit(t)) return "explore";
+    if (runHit(t)) return "run";
+    if (editHit(t)) return "edit";
+    if (readHit(t)) return "read";
   }
   if (/(^|_)(list|get|read|history|tail|search|grep|glob|find)(_|$)/.test(raw)) {
-    return "explore";
+    return "read";
   }
   if (/(^|_)(create|update|delete|write|edit|rollback|set|apply|patch)(_|$)/.test(raw)) {
-    return "edited";
+    return "edit";
   }
-  // 未知 → Explore（检查类默认）
-  return "explore";
+  // 未知 → read（检查类默认）
+  return "read";
 }
 
 /** 单工具归桶：显式字段优先，否则按名启发式。 */
@@ -157,8 +199,10 @@ function phaseLabel(phase: string | null | undefined, statusText: string): strin
 }
 
 function bucketLabel(k: McpToolBucket): string {
-  if (k === "edited") return shellT("notes.activity.edited");
-  return shellT("notes.activity.explore");
+  if (k === "edit") return shellT("notes.activity.edit");
+  if (k === "run") return shellT("notes.activity.run");
+  if (k === "mcp") return shellT("notes.activity.mcp");
+  return shellT("notes.activity.read");
 }
 
 function splitThinkingBlocks(text: string | null | undefined): string[] {
@@ -202,9 +246,17 @@ export type BuildMcpActivityOpts = {
 function resolveOpen(
   key: string,
   opts: BuildMcpActivityOpts | undefined,
-  fallback: boolean
+  fallback: boolean,
+  /** 非 live 轮忽略 think/bucket 的旧展开态，以免流式 patch 把上一轮锁在细览。 */
+  collapseMode?: RoundCollapseMode
 ): boolean {
   if (opts?.openState?.open && key in opts.openState.open) {
+    if (
+      (collapseMode === "summary" || collapseMode === "collapsed") &&
+      (key.startsWith("think:") || key.startsWith("bucket:") || key.startsWith("tool:"))
+    ) {
+      return fallback;
+    }
     return Boolean(opts.openState.open[key]);
   }
   if (key.startsWith("think:") && opts?.thinkingOpen != null) {
@@ -232,7 +284,9 @@ function makeDetails(
 function buildToolRow(
   t: McpToolActivity,
   completed: boolean,
-  opts: BuildMcpActivityOpts | undefined
+  opts: BuildMcpActivityOpts | undefined,
+  forceOpenLive: boolean,
+  collapseMode: RoundCollapseMode = "live"
 ): HTMLElement {
   const stVal = (t.status || "done") as McpToolActivityStatus;
   const showSt = completed && stVal === "running" ? ("done" as const) : stVal;
@@ -241,12 +295,15 @@ function buildToolRow(
   const expandable = Boolean(target || detail);
   const key = `tool:${t.id || t.name}`;
   const bucket = resolveToolBucket(t);
+  const defaultOpen =
+    collapseMode === "live" && (forceOpenLive || showSt === "running");
 
   if (!expandable) {
     const li = document.createElement("li");
     li.className = "notes-card-activity-tool";
     li.dataset.status = showSt;
     li.dataset.bucket = bucket;
+    if (forceOpenLive) li.dataset.live = "1";
     const name = document.createElement("span");
     name.className = "notes-card-activity-tool-name";
     name.textContent = t.name || "tool";
@@ -260,11 +317,12 @@ function buildToolRow(
   const details = makeDetails(
     key,
     "",
-    resolveOpen(key, opts, showSt === "running"),
+    resolveOpen(key, opts, defaultOpen, collapseMode),
     "notes-card-activity-tool is-expandable"
   );
   details.dataset.status = showSt;
   details.dataset.bucket = bucket;
+  if (forceOpenLive) details.dataset.live = "1";
   const summary = details.querySelector("summary")!;
   summary.className = "notes-card-activity-tool-sum";
   const name = document.createElement("span");
@@ -312,20 +370,24 @@ function buildToolRow(
 
 /**
  * 按工具独立归桶；每桶内保持 `tools` 数组顺序（= 时间序）。
- * 不设「其它」同级桶：未知归 Explore。
+ * 桶出现顺序固定：read → edit → run → mcp（空桶省略）。
  */
 export function groupToolsByBucket(
   tools: McpToolActivity[]
 ): { bucket: McpToolBucket; tools: McpToolActivity[] }[] {
-  const explore: McpToolActivity[] = [];
-  const edited: McpToolActivity[] = [];
+  const bags: Record<McpToolBucket, McpToolActivity[]> = {
+    read: [],
+    edit: [],
+    run: [],
+    mcp: [],
+  };
   for (const t of tools) {
-    if (resolveToolBucket(t) === "edited") edited.push(t);
-    else explore.push(t);
+    bags[resolveToolBucket(t)].push(t);
   }
   const out: { bucket: McpToolBucket; tools: McpToolActivity[] }[] = [];
-  if (explore.length) out.push({ bucket: "explore", tools: explore });
-  if (edited.length) out.push({ bucket: "edited", tools: edited });
+  for (const bucket of BUCKET_ORDER) {
+    if (bags[bucket].length) out.push({ bucket, tools: bags[bucket] });
+  }
   return out;
 }
 
@@ -379,16 +441,47 @@ export function normalizeActivityRounds(activity: McpStreamActivity): RoundSlice
   return filtered.length ? filtered : slices;
 }
 
+/** 轮次概览短标签：思考 · 读取 2 · 编辑 1 · 命令行 1 */
+export function roundOverviewLine(slice: RoundSlice): string {
+  const bits: string[] = [];
+  if (slice.thinking) bits.push(shellT("notes.activity.thinking"));
+  for (const g of groupToolsByBucket(slice.tools)) {
+    bits.push(`${bucketLabel(g.bucket)} ${g.tools.length}`);
+  }
+  return bits.join(" · ");
+}
+
+/**
+ * 渐进折叠：当前轮最细；上一轮概览；更早整轮收起。
+ * 已结束时无「运行中」轮：末轮当 summary，更早 collapsed。
+ */
+export function resolveRoundCollapseMode(
+  sliceIndex: number,
+  liveRoundIdx: number,
+  completed: boolean
+): RoundCollapseMode {
+  if (completed) {
+    if (sliceIndex === liveRoundIdx) return "summary";
+    return "collapsed";
+  }
+  if (sliceIndex === liveRoundIdx) return "live";
+  if (sliceIndex === liveRoundIdx - 1) return "summary";
+  return "collapsed";
+}
+
 function appendToolList(
   parent: HTMLElement,
   tools: McpToolActivity[],
   completed: boolean,
-  opts: BuildMcpActivityOpts | undefined
+  opts: BuildMcpActivityOpts | undefined,
+  liveToolId: string | null,
+  collapseMode: RoundCollapseMode
 ) {
   const list = document.createElement("ul");
   list.className = "notes-card-activity-tools";
   for (const t of tools) {
-    const row = buildToolRow(t, completed, opts);
+    const forceOpen = Boolean(liveToolId && (t.id === liveToolId || t.name === liveToolId));
+    const row = buildToolRow(t, completed, opts, forceOpen, collapseMode);
     if (row.tagName === "LI") list.appendChild(row);
     else {
       const li = document.createElement("li");
@@ -398,6 +491,21 @@ function appendToolList(
     }
   }
   parent.appendChild(list);
+}
+
+function findLiveTool(tools: McpToolActivity[]): McpToolActivity | null {
+  const running = tools.find((t) => t.status === "running");
+  return running || null;
+}
+
+function isLiveThinkingPhase(phase: string | null | undefined): boolean {
+  const p = (phase || "").trim();
+  return (
+    p === "thinking" ||
+    p === "waiting_model" ||
+    p === "reading" ||
+    !p
+  );
 }
 
 /** 构建活动面板 DOM（不挂载）。根节点为可折叠 `<details>`。 */
@@ -431,7 +539,7 @@ export function buildMcpActivityEl(
       : "";
   const phase = completed ? shellT("notes.activity.done") : phaseLabel(activity.phase, statusText);
   const bits = [round, phase, waited].filter(Boolean);
-  head.textContent = bits.join(" · ") || (completed ? shellT("notes.activity.panel") : shellT("notes.activity.panel"));
+  head.textContent = bits.join(" · ") || shellT("notes.activity.panel");
   root.appendChild(head);
 
   const body = document.createElement("div");
@@ -441,58 +549,101 @@ export function buildMcpActivityEl(
   const liveRoundIdx = rounds.length ? rounds[rounds.length - 1].index : 0;
 
   for (const slice of rounds) {
-    const block = document.createElement("section");
-    block.className = "notes-card-activity-round";
+    const mode = resolveRoundCollapseMode(slice.index, liveRoundIdx, completed);
+    const overview = roundOverviewLine(slice);
+    const roundKey = `round:${slice.index}`;
+    const defaultRoundOpen = mode !== "collapsed";
+    const block = makeDetails(
+      roundKey,
+      "",
+      resolveOpen(roundKey, opts, defaultRoundOpen, mode),
+      `notes-card-activity-round notes-card-activity-round-${mode}`
+    );
     block.dataset.round = String(slice.index);
+    block.dataset.collapse = mode;
 
-    if (rounds.length > 1) {
-      const lab = document.createElement("div");
-      lab.className = "notes-card-activity-round-lab";
-      lab.textContent = shellT("notes.activity.round", { n: String(slice.index) });
-      block.appendChild(lab);
+    const sum = block.querySelector("summary")!;
+    sum.className = "notes-card-activity-round-sum";
+    const lab = document.createElement("span");
+    lab.className = "notes-card-activity-round-lab";
+    lab.textContent = shellT("notes.activity.round", { n: String(slice.index) });
+    sum.appendChild(lab);
+    if (overview) {
+      const ov = document.createElement("span");
+      ov.className = "notes-card-activity-round-overview";
+      ov.textContent = overview;
+      ov.title = overview;
+      sum.appendChild(ov);
     }
+
+    // 更早轮：只留一行概览，内容仍挂上以便手动展开
+    const inner = document.createElement("div");
+    inner.className = "notes-card-activity-round-body";
+
+    const groups = groupToolsByBucket(slice.tools);
+    const liveTool = mode === "live" ? findLiveTool(slice.tools) : null;
+    const liveBucket = liveTool ? resolveToolBucket(liveTool) : null;
+    const liveThink =
+      mode === "live" &&
+      !liveTool &&
+      Boolean(slice.thinking) &&
+      isLiveThinkingPhase(activity.phase);
 
     if (slice.thinking) {
       const thinkKey = `think:${slice.index}`;
       const long = slice.thinking.length >= LONG_THINK_CHARS;
-      const isLiveThink =
-        !completed &&
-        slice.index === liveRoundIdx &&
-        (activity.phase === "thinking" ||
-          activity.phase === "waiting_model" ||
-          activity.phase === "reading" ||
-          !activity.phase);
-      // Cursor 感：结束后长思考默认折；运行中当前块可展开
-      const defaultOpen = completed ? !long : isLiveThink || !long;
+      let defaultOpen = false;
+      if (mode === "live") {
+        defaultOpen = liveThink || (!liveTool && !long);
+      } else if (mode === "summary") {
+        defaultOpen = false;
+      } else {
+        defaultOpen = false;
+      }
       const details = makeDetails(
         thinkKey,
         shellT("notes.activity.thinking"),
-        resolveOpen(thinkKey, opts, defaultOpen),
-        "notes-card-activity-think"
+        resolveOpen(thinkKey, opts, defaultOpen, mode),
+        "notes-card-activity-think" + (liveThink ? " is-live" : "")
       );
       const thinkBody = document.createElement("pre");
       thinkBody.className = "notes-card-activity-think-body";
       thinkBody.textContent = slice.thinking;
       details.appendChild(thinkBody);
-      block.appendChild(details);
+      inner.appendChild(details);
     }
 
-    const groups = groupToolsByBucket(slice.tools);
     for (const g of groups) {
       const gKey = `bucket:${slice.index}:${g.bucket}`;
       const anyRunning = g.tools.some((t) => t.status === "running");
-      const defaultOpen = !completed || anyRunning || g.tools.length <= 6;
+      const isLiveBucket = mode === "live" && liveBucket === g.bucket;
+      let defaultOpen = false;
+      if (mode === "live") {
+        // 当前执行桶展开；同轮其它桶更紧凑（仅运行中或很少条目时开）
+        defaultOpen = isLiveBucket || anyRunning || (!liveBucket && g.tools.length <= 3);
+      } else if (mode === "summary") {
+        defaultOpen = false;
+      }
       const details = makeDetails(
         gKey,
         `${bucketLabel(g.bucket)}（${g.tools.length}）`,
-        resolveOpen(gKey, opts, defaultOpen),
-        `notes-card-activity-bucket notes-card-activity-bucket-${g.bucket}`
+        resolveOpen(gKey, opts, defaultOpen, mode),
+        `notes-card-activity-bucket notes-card-activity-bucket-${g.bucket}` +
+          (isLiveBucket ? " is-live" : "")
       );
       details.dataset.bucket = g.bucket;
-      appendToolList(details, g.tools, completed, opts);
-      block.appendChild(details);
+      appendToolList(
+        details,
+        g.tools,
+        completed,
+        opts,
+        isLiveBucket && liveTool ? liveTool.id || liveTool.name : null,
+        mode
+      );
+      inner.appendChild(details);
     }
 
+    if (inner.childElementCount) block.appendChild(inner);
     if (block.childElementCount) body.appendChild(block);
   }
 

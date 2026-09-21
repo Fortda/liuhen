@@ -13,7 +13,7 @@ if [[ -z "$version" ]]; then
   version="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' \
   "$REPO/omniplayer/src-tauri/tauri.conf.json")"
 fi
-version="${version:-0.1.4}"
+version="${version:-0.1.5}"
 
 IFS='.' read -r major minor patch extra <<<"${version}.0.0"
 version_code="${OMNI_VERSION_CODE:-$(( ${major:-0} * 10000 + ${minor:-0} * 100 + ${patch:-0} ))}"

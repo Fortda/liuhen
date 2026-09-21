@@ -132,7 +132,7 @@ OmniPlayer (Tauri 单实例) ──recorder_ctl──► omnitrace_input.exe (�
 | 设置 | **唯一** WinRecorder 开关 + 自启 + 数据存放位置 + 外观；**模型服务商在设置子页，Lobe 式左列表右详情**（不在笔记主界面并排）；**播放/时间轴滚动缩放在设置子页**（`localStorage omnitrace.playback.v1`）；**对话存档 AI 命名在设置首页**；**检查更新 / 启动时检查**在设置首页；**关于与反馈**为设置子页；默认落地页 |
 | 播放器 | 直播/点播、舞台、底栏时间轴（点日段载入） |
 | 仪表盘 | 运作轴 / 统计 / 动态 / 睡眠 / 运行状态；可 `seekPlayerToTs` |
-| 笔记 | 流式笔记 / 线索板 / 时间轴；MCP 白名单非 coding agent。线索板便签可折叠子孙（`parentId`/`collapsed`）。**细节** → [notes.md](notes.md) |
+| 笔记 | 流式笔记 / 线索板 / 时间轴；MCP 白名单非 coding agent。线索板便签可折叠子孙（`parentId`/`collapsed`），可贴图（节点 `image` 只引用 `clue_images/`，历史不嵌二进制）并复制粘贴。**细节** → [notes.md](notes.md) |
 
 **壳应用栏（MVP）**：展开钮与横向标签同处应用列顶栏扁平标签条（底 1px 发丝线；`+` / 展开钮无描边框。收起时展开钮在 `#body` 右上，不挨窗控）；`+` 可加对话窗 / 线索板 / Canvas / Browser / Terminal / File。对话窗/线索板：`+` 悬停子菜单选档/选板，点选则在标签条打开该实例（已开则聚焦）；标签=已打开的混合种类窗口。同一 DOM 时切标签会 `switchBoard` / `applyWirePreset`。布局 `localStorage omnitrace.shell.apps.v1`。**细节** → [notes.md](notes.md)。
 
@@ -194,6 +194,7 @@ OmniPlayer (Tauri 单实例) ──recorder_ctl──► omnitrace_input.exe (�
 - 无限 tool 轮 / 任意 shell；LiteLLM vendoring。
 - **暂缓**：接地阅读器（Hermes）。
 - 手机：不上架、不录 PCM/预览/截视频、不共用 `trace_DD.bin`、不改 Win `ModuleId`；OmniPlayer 暂不播手机源。
+- **磁盘占用 / 访问覆盖率（设计中，未交付）**：自动删除用户文件、云盘备份、做成 Everything / WinDirStat 克隆。
 
 ### 以后（尚未实现）
 
@@ -202,6 +203,7 @@ OmniPlayer (Tauri 单实例) ──recorder_ctl──► omnitrace_input.exe (�
 - **模组插件接口**：WinRecorder 与 OmniPlayer 同一套（或成对的）插件 ABI——第三方模组能写记录侧数据，并能按约定的「可视化 / 窗体架构」在播放器里演绎（不只是 JSONL）。现在的进程内 `TraceModule` 与播放侧 `modules/` 是内置清单，不是创意工坊热加载。
 - **仪表盘创意工坊**：统计图 / 仪表盘视图的分享与安装接口（模组、图表、布局），类似 Steam Workshop；默认不上传用户轨迹。不会把 OmniDatabase 默认同步到别人的服务器。
 - **手机局域网联动**：Android 采集与 Windows 壳在本机局域网互通。当前 APK 几乎不可用。
+- **磁盘占用与日常调用覆盖率（`disk_observe`，识别/设计中）**：自我观测——卷空闲、目录体积抽样、可选后期访问热度；帮助区分冷归档与热数据，空闲备用盘也可被看见。**仅本机**。细节草案 → [dashboard.md](dashboard.md) §7；本期不交付爬盘 / ETW。
 
 ---
 

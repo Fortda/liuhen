@@ -4,6 +4,25 @@
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-09-22
+
+### Added
+
+- 线索板：**图片便签**（工具栏 / 右键 / 拖入 / 剪贴板贴图）；字节落在 `notes/config/clue_images/`，节点只存相对引用。
+- 线索板：便签 **复制 / 粘贴**（右键与 Ctrl/Cmd+C/V；文本框内有选中文字时 Ctrl+C 仍复制文字）。
+- 线索板：拖便签时 **右键平移视口**（与空白处左键平移相同手感；多选拖动时相机移动、便签相对位置不变；用于平移的右键不弹菜单）。
+- 笔记 MCP 活动面板：思考 / 读取 / 编辑 / 命令行可见标签，以及 **轮次渐进折叠**（当前轮最细，更早轮收起）。
+- 线索板标题栏紧凑 **+** 新建板；MCP / 类型支持 `image`、`parentId` / `collapsed` / `kind`。
+
+### Changed
+
+- 设置 → **检查更新**：发现新版本后直接确认即可 **应用内下载** 增量 `*-windows-x64-update.zip`（或完整 zip）并替换重启，不必打开浏览器下 setup.exe。首次安装或完整向导重装仍用 `Liuhen-*-windows-x64-setup.exe`。
+- 检查更新文案写明：优先增量包、不改 `OmniDatabase`；启动时检查只提示，下载安装仍走设置里的「检查更新」。
+
+### Fixed
+
+- 拖便签期间在 textarea / 图片上按右键也能平移画布（window capture 监听，避免被子元素吃掉事件）。
+
 ## [0.1.4] - 2026-09-21
 
 ### Changed
@@ -53,7 +72,8 @@
 
 - 运行时库 `OmniDatabase/`、API Key、提示词原文不进 Git。
 
-[Unreleased]: https://github.com/Fortda/liuhen/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/Fortda/liuhen/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/Fortda/liuhen/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Fortda/liuhen/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Fortda/liuhen/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Fortda/liuhen/releases/tag/v0.1.2

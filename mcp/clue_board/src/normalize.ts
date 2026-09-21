@@ -51,6 +51,9 @@ export function normalizeClueNodesEdges(
     n.collapsed = n.collapsed === true ? true : undefined;
     const kind = normalizeClueKind(n.kind);
     n.kind = kind;
+    const image = normalizeClueImageRef(n.image);
+    if (image) n.image = image;
+    else delete n.image;
     outNodes.push(n);
   }
   if (outNodes.length > 500) outNodes.length = 500;
@@ -86,6 +89,29 @@ export function normalizeClueKind(
   const k = (raw ?? "").trim().toLowerCase();
   if (k === "project" || k === "research") return k;
   return undefined;
+}
+
+const CLUE_IMAGE_REF =
+  /^clue_images\/([A-Za-z0-9_-]{1,80})\.(png|jpg|jpeg|gif|webp|bmp)$/i;
+
+/** `clue_images/<file>` only. Drops data URLs, absolutes, and `..`. */
+export function normalizeClueImageRef(
+  raw: string | null | undefined,
+): string | undefined {
+  if (raw == null) return undefined;
+  const s = String(raw).trim().replace(/\\/g, "/");
+  if (!s || s.length > 180) return undefined;
+  if (
+    s.includes("..") ||
+    s.includes(":") ||
+    s.startsWith("/") ||
+    s.toLowerCase().startsWith("data:")
+  ) {
+    return undefined;
+  }
+  const m = CLUE_IMAGE_REF.exec(s);
+  if (!m) return undefined;
+  return `clue_images/${m[1]}.${m[2]!.toLowerCase()}`;
 }
 
 export function clueParentWouldCycle(

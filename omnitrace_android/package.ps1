@@ -19,10 +19,10 @@ $DistDir = Join-Path $Repo "dist"
 
 function Read-OmniVersion {
   $tauri = Join-Path $Repo "omniplayer\src-tauri\tauri.conf.json"
-  if (-not (Test-Path $tauri)) { return "0.1.4" }
+  if (-not (Test-Path $tauri)) { return "0.1.5" }
   $m = [regex]::Match((Get-Content -Raw $tauri), '"version"\s*:\s*"([^"]+)"')
   if ($m.Success) { return $m.Groups[1].Value }
-  return "0.1.4"
+  return "0.1.5"
 }
 
 if (-not $Version) { $Version = Read-OmniVersion }

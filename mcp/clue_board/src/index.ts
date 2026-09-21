@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { z } from "zod";
-import { applyClueGroupFields, findBoard } from "./normalize.js";
+import { applyClueGroupFields, findBoard, normalizeClueImageRef } from "./normalize.js";
 import { appendFromBoard, listHistory, rollbackHistory } from "./history.js";
+import { clueImagesDir } from "./paths.js";
 import { getDataRootInfo, readClueBoards, withClueBoards } from "./store.js";
 import type { ClueBoardNode } from "./types.js";
 import { newBoardId, newEdgeId, newNodeId } from "./types.js";
@@ -17,6 +20,27 @@ const boardIdSchema = z
   .string()
   .optional()
   .describe("Board id; omit for active board");
+
+const imageRefSchema = z
+  .string()
+  .nullable()
+  .optional()
+  .describe(
+    "Existing clue_images/<file> ref (bytes live beside clue_boards.json). Not a data URL or absolute path. Empty/null clears on update.",
+  );
+
+function resolveClueImageRef(raw: string | null | undefined): string | undefined {
+  if (raw == null || raw.trim() === "") return undefined;
+  const norm = normalizeClueImageRef(raw);
+  if (!norm) {
+    throw new Error(
+      "image must be a clue_images/<file> reference, not base64 or a filesystem path",
+    );
+  }
+  const abs = join(clueImagesDir(), norm.slice("clue_images/".length));
+  if (!existsSync(abs)) throw new Error(`image file not found: ${norm}`);
+  return norm;
+}
 
 function jsonText(obj: unknown, isError = false) {
   return {
@@ -105,8 +129,9 @@ server.tool(
       .nullable()
       .optional()
       .describe('Optional tag: "project" or "research" (same plane, not a layer)'),
+    image: imageRefSchema,
   },
-  async ({ board_id, text, x, y, w, h, color, parent_id, collapsed, kind }) =>
+  async ({ board_id, text, x, y, w, h, color, parent_id, collapsed, kind, image }) =>
     runTool(async () => {
       const node = await withClueBoards((data) => {
         const board = findBoard(data, board_id);
@@ -120,6 +145,8 @@ server.tool(
         if (w != null) n.w = w;
         if (h != null) n.h = h;
         if (color != null) n.color = color;
+        const imageRef = resolveClueImageRef(image);
+        if (imageRef) n.image = imageRef;
         applyClueGroupFields(board.nodes, n, {
           parentId: parent_id,
           collapsed,
@@ -176,7 +203,7 @@ server.tool(
 
 server.tool(
   "clue_board_update_note",
-  "Update a note's text, position, size, parent, collapsed state, or kind.",
+  "Update a note's text, position, size, parent, collapsed state, kind, or image ref.",
   {
     board_id: boardIdSchema,
     node_id: z.string().describe("Node id to update"),
@@ -197,6 +224,7 @@ server.tool(
       .nullable()
       .optional()
       .describe('Optional tag: "project" or "research"; empty/null clears'),
+    image: imageRefSchema,
   },
   async ({
     board_id,
@@ -210,6 +238,7 @@ server.tool(
     parent_id,
     collapsed,
     kind,
+    image,
   }) =>
     runTool(async () => {
       const updated = await withClueBoards((data) => {
@@ -223,6 +252,11 @@ server.tool(
         if (w !== undefined) node.w = w;
         if (h !== undefined) node.h = h;
         if (color !== undefined) node.color = color;
+        if (image !== undefined) {
+          const imageRef = resolveClueImageRef(image);
+          if (imageRef) node.image = imageRef;
+          else delete node.image;
+        }
         applyClueGroupFields(board.nodes, node, {
           parentId: parent_id,
           collapsed,

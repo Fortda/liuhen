@@ -401,7 +401,8 @@ pub fn openai_tools_for_prefs(prefs: &McpPrefs) -> Vec<Value> {
                     "color": { "type": "string" },
                     "parent_id": { "type": "string", "description": "Parent note id for expand/collapse grouping" },
                     "collapsed": { "type": "boolean", "description": "If true, hide descendants until expanded" },
-                    "kind": { "type": "string", "description": "Optional tag: project | research" }
+                    "kind": { "type": "string", "description": "Optional tag: project | research" },
+                    "image": { "type": "string", "description": "Existing clue_images/<file> ref written by the app. Not bytes, a data URL, or an absolute path. Empty clears on update." }
                 },
                 "required": ["text"],
                 "additionalProperties": false
@@ -409,7 +410,7 @@ pub fn openai_tools_for_prefs(prefs: &McpPrefs) -> Vec<Value> {
         ));
         tools.push(tool_def(
             "clue_board_update_note",
-            "Update a note's text, position, size, parent, collapsed state, or kind.",
+            "Update a note's text, position, size, parent, collapsed state, kind, or image ref.",
             json!({
                 "type": "object",
                 "properties": {
@@ -423,7 +424,8 @@ pub fn openai_tools_for_prefs(prefs: &McpPrefs) -> Vec<Value> {
                     "color": { "type": "string" },
                     "parent_id": { "type": "string", "description": "Parent note id; empty clears parent" },
                     "collapsed": { "type": "boolean" },
-                    "kind": { "type": "string", "description": "project | research; empty clears" }
+                    "kind": { "type": "string", "description": "project | research; empty clears" },
+                    "image": { "type": "string", "description": "Existing clue_images/<file> ref. Empty clears. Does not upload bytes." }
                 },
                 "required": ["node_id"],
                 "additionalProperties": false
@@ -543,6 +545,26 @@ fn apply_clue_group_json(
             );
         }
     }
+    Ok(())
+}
+
+fn apply_clue_image(node: &mut crate::notes_ctl::ClueBoardNode, args: &Value) -> Result<(), String> {
+    let Some(v) = args.get("image") else {
+        return Ok(());
+    };
+    if v.is_null() || v.as_str() == Some("") {
+        node.image = None;
+        return Ok(());
+    }
+    let Some(s) = v.as_str() else {
+        return Err("image must be a string".into());
+    };
+    let rel = crate::notes_ctl::normalize_clue_image_ref(s)
+        .ok_or_else(|| "image must be a clue_images/<file> reference".to_string())?;
+    if !crate::notes_ctl::clue_image_ref_is_file(&rel) {
+        return Err(format!("image file not found: {rel}"));
+    }
+    node.image = Some(rel);
     Ok(())
 }
 
@@ -834,8 +856,10 @@ pub async fn execute_tool(name: &str, args: &Value, prefs: &McpPrefs) -> Result<
                         parent_id: None,
                         collapsed: None,
                         kind: None,
+                        image: None,
                     };
                     apply_clue_group_json(&board.nodes, &mut node, args)?;
+                    apply_clue_image(&mut node, args)?;
                     node
                 });
                 Ok((bid, board.clone()))
@@ -899,6 +923,7 @@ pub async fn execute_tool(name: &str, args: &Value, prefs: &McpPrefs) -> Result<
                 }
                 let nodes_snap = board.nodes.clone();
                 apply_clue_group_json(&nodes_snap, &mut board.nodes[idx], args)?;
+                apply_clue_image(&mut board.nodes[idx], args)?;
                 let updated = board.nodes[idx].clone();
                 Ok((bid, updated, board.clone()))
             })?;

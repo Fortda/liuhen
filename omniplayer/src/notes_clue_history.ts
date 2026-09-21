@@ -17,6 +17,8 @@ export type ClueBoardSnapshot = {
     parentId?: string;
     collapsed?: boolean;
     kind?: "project" | "research";
+    /** Path ref only; image bytes stay in clue_images/. */
+    image?: string;
   }>;
   edges: Array<{ id: string; from: string; to: string }>;
   panX: number;
@@ -124,6 +126,18 @@ export const CLUE_HISTORY_LABELS = {
     zh: "设置父子",
     en: "Set parent",
     action: "set_parent",
+  },
+  addImage: {
+    key: "notes.clue.history.addImage",
+    zh: "添加图片",
+    en: "Add image",
+    action: "add_image",
+  },
+  paste: {
+    key: "notes.clue.history.paste",
+    zh: "粘贴便签",
+    en: "Paste notes",
+    action: "paste_nodes",
   },
   rollback: {
     key: "notes.clue.history.rollback",

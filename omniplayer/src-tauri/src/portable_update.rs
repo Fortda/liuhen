@@ -596,7 +596,7 @@ mod tests {
 
     #[test]
     fn semver_newer() {
-        assert!(is_newer_version("v0.1.4", "0.1.3"));
+        assert!(is_newer_version("v0.1.5", "0.1.3"));
         assert!(is_newer_version("0.2.0", "0.1.9"));
         assert!(!is_newer_version("v0.1.3", "0.1.3"));
         assert!(!is_newer_version("0.1.2", "0.1.3"));
@@ -604,18 +604,18 @@ mod tests {
 
     #[test]
     fn zip_name_prefers_update() {
-        assert!(is_update_zip_name("OmniTrace-0.1.4-windows-x64-update.zip"));
-        assert!(is_update_zip_name("Liuhen-0.1.4-windows-x64-update.zip"));
-        assert!(is_portable_zip_name("OmniTrace-0.1.4-windows-x64.zip"));
-        assert!(is_portable_zip_name("Liuhen-0.1.4-windows-x64.zip"));
+        assert!(is_update_zip_name("OmniTrace-0.1.5-windows-x64-update.zip"));
+        assert!(is_update_zip_name("Liuhen-0.1.5-windows-x64-update.zip"));
+        assert!(is_portable_zip_name("OmniTrace-0.1.5-windows-x64.zip"));
+        assert!(is_portable_zip_name("Liuhen-0.1.5-windows-x64.zip"));
         assert!(!is_portable_zip_name(
-            "OmniTrace-0.1.4-windows-x64-update.zip"
+            "OmniTrace-0.1.5-windows-x64-update.zip"
         ));
         assert!(!is_update_zip_name(
-            "OmniTrace-0.1.4-windows-x64-setup.exe"
+            "OmniTrace-0.1.5-windows-x64-setup.exe"
         ));
         assert!(!is_portable_zip_name(
-            "OmniTrace-0.1.4-windows-x64-setup.exe"
+            "OmniTrace-0.1.5-windows-x64-setup.exe"
         ));
     }
 

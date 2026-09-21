@@ -130,6 +130,11 @@ pub fn clue_boards_path() -> PathBuf {
     notes_config_dir().join("clue_boards.json")
 }
 
+/// Image bytes for clue-board nodes. JSON stores only `clue_images/<file>`.
+pub fn clue_images_dir() -> PathBuf {
+    notes_config_dir().join("clue_images")
+}
+
 /// Per-board append-only history: `notes/config/clue_history/<board_id>.jsonl`
 pub fn clue_history_dir() -> PathBuf {
     notes_config_dir().join("clue_history")

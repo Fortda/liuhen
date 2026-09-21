@@ -27,7 +27,7 @@
 
 - `clue_board_list` / `clue_board_get`
 - `clue_board_create_board`
-- `clue_board_create_note` / `clue_board_update_note` / `clue_board_delete_note`（便签可含 `parentId` / `collapsed` / `kind`）
+- `clue_board_create_note` / `clue_board_update_note` / `clue_board_delete_note`（便签可含 `parentId` / `collapsed` / `kind` / `image` 引用）
 - `clue_board_add_edge` / `clue_board_delete_edge`
 - `clue_board_set_active`
 - `clue_board_list_history` / `clue_board_rollback`

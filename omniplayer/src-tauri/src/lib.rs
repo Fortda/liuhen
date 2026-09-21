@@ -833,6 +833,8 @@ pub fn run() {
             notes_ctl::notes_clue_board_load,
             notes_ctl::notes_clue_board_save,
             notes_ctl::notes_clue_board_delete,
+            notes_ctl::notes_clue_image_save,
+            notes_ctl::notes_clue_image_abs,
             notes_clue_history::notes_clue_history_list,
             notes_clue_history::notes_clue_history_record,
             notes_clue_history::notes_clue_history_rollback,
