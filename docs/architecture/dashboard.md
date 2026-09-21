@@ -1,4 +1,4 @@
-# OmniTrace 仪表盘蓝图（细节）
+# 留痕仪表盘蓝图（细节）
 
 > **公开架构**。总览与契约见 [OVERVIEW.md](OVERVIEW.md) §5.5。  
 > **口径同步**：改清洗 / AFK / 开关语义 / 格长等常数时，同一轮改代码 + `index.html` `#about-caliber` + 图上 hint/按钮 + OVERVIEW §5.5 契约句；细节常数以本文为准。  

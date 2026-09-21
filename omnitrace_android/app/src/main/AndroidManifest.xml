@@ -52,7 +52,7 @@
             android:foregroundServiceType="location|specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="personal sensor and device telemetry for local OmniTrace recording" />
+                android:value="personal sensor and device telemetry for local Liuhen recording" />
         </service>
 
         <service

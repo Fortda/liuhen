@@ -1,5 +1,6 @@
-; OmniTrace per-user installer.
+; 留痕 (Liuhen) per-user installer.
 ; Compiles against a staged Dist folder (ASCII path). Do not pack OmniDatabase.
+; Install dir / registry keys stay OmniTrace so existing 0.1.3 clients keep updating in place.
 Unicode true
 SetCompressor /SOLID lzma
 RequestExecutionLevel user
@@ -17,7 +18,7 @@ RequestExecutionLevel user
   !define ICON_FILE "OmniTrace.ico"
 !endif
 
-!define PRODUCT_NAME "OmniTrace"
+!define PRODUCT_NAME "留痕"
 !define PRODUCT_PUBLISHER "Fortda"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\OmniTrace"
 !define APP_KEY "Software\OmniTrace"
@@ -36,7 +37,7 @@ BrandingText "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 !define MUI_ICON "${ICON_FILE}"
 !define MUI_UNICON "${ICON_FILE}"
 !define MUI_FINISHPAGE_RUN "$INSTDIR\OmniPlayer.exe"
-!define MUI_FINISHPAGE_RUN_TEXT "Launch OmniTrace"
+!define MUI_FINISHPAGE_RUN_TEXT "启动留痕"
 
 !insertmacro MUI_PAGE_LICENSE "${LICENSE_FILE}"
 !insertmacro MUI_PAGE_DIRECTORY
@@ -50,7 +51,7 @@ BrandingText "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 
 VIProductVersion "${PRODUCT_VERSION}.0"
 VIAddVersionKey /LANG=1033 "ProductName" "${PRODUCT_NAME}"
-VIAddVersionKey /LANG=1033 "FileDescription" "OmniTrace setup (player + recorder)"
+VIAddVersionKey /LANG=1033 "FileDescription" "Liuhen setup (player + recorder)"
 VIAddVersionKey /LANG=1033 "FileVersion" "${PRODUCT_VERSION}"
 VIAddVersionKey /LANG=1033 "ProductVersion" "${PRODUCT_VERSION}"
 VIAddVersionKey /LANG=1033 "LegalCopyright" "MIT (c) 2026 Fortda"
@@ -85,9 +86,11 @@ Section "Install"
   Delete "$INSTDIR\write-data-root.ps1"
 
   SetOutPath "$INSTDIR"
-  CreateDirectory "$SMPROGRAMS\OmniTrace"
-  CreateShortCut "$SMPROGRAMS\OmniTrace\OmniTrace.lnk" "$INSTDIR\OmniPlayer.exe" "" "$INSTDIR\OmniTrace.ico" 0
-  CreateShortCut "$DESKTOP\OmniTrace.lnk" "$INSTDIR\OmniPlayer.exe" "" "$INSTDIR\OmniTrace.ico" 0
+  CreateDirectory "$SMPROGRAMS\留痕"
+  CreateShortCut "$SMPROGRAMS\留痕\留痕.lnk" "$INSTDIR\OmniPlayer.exe" "" "$INSTDIR\OmniTrace.ico" 0
+  CreateShortCut "$DESKTOP\留痕.lnk" "$INSTDIR\OmniPlayer.exe" "" "$INSTDIR\OmniTrace.ico" 0
+  Delete "$DESKTOP\OmniTrace.lnk"
+  RMDir /r "$SMPROGRAMS\OmniTrace"
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   WriteRegStr HKCU "${APP_KEY}" "InstallDir" "$INSTDIR"
@@ -98,7 +101,7 @@ Section "Install"
   WriteRegStr HKCU "${UNINST_KEY}" "UninstallString" '"$INSTDIR\Uninstall.exe"'
   WriteRegStr HKCU "${UNINST_KEY}" "QuietUninstallString" '"$INSTDIR\Uninstall.exe" /S'
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\OmniPlayer.exe"
-  WriteRegStr HKCU "${UNINST_KEY}" "URLInfoAbout" "https://github.com/Fortda/omnitrace"
+  WriteRegStr HKCU "${UNINST_KEY}" "URLInfoAbout" "https://github.com/Fortda/liuhen"
   WriteRegDWORD HKCU "${UNINST_KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${UNINST_KEY}" "NoRepair" 1
 
@@ -109,7 +112,9 @@ SectionEnd
 
 Section "Uninstall"
   ; Never delete %USERPROFILE%\OmniTrace\OmniDatabase (or any user library).
+  Delete "$DESKTOP\留痕.lnk"
   Delete "$DESKTOP\OmniTrace.lnk"
+  RMDir /r "$SMPROGRAMS\留痕"
   RMDir /r "$SMPROGRAMS\OmniTrace"
 
   Delete "$INSTDIR\OmniPlayer.exe"

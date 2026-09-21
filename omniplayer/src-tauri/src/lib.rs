@@ -867,7 +867,7 @@ pub fn run() {
             portable_update::probe_portable_update,
         ])
         .build(tauri::generate_context!())
-        .expect("启动 OmniTrace 失败")
+        .expect("启动留痕失败")
         .run(|_app, event| {
             if matches!(
                 event,

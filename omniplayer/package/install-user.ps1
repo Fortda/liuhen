@@ -1,5 +1,5 @@
-﻿# Install the unzipped OmniTrace folder for the current Windows user.
-# Programs: %LOCALAPPDATA%\OmniTrace
+﻿# Install the unzipped Liuhen (留痕) folder for the current Windows user.
+# Programs: %LOCALAPPDATA%\OmniTrace  (folder name unchanged for compatibility)
 # Data:     %USERPROFILE%\OmniTrace\OmniDatabase  (created if missing)
 # Uninstall does not delete the data folder.
 $ErrorActionPreference = "Stop"
@@ -30,11 +30,11 @@ function Test-AppRunning([string]$ExePath) {
 
 $destExe = Join-Path $InstallDir "OmniPlayer.exe"
 if (Test-AppRunning $destExe) {
-  Write-Error "OmniTrace is running. Close it, then run this installer again."
+  Write-Error "留痕 is running. Close it, then run this installer again."
   exit 1
 }
 if (Test-AppRunning $ExeSrc) {
-  Write-Error "OmniTrace is running from this unzipped folder. Close it, then run this installer again."
+  Write-Error "留痕 is running from this unzipped folder. Close it, then run this installer again."
   exit 1
 }
 
@@ -72,16 +72,20 @@ function New-Shortcut([string]$LinkPath, [string]$Target, [string]$WorkDir) {
   $sc = $ws.CreateShortcut($LinkPath)
   $sc.TargetPath = $Target
   $sc.WorkingDirectory = $WorkDir
-  $sc.Description = "OmniTrace"
+  $sc.Description = "留痕"
   $ico = Join-Path $WorkDir "OmniTrace.ico"
   if (Test-Path -LiteralPath $ico) { $sc.IconLocation = "$ico,0" }
   $sc.Save()
 }
 
-$desk = Join-Path ([Environment]::GetFolderPath("Desktop")) "OmniTrace.lnk"
-$startDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\OmniTrace"
-$startLink = Join-Path $startDir "OmniTrace.lnk"
+$desk = Join-Path ([Environment]::GetFolderPath("Desktop")) "留痕.lnk"
+$deskLegacy = Join-Path ([Environment]::GetFolderPath("Desktop")) "OmniTrace.lnk"
+$startDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\留痕"
+$startLegacy = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\OmniTrace"
+$startLink = Join-Path $startDir "留痕.lnk"
 $exe = Join-Path $InstallDir "OmniPlayer.exe"
+Remove-Item $deskLegacy -Force -ErrorAction SilentlyContinue
+Remove-Item $startLegacy -Recurse -Force -ErrorAction SilentlyContinue
 New-Shortcut $desk $exe $InstallDir
 New-Shortcut $startLink $exe $InstallDir
 
@@ -90,14 +94,18 @@ $uninstLines = @(
   '$ErrorActionPreference = ''Continue''',
   ('$install = ''' + $InstallDir + ''''),
   ('$desk = ''' + $desk + ''''),
+  ('$deskLegacy = ''' + $deskLegacy + ''''),
   ('$startDir = ''' + $startDir + ''''),
+  ('$startLegacy = ''' + $startLegacy + ''''),
   '$key = ''HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\OmniTrace''',
   'Remove-Item $desk -Force -ErrorAction SilentlyContinue',
+  'Remove-Item $deskLegacy -Force -ErrorAction SilentlyContinue',
   'Remove-Item $startDir -Recurse -Force -ErrorAction SilentlyContinue',
+  'Remove-Item $startLegacy -Recurse -Force -ErrorAction SilentlyContinue',
   'Remove-Item $key -Recurse -Force -ErrorAction SilentlyContinue',
   'Get-ChildItem $install -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne ''uninstall.ps1'' } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue',
   'Remove-Item $install -Recurse -Force -ErrorAction SilentlyContinue',
-  'Write-Host ''OmniTrace removed. Your data folder was not deleted.'''
+  'Write-Host ''留痕 removed. Your data folder was not deleted.'''
 )
 $utf8 = New-Object System.Text.UTF8Encoding $false
 [System.IO.File]::WriteAllText($uninst, ($uninstLines -join "`r`n") + "`r`n", $utf8)
@@ -105,7 +113,7 @@ $utf8 = New-Object System.Text.UTF8Encoding $false
 $uninstCmd = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "' + $uninst + '"'
 $key = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\OmniTrace"
 New-Item -Path $key -Force | Out-Null
-New-ItemProperty -Path $key -Name "DisplayName" -Value "OmniTrace" -PropertyType String -Force | Out-Null
+New-ItemProperty -Path $key -Name "DisplayName" -Value "留痕" -PropertyType String -Force | Out-Null
 New-ItemProperty -Path $key -Name "DisplayVersion" -Value $version -PropertyType String -Force | Out-Null
 New-ItemProperty -Path $key -Name "Publisher" -Value "Fortda" -PropertyType String -Force | Out-Null
 New-ItemProperty -Path $key -Name "InstallLocation" -Value $InstallDir -PropertyType String -Force | Out-Null
@@ -120,6 +128,6 @@ if (-not (Test-Path -LiteralPath $RecSrc)) {
 Write-Host ""
 Write-Host "Installed:" $InstallDir
 Write-Host "Data stays in:" $DataRoot
-Write-Host "Shortcut: desktop OmniTrace"
-Write-Host "Uninstall: Windows Settings -> Apps -> OmniTrace (data folder is kept)"
+Write-Host "Shortcut: desktop 留痕"
+Write-Host "Uninstall: Windows Settings -> Apps -> 留痕 (data folder is kept)"
 Write-Host ""

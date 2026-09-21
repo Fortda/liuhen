@@ -1,24 +1,24 @@
 <p align="center">
-  <img src="docs/images/icon.png" width="96" height="96" alt="OmniTrace">
+  <img src="docs/images/icon.png" width="96" height="96" alt="留痕">
 </p>
 
-<h1 align="center">OmniTrace</h1>
+<h1 align="center">留痕</h1>
 
 <p align="center">
   <a href="README.md"><img src="https://img.shields.io/badge/README-%E4%B8%AD%E6%96%87-1f6f5b" alt="中文 README"></a>
   <a href="README.en.md"><img src="https://img.shields.io/badge/README-English-2c2a27" alt="English README"></a>
-  <a href="https://github.com/Fortda/omnitrace/releases/latest"><img src="https://img.shields.io/github/v/release/Fortda/omnitrace?label=%E4%B8%8B%E8%BD%BD" alt="下载"></a>
+  <a href="https://github.com/Fortda/liuhen/releases/latest"><img src="https://img.shields.io/github/v/release/Fortda/liuhen?label=%E4%B8%8B%E8%BD%BD" alt="下载"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1f6f5b" alt="MIT"></a>
-  <a href="https://github.com/Fortda/omnitrace"><img src="https://img.shields.io/badge/github-Fortda%2Fomnitrace-2c2a27" alt="GitHub"></a>
+  <a href="https://github.com/Fortda/liuhen"><img src="https://img.shields.io/badge/github-Fortda%2Fliuhen-2c2a27" alt="GitHub"></a>
 </p>
 
-**OmniTrace** 是辅助人尽可能记录和模拟世界的软件，不过主要是拿ai当笔记方便管理聊天记录，轻量api协议转发器套壳，也可以选择让他帮你记一些可视化笔记
+**留痕**（英文 Liuhen）是辅助人尽可能记录和模拟世界的软件，也可作自我侧写；不过主要是拿ai当笔记方便管理聊天记录，轻量api协议转发器套壳，也可以选择让他帮你记一些可视化笔记
 
 外行，**100%面向ai编程**，用的cursor
 
 **软件定位**是一套情报和信息采集与现象世界模型运行日志维护、管理的终端；意在扩展感知在现象世界时空因果链网络上的深度与广度，我打算叫这个项目为般若计划，挺帅的
 
-仓库：<https://github.com/Fortda/omnitrace> · 许可：[MIT](LICENSE)
+仓库：<https://github.com/Fortda/liuhen> · 许可：[MIT](LICENSE)
 
 数据默认只写本机 `OmniDatabase/`，**不上传**。请勿把 API Key、Cookie、录像或数据库推进 Git。
 
@@ -117,12 +117,12 @@ flowchart LR
 
 只要日常用，不用装开发环境。需要 **Windows 10 或 11（64 位）**。
 
-1. 打开 [Releases（发布页）](https://github.com/Fortda/omnitrace/releases/latest)
-2. 下载 **`OmniTrace-…-windows-x64-setup.exe`**（播放器 + 采集器）
-3. 下一步、下一步。默认装到当前用户的 `%LOCALAPPDATA%\OmniTrace`，一般不用管理员
-4. 用桌面上的 **OmniTrace** 打开
+1. 打开 [Releases（发布页）](https://github.com/Fortda/liuhen/releases/latest)
+2. 下载 **`Liuhen-…-windows-x64-setup.exe`**（播放器 + 采集器）
+3. 下一步、下一步。默认装到当前用户的 `%LOCALAPPDATA%\OmniTrace`，一般不用管理员（磁盘文件夹名未改，兼容旧版）
+4. 用桌面上的 **留痕** 打开
 
-数据在你的用户目录 `OmniTrace\OmniDatabase`，**不会上传**，也**不会**打进安装包。卸载（设置 → 应用 → OmniTrace）只删程序，不删这份数据。
+数据在你的用户目录 `OmniTrace\OmniDatabase`，**不会上传**，也**不会**打进安装包。卸载（设置 → 应用 → 留痕）只删程序，不删这份数据。
 
 也可以下 **zip**，解压后双击 **安装到本机.bat**，效果相同。
 
@@ -168,7 +168,7 @@ Windows 可能提示「未知应用」：选 **更多信息 → 仍要运行**�
 
 ## 贡献
 
-问题与想法请开 [GitHub Issue](https://github.com/Fortda/omnitrace/issues)。壳内「反馈」也可跳到同一入口。
+问题与想法请开 [GitHub Issue](https://github.com/Fortda/liuhen/issues)。壳内「反馈」也可跳到同一入口。
 
 请把 `OmniDatabase/`、密钥、录像和提示词原文留在本机。截图约定见 [docs/images/README.md](docs/images/README.md)。
 

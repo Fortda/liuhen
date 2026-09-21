@@ -1,7 +1,7 @@
 ﻿@echo off
 chcp 65001 >nul
 cd /d "%~dp0"
-echo Installing OmniTrace for this Windows user...
+echo Installing 留痕 for this Windows user...
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0install-user.ps1"
 if errorlevel 1 (
   echo.

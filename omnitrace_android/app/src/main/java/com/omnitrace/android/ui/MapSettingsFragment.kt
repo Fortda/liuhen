@@ -196,7 +196,7 @@ class MapSettingsFragment : Fragment() {
             val conn = URL(spec).openConnection() as HttpURLConnection
             conn.connectTimeout = 5000
             conn.readTimeout = 7000
-            conn.setRequestProperty("User-Agent", "OmniTrace/0.1 (personal sideload)")
+            conn.setRequestProperty("User-Agent", "Liuhen/0.1 (personal sideload)")
             val body = conn.inputStream.bufferedReader().readText()
             conn.disconnect()
             val arr = JSONArray(body)

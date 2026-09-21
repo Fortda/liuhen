@@ -3,7 +3,7 @@
 # 便携发布约定：
 # - 产出目录只放程序与说明（OmniPlayer.exe、采集 exe、bat、使用说明等）
 # - 切勿把运行时数据根 OmniDatabase 打进发布包（发布物与数据根分离）
-# - 稳定版：-Install → %LOCALAPPDATA%\OmniTrace + 桌面快捷方式 + HKCU 卸载项
+# - 稳定版：-Install → %LOCALAPPDATA%\OmniTrace（磁盘目录名兼容旧版）+ 桌面「留痕」快捷方式 + HKCU 卸载项（DisplayName=留痕）
 # - 增量：覆盖 dist 后，若稳定版在跑则写入 incoming，壳内「关于→更新」换 exe
 #
 param(
@@ -49,9 +49,9 @@ function Install-UninstallKey([string]$Version) {
   $key = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\OmniTrace"
   $uninstCmd = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "' + $uninst + '"'
   New-Item -Path $key -Force | Out-Null
-  New-ItemProperty -Path $key -Name "DisplayName" -Value "OmniTrace" -PropertyType String -Force | Out-Null
+  New-ItemProperty -Path $key -Name "DisplayName" -Value "留痕" -PropertyType String -Force | Out-Null
   New-ItemProperty -Path $key -Name "DisplayVersion" -Value $Version -PropertyType String -Force | Out-Null
-  New-ItemProperty -Path $key -Name "Publisher" -Value "OmniTrace" -PropertyType String -Force | Out-Null
+  New-ItemProperty -Path $key -Name "Publisher" -Value "Fortda" -PropertyType String -Force | Out-Null
   New-ItemProperty -Path $key -Name "InstallLocation" -Value $InstallDir -PropertyType String -Force | Out-Null
   New-ItemProperty -Path $key -Name "UninstallString" -Value $uninstCmd -PropertyType String -Force | Out-Null
   New-ItemProperty -Path $key -Name "NoModify" -Value 1 -PropertyType DWord -Force | Out-Null
@@ -59,20 +59,26 @@ function Install-UninstallKey([string]$Version) {
 }
 
 function Write-UninstallScript {
-  $desk = Join-Path ([Environment]::GetFolderPath("Desktop")) "OmniTrace.lnk"
-  $startDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\OmniTrace"
+  $desk = Join-Path ([Environment]::GetFolderPath("Desktop")) "留痕.lnk"
+  $deskLegacy = Join-Path ([Environment]::GetFolderPath("Desktop")) "OmniTrace.lnk"
+  $startDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\留痕"
+  $startLegacy = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\OmniTrace"
   $lines = @(
     '$ErrorActionPreference = ''Continue''',
     ('$install = ''' + $InstallDir + ''''),
     ('$desk = ''' + $desk + ''''),
+    ('$deskLegacy = ''' + $deskLegacy + ''''),
     ('$startDir = ''' + $startDir + ''''),
+    ('$startLegacy = ''' + $startLegacy + ''''),
     '$key = ''HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\OmniTrace''',
     'Remove-Item $desk -Force -ErrorAction SilentlyContinue',
+    'Remove-Item $deskLegacy -Force -ErrorAction SilentlyContinue',
     'Remove-Item $startDir -Recurse -Force -ErrorAction SilentlyContinue',
+    'Remove-Item $startLegacy -Recurse -Force -ErrorAction SilentlyContinue',
     'Remove-Item $key -Recurse -Force -ErrorAction SilentlyContinue',
     'Get-ChildItem $install -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne ''uninstall.ps1'' } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue',
     'Remove-Item $install -Recurse -Force -ErrorAction SilentlyContinue',
-    'Write-Host ''OmniTrace stable uninstalled (OmniDatabase untouched).'''
+    'Write-Host ''留痕 uninstalled (OmniDatabase untouched).'''
   )
   $utf8 = New-Object System.Text.UTF8Encoding $false
   [System.IO.File]::WriteAllText((Join-Path $InstallDir "uninstall.ps1"), ($lines -join "`r`n") + "`r`n", $utf8)
@@ -85,7 +91,7 @@ function New-Shortcut([string]$LinkPath, [string]$Target, [string]$WorkDir) {
   $sc = $ws.CreateShortcut($LinkPath)
   $sc.TargetPath = $Target
   $sc.WorkingDirectory = $WorkDir
-  $sc.Description = "OmniTrace stable"
+  $sc.Description = "留痕"
   $ico = Join-Path $WorkDir "OmniTrace.ico"
   if (Test-Path $ico) { $sc.IconLocation = "$ico,0" }
   $sc.Save()
@@ -121,7 +127,7 @@ function Publish-PortableZip([string]$Version) {
 
   $distRoot = Join-Path $Repo "dist"
   $wrap = Join-Path $distRoot "_zip_stage"
-  $stage = Join-Path $wrap "OmniTrace"
+  $stage = Join-Path $wrap "Liuhen"
   if (Test-Path -LiteralPath $wrap) {
     Remove-Item -LiteralPath $wrap -Recurse -Force
   }
@@ -135,7 +141,7 @@ function Publish-PortableZip([string]$Version) {
     Write-Error "portable zip: OmniPlayer.exe missing under $Dist"
     exit 1
   }
-  $zip = Join-Path $distRoot ("OmniTrace-" + $Version + "-windows-x64.zip")
+  $zip = Join-Path $distRoot ("Liuhen-" + $Version + "-windows-x64.zip")
   if (Test-Path -LiteralPath $zip) {
     Remove-Item -LiteralPath $zip -Force
   }
@@ -250,7 +256,7 @@ function Publish-SetupExe([string]$Version) {
     Copy-Item -LiteralPath (Join-Path $Root "package\write-data-root.ps1") -Destination (Join-Path $stage "write-data-root.ps1") -Force
   }
 
-  $setupName = "OmniTrace-" + $Version + "-windows-x64-setup.exe"
+  $setupName = "Liuhen-" + $Version + "-windows-x64-setup.exe"
   $setupOut = Join-Path $stage $setupName
   $argOut = "/DOUTFILE=$setupName"
   $argVer = "/DPRODUCT_VERSION=$Version"
@@ -406,12 +412,16 @@ if ($running) {
   Write-UninstallScript
   Install-UninstallKey (Get-AppVersion)
   $exe = Join-Path $InstallDir "OmniPlayer.exe"
-  New-Shortcut (Join-Path ([Environment]::GetFolderPath("Desktop")) "OmniTrace.lnk") $exe $InstallDir
-  $startLink = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\OmniTrace\OmniTrace.lnk"
+  $deskLegacy = Join-Path ([Environment]::GetFolderPath("Desktop")) "OmniTrace.lnk"
+  $startLegacy = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\OmniTrace"
+  Remove-Item $deskLegacy -Force -ErrorAction SilentlyContinue
+  Remove-Item $startLegacy -Recurse -Force -ErrorAction SilentlyContinue
+  New-Shortcut (Join-Path ([Environment]::GetFolderPath("Desktop")) "留痕.lnk") $exe $InstallDir
+  $startLink = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\留痕\留痕.lnk"
   New-Shortcut $startLink $exe $InstallDir
   # 空闲安装后清空误报：incoming 里不应残留与当前相同的 OmniPlayer.exe
   Get-ChildItem $IncomingDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
   Write-Host "installed stable (OmniDatabase not modified):" -ForegroundColor Green
   Write-Host "  $InstallDir"
-  Write-Host "  desktop shortcut: OmniTrace.lnk"
+  Write-Host "  desktop shortcut: 留痕.lnk"
 }

@@ -94,7 +94,7 @@ pub fn open_or_focus_notes_window(app: &AppHandle) -> Result<(), String> {
         return Ok(());
     }
     let win = WebviewWindowBuilder::new(app, NOTES_LABEL, notes_url())
-        .title("OmniTrace · Notes")
+        .title("留痕 · Notes")
         .inner_size(980.0, 720.0)
         .min_inner_size(640.0, 480.0)
         .resizable(true)

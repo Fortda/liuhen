@@ -2,7 +2,7 @@
   "name": "@omnitrace/mcp-clue-board",
   "version": "0.1.0",
   "private": true,
-  "description": "MCP server for OmniTrace clue boards (线索板)",
+  "description": "MCP server for Liuhen (留痕) clue boards",
   "type": "module",
   "bin": {
     "mcp-clue-board": "./dist/index.js"

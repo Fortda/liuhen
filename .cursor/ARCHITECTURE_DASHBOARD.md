@@ -1,4 +1,4 @@
-# OmniTrace 仪表盘蓝图（细节）
+# 留痕仪表盘蓝图（细节）
 
 > **公开副本**：[`docs/architecture/dashboard.md`](../docs/architecture/dashboard.md)。
 > **地位**：专门蓝图。总览与契约见 `.cursor/ARCHITECTURE_BLUEPRINT.md` §5.5。  

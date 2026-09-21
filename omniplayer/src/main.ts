@@ -1,5 +1,5 @@
 /**
- * OmniTrace 壳：标题栏 / 设置 / 导航 / 关于与反馈。播放器见 ./player.ts，仪表盘见 ./dashboard.ts。
+ * 留痕壳：标题栏 / 设置 / 导航 / 关于与反馈。播放器见 ./player.ts，仪表盘见 ./dashboard.ts。
  */
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
@@ -758,7 +758,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   if (SHELL_NOTES) {
     document.body.classList.add("shell-notes");
-    document.title = "OmniTrace · Notes";
+    document.title = "留痕 · Notes";
     setNotesUndockedUi(false);
     if (shellAppWin) {
       const appWin = shellAppWin;

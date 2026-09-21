@@ -1,24 +1,24 @@
 <p align="center">
-  <img src="docs/images/icon.png" width="96" height="96" alt="OmniTrace">
+  <img src="docs/images/icon.png" width="96" height="96" alt="Liuhen">
 </p>
 
-<h1 align="center">OmniTrace</h1>
+<h1 align="center">Liuhen</h1>
 
 <p align="center">
   <a href="README.md"><img src="https://img.shields.io/badge/README-%E4%B8%AD%E6%96%87-1f6f5b" alt="Chinese README"></a>
   <a href="README.en.md"><img src="https://img.shields.io/badge/README-English-2c2a27" alt="English README"></a>
-  <a href="https://github.com/Fortda/omnitrace/releases/latest"><img src="https://img.shields.io/github/v/release/Fortda/omnitrace?label=download" alt="Download"></a>
+  <a href="https://github.com/Fortda/liuhen/releases/latest"><img src="https://img.shields.io/github/v/release/Fortda/liuhen?label=download" alt="Download"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1f6f5b" alt="MIT"></a>
-  <a href="https://github.com/Fortda/omnitrace"><img src="https://img.shields.io/badge/github-Fortda%2Fomnitrace-2c2a27" alt="GitHub"></a>
+  <a href="https://github.com/Fortda/liuhen"><img src="https://img.shields.io/badge/github-Fortda%2Fliuhen-2c2a27" alt="GitHub"></a>
 </p>
 
-**OmniTrace** is software that helps people record and simulate the world as fully as they can.
+**Liuhen** (留痕) is software that helps people record and simulate the world as fully as they can — a form of self-profiling.
 
 This project is the author's **100% AI-oriented programming as a layperson**.
 
 It is a Prajna Plan terminal for intelligence and information capture, and for maintaining a run log of a phenomenal-world model. It aims to extend how far and how finely you can sense the spatiotemporal causal-chain network of the phenomenal world.
 
-Repo: <https://github.com/Fortda/omnitrace> · License: [MIT](LICENSE)
+Repo: <https://github.com/Fortda/liuhen> · License: [MIT](LICENSE)
 
 By default everything is written under local `OmniDatabase/`. **Nothing is uploaded.** Do not commit API keys, cookies, recordings, or the database.
 
@@ -118,12 +118,12 @@ flowchart LR
 
 For everyday use you do not need a developer toolchain. You need **Windows 10 or 11 (64-bit)**.
 
-1. Open [Releases](https://github.com/Fortda/omnitrace/releases/latest)
-2. Download **`OmniTrace-…-windows-x64-setup.exe`** (player + recorder)
-3. Next, Next, Next. Default folder is per-user `%LOCALAPPDATA%\OmniTrace` (no admin prompt in the usual case)
-4. Open **OmniTrace** from the desktop shortcut
+1. Open [Releases](https://github.com/Fortda/liuhen/releases/latest)
+2. Download **`Liuhen-…-windows-x64-setup.exe`** (player + recorder)
+3. Next, Next, Next. Default folder is per-user `%LOCALAPPDATA%\OmniTrace` (no admin prompt in the usual case; on-disk folder name unchanged)
+4. Open **Liuhen** (留痕) from the desktop shortcut
 
-Data lives under your user folder `OmniTrace\OmniDatabase`. It is **not uploaded** and is **not** inside the installer. Uninstall (Settings → Apps → OmniTrace) removes the program only, not that folder.
+Data lives under your user folder `OmniTrace\OmniDatabase`. It is **not uploaded** and is **not** inside the installer. Uninstall (Settings → Apps → Liuhen / 留痕) removes the program only, not that folder.
 
 A **zip** is still attached: unzip and run **安装到本机.bat** (Install on this PC) for the same result.
 
@@ -169,7 +169,7 @@ Local-first stays the rule: capture, notes, and any future bill import do not sh
 
 ## Contributing
 
-Bugs and ideas: [GitHub Issues](https://github.com/Fortda/omnitrace/issues). The in-app Feedback button opens the same place.
+Bugs and ideas: [GitHub Issues](https://github.com/Fortda/liuhen/issues). The in-app Feedback button opens the same place.
 
 Keep `OmniDatabase/`, secrets, recordings, and prompt files on your machine. Screenshot notes: [docs/images/README.md](docs/images/README.md).
 

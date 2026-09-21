@@ -1,4 +1,4 @@
-# OmniTrace Android 采集蓝图（细节）
+# 留痕 Android 采集蓝图（细节）
 
 > **公开副本**：[`docs/architecture/android.md`](../docs/architecture/android.md)。
 > **地位**：专门蓝图。总览与非目标见 `.cursor/ARCHITECTURE_BLUEPRINT.md` §8 / §7。  

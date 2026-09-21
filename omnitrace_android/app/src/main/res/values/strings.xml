@@ -1,7 +1,7 @@
 <resources>
-    <string name="app_name">OmniTrace</string>
+    <string name="app_name">留痕</string>
     <string name="notify_channel">采集</string>
-    <string name="notify_title">OmniTrace 正在采集</string>
+    <string name="notify_title">留痕正在采集</string>
     <string name="notify_text">前台服务常驻。点此打开设置。</string>
     <string name="page_settings">设置</string>
     <string name="page_player">播放器</string>
@@ -110,5 +110,5 @@
     <string name="status_on">采集中</string>
     <string name="status_off">已停止</string>
     <string name="size_fmt">本机数据约 %.1f MB</string>
-    <string name="a11y_desc">OmniTrace 用无障碍读取前台应用、点击目标和窗口几何，用于本机时间轴建模。不会打开触摸探索（TalkBack 模式）。</string>
+    <string name="a11y_desc">留痕用无障碍读取前台应用、点击目标和窗口几何，用于本机时间轴建模。不会打开触摸探索（TalkBack 模式）。</string>
 </resources>

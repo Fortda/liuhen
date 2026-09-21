@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- 对外显示名改为 **留痕**（英文 Liuhen）。磁盘数据目录仍为 `%USERPROFILE%\OmniTrace\OmniDatabase`，程序目录仍为 `%LOCALAPPDATA%\OmniTrace`，采集 exe 仍为 `omnitrace_input.exe`（兼容旧路径与自动更新）。公开仓库迁至 <https://github.com/Fortda/liuhen>。新发版安装包文件名为 `Liuhen-*-windows-x64-setup.exe`；旧 Release 上的 `OmniTrace-*` 资源仍可用。
+
 ## [0.1.3] - 2026-09-19
 
 ### Added
@@ -41,6 +45,6 @@
 
 - 运行时库 `OmniDatabase/`、API Key、提示词原文不进 Git。
 
-[Unreleased]: https://github.com/Fortda/omnitrace/compare/v0.1.3...HEAD
-[0.1.3]: https://github.com/Fortda/omnitrace/releases/tag/v0.1.3
-[0.1.2]: https://github.com/Fortda/omnitrace/releases/tag/v0.1.2
+[Unreleased]: https://github.com/Fortda/liuhen/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/Fortda/liuhen/releases/tag/v0.1.3
+[0.1.2]: https://github.com/Fortda/liuhen/releases/tag/v0.1.2

@@ -2,7 +2,7 @@
 name = "omnitrace_input"
 version = "0.2.0"
 edition = "2024"
-description = "OmniTrace recorder with pluggable modules"
+description = "Liuhen recorder with pluggable modules"
 default-run = "omnitrace_input"
 
 [lib]

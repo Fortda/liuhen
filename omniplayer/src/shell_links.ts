@@ -1,7 +1,7 @@
-/** 公开仓库链接。GitHub 登录名若不是 Fortda，只改这里。 */
-
+/** 公开仓库链接。GitHub 登录名若不是 Fortda，只改这里。
+ *  默认 Fortda/liuhen。仓库尚未 `gh repo rename` 时检查更新会 404。 */
 export const GITHUB_OWNER = "Fortda";
-export const GITHUB_REPO = "omnitrace";
+export const GITHUB_REPO = "liuhen";
 
 export const GITHUB_REPO_URL = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}`;
 

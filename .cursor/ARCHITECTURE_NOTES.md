@@ -1,4 +1,4 @@
-# OmniTrace 流式笔记蓝图（细节）
+# 留痕流式笔记蓝图（细节）
 
 > **公开副本**：[`docs/architecture/notes.md`](../docs/architecture/notes.md)。
 > **地位**：专门蓝图。总览与契约见 `.cursor/ARCHITECTURE_BLUEPRINT.md` §5.1。  

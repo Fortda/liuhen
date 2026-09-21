@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
  * 成熟地图同一套：连接池复用 TLS、短超时、记住能通的 host，不再每张图重握手、不再串行等 4 秒。
  */
 object TileHttp {
-    const val UA = "OmniTrace/0.1 (personal sideload; local dashboard)"
+    const val UA = "Liuhen/0.1 (personal sideload; local dashboard)"
 
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(1200, TimeUnit.MILLISECONDS)

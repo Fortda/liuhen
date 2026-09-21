@@ -1,4 +1,4 @@
-# OmniTrace Android
+# 留痕 Android
 
 自用边载采集 APK。**当前几乎没法用**（大量 bug），不是能日常装的产品。契约见仓库 [`docs/architecture/OVERVIEW.md`](../docs/architecture/OVERVIEW.md) §8 与 [`docs/architecture/android.md`](../docs/architecture/android.md)。
 

@@ -555,7 +555,7 @@ pub fn autostart_set(enabled: bool) -> Result<RecorderStatus, String> {
          $sc.Arguments = '--quiet'; \
          $sc.WorkingDirectory = '{work}'; \
          $sc.WindowStyle = 7; \
-         $sc.Description = 'OmniTrace WinRecorder'; \
+         $sc.Description = '留痕 WinRecorder'; \
          $sc.Save()",
         link = link,
         exe = exe_str,

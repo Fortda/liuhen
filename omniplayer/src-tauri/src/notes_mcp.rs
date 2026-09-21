@@ -167,7 +167,7 @@ pub fn any_mcp_enabled(prefs: &McpPrefs) -> bool {
 pub fn product_context_system_message() -> String {
     let root = resolve_data_root();
     format!(
-        "You are assisting inside OmniTrace (OmniPlayer shell). Data root: {}. \
+        "You are assisting inside 留痕 / Liuhen (OmniPlayer shell). Data root: {}. \
 You may use tools only within their documented scope. \
 Do NOT edit .cursor/ARCHITECTURE_BLUEPRINT.md directly — use write_adr_draft or write_arch_suggestion instead. \
 Dashboard UI edits are limited to stats/live/sleep front-end files. \

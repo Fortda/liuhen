@@ -1,6 +1,6 @@
-# OmniTrace architecture overview
+# 留痕 architecture overview
 
-**般若计划**下的 **OmniTrace**：当前系统长什么样（契约，不是第二份源码说明书）。
+**般若计划**下的 **留痕**（Liuhen）：当前系统长什么样（契约，不是第二份源码说明书）。
 
 专门细节：[notes.md](notes.md)（笔记 / MCP / 线索板）、[dashboard.md](dashboard.md)（仪表盘常数）、[android.md](android.md)（手机旁路）。  
 决策见 [docs/adr](../adr/README.md)。发版：[CHANGELOG.md](../../CHANGELOG.md)、[releasing.md](../releasing.md)。
@@ -11,7 +11,7 @@
 
 ## 1. 产品是什么
 
-**Windows 采集（WinRecorder）+ 回放/直播（OmniPlayer）+ 仪表盘**；边载 **Android 采集**（`omnitrace_android`，**当前几乎不可用**，本期不进 Windows OmniPlayer）。关于页：情报和信息采集，以及现象世界模型运行日志。数据默认本机 `OmniDatabase/`，**不上传**。公开仓库 MIT：<https://github.com/Fortda/omnitrace>。
+**Windows 采集（WinRecorder）+ 回放/直播（OmniPlayer）+ 仪表盘**；边载 **Android 采集**（`omnitrace_android`，**当前几乎不可用**，本期不进 Windows OmniPlayer）。关于页：情报和信息采集，以及现象世界模型运行日志；也可作自我侧写。数据默认本机 `OmniDatabase/`，**不上传**。公开仓库 MIT：<https://github.com/Fortda/liuhen>。
 
 - Win 采集：单进程 Rust `omnitrace_input.exe`，进程内插件。
 - Android：源码在 `omnitrace_android/`，现状是一堆 bug、几乎没法当日常用。打算以后**本机局域网**和电脑联动；不要把本期 APK 当成品。
@@ -28,7 +28,7 @@ OmniPlayer (Tauri 单实例) ──recorder_ctl──► omnitrace_input.exe (�
         └── notes ──llm_sidecar──► LiteLLM (:4000)
 ```
 
-- **稳定版入口**：`%LOCALAPPDATA%\OmniTrace\OmniPlayer.exe`；旁路 `data_root.json` 指数据根。**设置页可改数据存放位置**（写 exe 旁同一指针，不搬移已有库；采集运行中拒绝改）；该开关只在设置。开发机 `-Install` 指仓库 `OmniDatabase/`。公开 **setup.exe**（`OmniTrace-*-windows-x64-setup.exe`）= 每用户向导（默认 `%LOCALAPPDATA%\OmniTrace`、HKCU 卸载、桌面/开始菜单快捷方式）+ 壳与采集 exe + 写指针到 `%USERPROFILE%\OmniTrace\OmniDatabase`；**包内仍无库**。zip 仍提供（同内容便携位 + `安装到本机.bat`）。无指针时 candidate 仍认仓库/已有库（含用户目录与旧的下载目录路径），否则新库落用户目录。壳一律 `resolve_data_root`；禁止 cwd 相对另起空库。正式包须 `custom-protocol`（`package.ps1` 校验）。增量只换 exe（`incoming\` / 关于更新）；绝不改 `OmniDatabase`。安装：朋友用 setup.exe；zip 内 `安装到本机.bat`；开发机 `omniplayer/package.ps1 -Install` / `scripts/install-stable.ps1`。卸载只删程序目录，不删用户库。
+- **稳定版入口**：`%LOCALAPPDATA%\OmniTrace\OmniPlayer.exe`（磁盘程序目录名未改，兼容自动更新）；旁路 `data_root.json` 指数据根。**设置页可改数据存放位置**（写 exe 旁同一指针，不搬移已有库；采集运行中拒绝改）；该开关只在设置。开发机 `-Install` 指仓库 `OmniDatabase/`。公开 **setup.exe**（`Liuhen-*-windows-x64-setup.exe`）= 每用户向导（默认 `%LOCALAPPDATA%\OmniTrace`、HKCU 卸载、桌面/开始菜单「留痕」快捷方式）+ 壳与采集 exe + 写指针到 `%USERPROFILE%\OmniTrace\OmniDatabase`；**包内仍无库**。zip 仍提供（同内容便携位 + `安装到本机.bat`）。无指针时 candidate 仍认仓库/已有库（含用户目录与旧的下载目录路径），否则新库落用户目录。壳一律 `resolve_data_root`；禁止 cwd 相对另起空库。正式包须 `custom-protocol`（`package.ps1` 校验）。增量只换 exe（`incoming\` / 关于更新）；绝不改 `OmniDatabase`。安装：朋友用 setup.exe；zip 内 `安装到本机.bat`；开发机 `omniplayer/package.ps1 -Install` / `scripts/install-stable.ps1`。卸载只删程序目录，不删用户库。
 - **开发**：`scripts/run-app.bat` 或 `cd omniplayer && npm run tauri dev`。笔记快捷：`scripts/run-app.bat --page=notes`。
 - **CLI**：`--page=notes|settings|player|dashboard`；`notes` 时另开 `label=notes` WebView。
 - **笔记 XOR 摘窗**：嵌主窗或独立窗，禁止双开同编；摘出/关窗/收回前 `flushNotesPersist`。
@@ -186,7 +186,7 @@ OmniPlayer (Tauri 单实例) ──recorder_ctl──► omnitrace_input.exe (�
 ## 7. 明确非目标
 
 - 动态壁纸像素级还原；Win11 任务栏 100% 枚举；Secure Desktop IME；抄小狼毫皮肤 / 把 weasel 拷进本 Git。
-- 第二套 `omninotes`；双开同编；每模组一 exe；内核驱动进 OmniTrace。
+- 第二套 `omninotes`；双开同编；每模组一 exe；内核驱动进留痕。
 - 完整 browser/body 播放器仪表；`OmniDatabase` / `target` / `node_modules` 进 versions；密钥进 Git。
 - 抓包、周期 WiFi/蓝牙扫描、ETW、逐进程 CPU；机体探针塞进 `win_settings`。
 - 无限 tool 轮 / 任意 shell；LiteLLM vendoring。

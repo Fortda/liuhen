@@ -1,8 +1,8 @@
 [package]
 name = "omniplayer"
 version = "0.1.3"
-description = "OmniPlayer - replay OmniTrace recordings"
-authors = ["OmniTrace"]
+description = "OmniPlayer - replay Liuhen (留痕) recordings"
+authors = ["Fortda"]
 edition = "2021"
 
 [lib]

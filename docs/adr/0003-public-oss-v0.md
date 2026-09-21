@@ -31,3 +31,4 @@
 - 本机旧 `master` 仍可留作私有考古。
 - 公开克隆者只看到初版树和此后的短提交。
 - 普通人下载走 GitHub Release 的 **setup.exe**（或 zip），不需要装 Rust / Node。
+- 后来对外显示名改为 **留痕**（Liuhen），公开仓库 `Fortda/liuhen`；磁盘目录与 exe 文件名仍按本 ADR 兼容旧路径。本文件保留公开初版当时的决定。

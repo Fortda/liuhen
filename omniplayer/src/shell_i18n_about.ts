@@ -4,7 +4,7 @@ import type { StringTable } from "./shell_i18n_tables";
 
 export const ABOUT_ZH: StringTable = {
   "dlg.about.intro":
-    "OmniTrace 是辅助人尽可能记录和模拟世界的软件。它是<strong>般若计划</strong>下的一套<strong>情报和信息采集</strong>与<strong>现象世界模型运行日志</strong>维护、管理的终端；意在扩展感知在现象世界时空因果链网络上的深度与广度。",
+    "留痕是辅助人尽可能记录和模拟世界的软件，也可作自我侧写。它是<strong>般若计划</strong>下的一套<strong>情报和信息采集</strong>与<strong>现象世界模型运行日志</strong>维护、管理的终端；意在扩展感知在现象世界时空因果链网络上的深度与广度。",
   "dlg.about.bullet1":
     "<strong>采集</strong>：WinRecorder（<span class=\"dlg-meta\">omnitrace_input.exe</span>）在后台记录键鼠物理流与窗口环境，作为情报与信息、现象世界模型运行痕迹的一路输入。",
   "dlg.about.bullet2":
@@ -105,13 +105,13 @@ export const ABOUT_ZH: StringTable = {
   "dlg.feedback.intro2":
     "可写：时间轴、仪表盘、采集器上的异常、复现步骤、大概发生时间。复制内容仍只留在本机剪贴板。",
   "dlg.feedback.placeholder": "例如：仪表盘左右拖到某天后折线卡住……",
-  "feedback.copyHeader": "OmniTrace 反馈",
+  "feedback.copyHeader": "留痕反馈",
   "feedback.copyVersionLabel": "版本",
 };
 
 export const ABOUT_EN: StringTable = {
   "dlg.about.intro":
-    "OmniTrace is software that helps people record and simulate the world as fully as they can. It is the software of <strong>Prajna Plan</strong>: a terminal for <strong>intelligence and information capture</strong> and a <strong>phenomenal-world-model operation log</strong> — extending the depth and breadth of perception on the spatiotemporal causal-chain network of the phenomenal world.",
+    "Liuhen (留痕) is software that helps people record and simulate the world as fully as they can — a form of self-profiling. It is the software of <strong>Prajna Plan</strong>: a terminal for <strong>intelligence and information capture</strong> and a <strong>phenomenal-world-model operation log</strong> — extending the depth and breadth of perception on the spatiotemporal causal-chain network of the phenomenal world.",
   "dlg.about.bullet1":
     "<strong>Capture</strong>: WinRecorder (<span class=\"dlg-meta\">omnitrace_input.exe</span>) records keyboard/mouse physical streams and window context in the background as one input channel for intelligence, information, and phenomenal-world-model traces.",
   "dlg.about.bullet2":
@@ -213,6 +213,6 @@ export const ABOUT_EN: StringTable = {
     "You can describe timeline, dashboard, or capture issues, repro steps, and approximate time. Copy stays on the local clipboard.",
   "dlg.feedback.placeholder":
     "e.g. Dashboard line chart freezes after panning to a certain day…",
-  "feedback.copyHeader": "OmniTrace feedback",
+  "feedback.copyHeader": "Liuhen feedback",
   "feedback.copyVersionLabel": "Version",
 };

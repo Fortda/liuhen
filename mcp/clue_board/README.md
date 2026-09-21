@@ -1,4 +1,4 @@
-# OmniTrace 线索板 MCP Server
+# 留痕线索板 MCP Server
 
 独立 stdio MCP 进程，读写与 OmniPlayer 相同的 `OmniDatabase/notes/config/clue_boards.json`。
 
