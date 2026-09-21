@@ -37,7 +37,7 @@ Windows 壳还在开发和打磨，很多地方会改。比如卡顿和加载慢
 
   <p align="center"><img src="docs/images/player.png" alt="播放器：直播回放与时间轴" width="880"></p>
 
-- **仪表盘**：看自己把时间花在哪些程序上。整理数据和载入同样还偏慢。统计图、时间轴以及显示效果，可以在笔记里用已勾选的工具让助手帮你任意揉捏；以后要是用的人多打算做有类似创意工坊的分享/安装
+- **仪表盘**：看自己把时间花在哪些程序上。整理数据和载入同样还偏慢，正在想办法优化。统计图、时间轴以及显示效果，可以在笔记里用已勾选的工具让助手帮你任意揉捏；以后要是用的人多打算做有类似创意工坊的分享/安装
 
   <p align="center"><img src="docs/images/dashboard-timeline.png" alt="仪表盘：运作时间轴" width="880"></p>
 
@@ -148,8 +148,8 @@ Windows 可能提示「未知应用」：选 **更多信息 → 仍要运行**�
 
 | 文档 | 给谁 |
 |------|------|
-| [README.md](README.md) | 中文入门 |
-| [README.en.md](README.en.md) | 英文入门 |
+| [README.md](README.md) | 中文文档 |
+| [README.en.md](README.en.md) | 英文文档 |
 | [CHANGELOG.md](CHANGELOG.md) | 发版时看什么变了 |
 | [docs/architecture/](docs/architecture/README.md) | 当前系统长什么样 |
 | [docs/adr/](docs/adr/README.md) | 架构决策（为什么） |
