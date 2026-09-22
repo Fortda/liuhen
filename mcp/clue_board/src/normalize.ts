@@ -5,8 +5,33 @@ import type {
   ClueBoardNode,
   ClueBoardsFile,
   ClueBoardView,
+  ClueGlyph,
 } from "./types.js";
 import { newBoardId } from "./types.js";
+
+function sanitizeClueGlyphs(raw: ClueGlyph[] | null | undefined): ClueGlyph[] | undefined {
+  if (!Array.isArray(raw) || !raw.length) return undefined;
+  const out: ClueGlyph[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const ch = typeof item.ch === "string" ? [...item.ch].slice(0, 2).join("") : "";
+    if (!ch) continue;
+    const dt =
+      typeof item.dt_ms === "number"
+        ? item.dt_ms
+        : typeof item.dtMs === "number"
+          ? item.dtMs
+          : 0;
+    out.push({
+      ch,
+      dt_ms: Number.isFinite(dt) ? Math.max(0, Math.min(300_000, Math.round(dt))) : 0,
+      deleted: !!item.deleted,
+      ts: typeof item.ts === "number" ? item.ts : null,
+    });
+    if (out.length >= 8000) break;
+  }
+  return out.length ? out : undefined;
+}
 
 function normalizeClueView(view: ClueBoardView | null | undefined): void {
   if (!view) return;
@@ -54,6 +79,8 @@ export function normalizeClueNodesEdges(
     const image = normalizeClueImageRef(n.image);
     if (image) n.image = image;
     else delete n.image;
+    n.glyphs = sanitizeClueGlyphs(n.glyphs);
+    if (!n.glyphs?.length) delete n.glyphs;
     outNodes.push(n);
   }
   if (outNodes.length > 500) outNodes.length = 500;

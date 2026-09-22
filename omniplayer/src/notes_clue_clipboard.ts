@@ -15,6 +15,12 @@ export type ClueClipboardNode = {
   collapsed?: boolean;
   kind?: string | null;
   image?: string | null;
+  glyphs?: Array<{
+    ch: string;
+    dt_ms: number;
+    deleted?: boolean;
+    ts?: number | null;
+  }> | null;
 };
 
 export type ClueClipboardEdge = {
@@ -141,12 +147,18 @@ export function remapCluePaste<
   return { nodes: outNodes, edges: outEdges };
 }
 
-export type ClueShortcutAction = "ignore" | "browser-text" | "copy-notes" | "paste-board";
+export type ClueShortcutAction =
+  | "ignore"
+  | "browser-text"
+  | "copy-notes"
+  | "paste-board"
+  | "paste-field";
 
 /**
  * Ctrl/Cmd+C copies selected notes unless a text field has a character selection
- * (then the browser copies that text). Ctrl/Cmd+V pastes onto the board unless
- * focus is already in a text field.
+ * (then the browser copies that text). Ctrl/Cmd+V: board paste when not in a field;
+ * in a field, keydown arms a paste-field fallback (image attach) while the `paste`
+ * event prefers clipboard image on the focused note, else normal text paste.
  */
 export function clueShortcutAction(opts: {
   clueMode: boolean;
@@ -164,10 +176,22 @@ export function clueShortcutAction(opts: {
     return "ignore";
   }
   if (key === "v") {
-    if (opts.fieldFocused) return "browser-text";
+    if (opts.fieldFocused) return "paste-field";
     return "paste-board";
   }
   return "ignore";
+}
+
+/**
+ * When focus is in a note body field and the paste payload includes an image,
+ * attach that image to the note instead of inserting text (or spawning a card).
+ */
+export function clueNoteFieldPasteIntent(opts: {
+  noteFieldFocused: boolean;
+  hasClipboardImage: boolean;
+}): "attach-image" | "browser-text" {
+  if (opts.noteFieldFocused && opts.hasClipboardImage) return "attach-image";
+  return "browser-text";
 }
 
 export function isTextEditingField(el: EventTarget | null): boolean {

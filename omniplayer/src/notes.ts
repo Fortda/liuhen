@@ -116,6 +116,7 @@ import {
   initClueBoard,
   isClueAppsHosted,
   leaveClueBoardMode,
+  repaintClueGlyphFields,
   scheduleDrawClueWires,
 } from "./notes_clue_board";
 import {
@@ -2382,6 +2383,7 @@ export function initNotes() {
         const el = document.getElementById(`notes-user-text-${c.id}`);
         if (el) fillUserTextEl(el, c.user_text, c.user_glyphs);
       }
+      repaintClueGlyphFields();
     },
   });
   initLlmSettingsHost({

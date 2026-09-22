@@ -100,7 +100,7 @@ pub struct TimingsDeltaS {
 }
 
 /// 流式笔记色温：一字一间隔（快暖红 / 慢冷蓝）。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct UserGlyph {
     pub ch: String,
     #[serde(default, alias = "dtMs")]
@@ -1206,6 +1206,9 @@ pub struct ClueBoardNode {
     /// Relative ref `clue_images/<file>` under notes/config. Not base64.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image: Option<String>,
+    /// Color-temp / backspace glyph tape (same shape as streaming-notes user_glyphs).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub glyphs: Vec<UserGlyph>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -3175,6 +3178,7 @@ mod clue_boards_merge_tests {
                 collapsed: None,
                 kind: None,
                 image: None,
+                glyphs: vec![],
             }],
             edges: vec![],
             view: None,
@@ -3217,6 +3221,7 @@ mod clue_boards_merge_tests {
             collapsed: None,
             kind: None,
             image: None,
+            glyphs: vec![],
         });
         let existing = ClueBoardsFile {
             v: 2,
@@ -3267,6 +3272,7 @@ mod clue_boards_merge_tests {
             collapsed: None,
             kind: None,
             image: Some(rel.clone()),
+            glyphs: vec![],
         };
         let raw = serde_json::to_string(&node).unwrap();
         assert!(!raw.contains("base64"));

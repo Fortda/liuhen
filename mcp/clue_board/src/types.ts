@@ -20,6 +20,16 @@ export interface ClueBoardNode {
    * Bytes live beside the JSON. History stores this ref only, not the binary.
    */
   image?: string | null;
+  /** Color-temp / backspace glyph tape (same as streaming-notes user_glyphs). */
+  glyphs?: ClueGlyph[] | null;
+}
+
+export interface ClueGlyph {
+  ch: string;
+  dt_ms?: number;
+  dtMs?: number;
+  deleted?: boolean;
+  ts?: number | null;
 }
 
 export interface ClueBoardEdge {

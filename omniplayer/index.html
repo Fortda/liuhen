@@ -3072,10 +3072,10 @@
     .notes-clue-board-item {
       position: relative;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 8px;
       width: 100%;
-      padding: 8px 10px;
+      padding: 6px 8px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--panel);
@@ -3089,6 +3089,7 @@
       flex: 0 0 auto;
       width: 14px;
       height: 14px;
+      margin-top: 2px;
       border: 1px solid var(--line);
       border-radius: 3px;
       box-sizing: border-box;
@@ -3111,6 +3112,12 @@
       border-color: var(--accent);
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
     }
+    .notes-clue-board-item-body {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
     .notes-clue-board-item-name {
       font-size: 13px;
       font-weight: 600;
@@ -3118,6 +3125,24 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    .notes-clue-board-item-meta {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 10px;
+      color: color-mix(in srgb, var(--muted) 80%, transparent);
+    }
+    .notes-clue-board-item-counts {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .notes-clue-board-item-when {
+      flex: none;
+      font-variant-numeric: tabular-nums;
     }
     .notes-clue-board-item-rename {
       width: 100%;
@@ -3130,6 +3155,45 @@
       font: inherit;
       font-size: 13px;
       font-weight: 600;
+    }
+    .notes-clue-board-hover-pop {
+      z-index: 12000;
+      pointer-events: auto;
+      max-width: min(340px, calc(100vw - 24px));
+    }
+    .notes-clue-board-hover-activity-head {
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px solid var(--line);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .notes-clue-board-hover-activity {
+      list-style: none;
+      margin: 4px 0 0;
+      padding: 0;
+      max-height: 9.5em;
+      overflow: auto;
+      display: grid;
+      gap: 4px;
+    }
+    .notes-clue-board-hover-activity-item {
+      display: grid;
+      gap: 1px;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .notes-clue-board-hover-activity-time {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .notes-clue-board-hover-activity-label {
+      color: var(--text);
+    }
+    .notes-clue-board-hover-activity-empty {
+      font-size: 11px;
+      color: var(--muted);
     }
     .notes-clue-stage {
       position: relative;
@@ -3826,6 +3890,11 @@
     .notes-clue-image.is-missing {
       min-height: 72px;
       background: color-mix(in srgb, #000 8%, #fff);
+    }
+    .notes-clue-node.has-image .notes-clue-text-wrap {
+      flex: 0 0 auto;
+      min-height: 1.45em;
+      max-height: 4.6em;
     }
     .notes-clue-node.has-image .notes-clue-text {
       flex: 0 0 auto;
@@ -5562,10 +5631,10 @@
       word-break: break-word;
       color: var(--text);
     }
-    .notes-composer.is-color-temp #notes-temp-live {
+    .notes-composer.is-glyph-tape #notes-temp-live {
       display: block;
     }
-    .notes-composer.is-color-temp:not(.is-ime) #notes-input {
+    .notes-composer.is-glyph-tape:not(.is-ime) #notes-input {
       position: relative;
       z-index: 1;
       color: transparent;
@@ -5573,6 +5642,48 @@
     }
     .notes-temp-tape .temp-ch {
       font-weight: inherit;
+    }
+    .notes-temp-tape .temp-ch.is-deleted {
+      color: rgb(154, 154, 154);
+      opacity: 0.85;
+    }
+    .notes-clue-text-wrap {
+      position: relative;
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      min-height: 56px;
+      min-width: 0;
+      width: 100%;
+    }
+    .notes-clue-node.has-image .notes-clue-text-wrap {
+      flex: 0 0 auto;
+      min-height: 1.45em;
+    }
+    .notes-clue-temp-live {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+      font: inherit;
+      font-size: 13px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      color: #2a2a2a;
+      padding: inherit;
+    }
+    .notes-clue-text-wrap.is-glyph-tape .notes-clue-temp-live {
+      display: block;
+    }
+    .notes-clue-text-wrap.is-glyph-tape:not(.is-ime) .notes-clue-text {
+      position: relative;
+      z-index: 1;
+      color: transparent;
+      caret-color: #2a2a2a;
     }
     .notes-card-user-text.notes-temp-tape {
       white-space: pre-wrap;
@@ -8161,6 +8272,7 @@
                 </div>
                 <button type="button" id="notes-clue-add" class="notes-btn primary" data-i18n="notes.clue.add">+ 添加线索</button>
                 <button type="button" id="notes-clue-add-image" class="notes-btn" data-i18n="notes.clue.addImage">添加图片</button>
+                <button type="button" id="notes-clue-color-temp-btn" class="notes-btn notes-color-temp-btn" aria-haspopup="dialog" aria-expanded="false" aria-pressed="false" data-i18n="notes.colorTemp.btn" data-i18n-title="notes.colorTemp.btnTitle" data-i18n-aria="notes.colorTemp.btnTitle">色温</button>
                 <button type="button" id="notes-clue-clear-links" class="notes-btn" data-i18n="notes.clue.clearLinks">清除选中连线</button>
                 <button type="button" id="notes-clue-reset-view" class="notes-btn notes-clue-reset-view" data-i18n="notes.clue.resetView">还原视图</button>
                 <span id="notes-clue-hint" aria-live="polite"></span>

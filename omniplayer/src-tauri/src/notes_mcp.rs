@@ -857,6 +857,7 @@ pub async fn execute_tool(name: &str, args: &Value, prefs: &McpPrefs) -> Result<
                         collapsed: None,
                         kind: None,
                         image: None,
+                        glyphs: Vec::new(),
                     };
                     apply_clue_group_json(&board.nodes, &mut node, args)?;
                     apply_clue_image(&mut node, args)?;

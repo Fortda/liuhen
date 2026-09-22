@@ -3,7 +3,13 @@
  */
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { hideGroupMetaPopover, showGroupMetaPopover, uiLang } from "./notes_cards";
+import {
+  formatArchiveListWhen,
+  formatGroupMetaTime,
+  hideGroupMetaPopover,
+  showGroupMetaPopover,
+  uiLang,
+} from "./notes_cards";
 import { shellT } from "./shell_i18n";
 import {
   evaluatePanCurve,
@@ -16,6 +22,8 @@ import {
   captureClueSnapshot,
   CLUE_HISTORY_LABELS,
   clearClueHistoryBoard,
+  fetchClueHistoryActivity,
+  formatClueHistoryActivityTime,
   initClueHistory,
   pushClueHistory,
   redoClueHistory,
@@ -28,6 +36,7 @@ import {
 } from "./notes_clue_history";
 import {
   clueClipboardPlainText,
+  clueNoteFieldPasteIntent,
   clueShortcutAction,
   decodeClueClipboardHtml,
   encodeClueClipboardHtml,
@@ -40,8 +49,21 @@ import {
 import {
   hideFloat,
   placeFloatAtPoint,
+  placeFloatInViewport,
   revealFloat,
 } from "./omni_float";
+import {
+  auxPanStep,
+  isAuxPanButton,
+  wantAuxPanFromButtons,
+} from "./notes_clue_dual_pan";
+import {
+  attachGlyphField,
+  bindColorTempAnchor,
+  normalizeGlyphs,
+  type GlyphFieldHandle,
+  type UserGlyphWire,
+} from "./notes_color_temp";
 
 export type ClueNoteKind = "project" | "research";
 
@@ -58,6 +80,8 @@ export type ClueNode = {
   kind?: ClueNoteKind;
   /** Relative ref `clue_images/<file>` under notes/config. Not base64. */
   image?: string;
+  /** 色温 / 退格字形带；与流式笔记 user_glyphs 同形。 */
+  glyphs?: UserGlyphWire[];
 };
 
 export type ClueEdge = {
@@ -261,12 +285,18 @@ type RightPressState = {
 };
 
 let gripPress: GripPressState | null = null;
-/** 左键拖便签时按住右键平移视口：跟 RMB pointerId，松右键即停（无惯性）。 */
+/**
+ * 左键拖便签时按住右键（或中键后备）平移视口。
+ * 不依赖单独的 RMB pointerId：WebView2 在 LMB capture 期间常不发 button=2 的 pointerdown，
+ * 改由 pointermove / mousemove 上的 `buttons` 位图驱动（bit1=RMB，bit2=MMB）。
+ */
 type GripPanState = {
-  pointerId: number;
   lastX: number;
   lastY: number;
   didPan: boolean;
+  /** 累计屏幕位移，超 slop 则吞 contextmenu */
+  totalDx: number;
+  totalDy: number;
 };
 let gripPan: GripPanState | null = null;
 let resize: ResizeState | null = null;
@@ -299,6 +329,8 @@ let clueModeActive = false;
 let suppressNativeMenuUntil = 0;
 const SUPPRESS_NATIVE_MENU_MS = 600;
 let textHistoryTimer = 0;
+/** Per-note glyph tape handles; rebuilt in renderNodes. */
+const glyphFieldById = new Map<string, GlyphFieldHandle>();
 /** Repeated Ctrl+V steps further from the copied originals. Reset on copy. */
 let pasteSeq = 0;
 let memoryClipboard: ClueClipboardPayload | null = null;
@@ -306,6 +338,8 @@ let memoryClipboard: ClueClipboardPayload | null = null;
 let memoryClipboardUnsynced = false;
 /** Set when Ctrl+V should hit the board; cleared if the paste event handles it. */
 let pendingPasteFallback = false;
+/** Note id armed by Ctrl+V in a note textarea; cleared when paste attaches or pastes text. */
+let pendingFieldImagePaste: string | null = null;
 let imageFileInput: HTMLInputElement | null = null;
 let pendingImagePoint: { x: number; y: number } | null = null;
 const imageSrcCache = new Map<string, string>();
@@ -412,18 +446,240 @@ function boardListEl(): HTMLElement | null {
 let boardListMenuEl: HTMLDivElement | null = null;
 let boardListMultiMode = false;
 const selectedBoardIds = new Set<string>();
+/** Anchor for Shift+click range select (file-manager style). */
+let boardListAnchorId: string | null = null;
+
+const BOARD_HOVER_SHOW_MS = 260;
+const BOARD_HOVER_HIDE_MS = 180;
+const BOARD_HOVER_ACTIVITY_LIMIT = 8;
+
+let boardHoverPopEl: HTMLElement | null = null;
+let boardHoverShowTimer = 0;
+let boardHoverHideTimer = 0;
+let boardHoverBoardId: string | null = null;
+let boardHoverFetchGen = 0;
 
 function setBoardListMultiMode(on: boolean) {
   boardListMultiMode = on;
   document.body.classList.toggle("clue-board-multiselect", on);
-  if (!on) selectedBoardIds.clear();
+  if (!on) {
+    selectedBoardIds.clear();
+    boardListAnchorId = null;
+  }
   renderBoardList();
 }
 
 function toggleBoardListSelection(id: string) {
   if (selectedBoardIds.has(id)) selectedBoardIds.delete(id);
   else selectedBoardIds.add(id);
+  boardListAnchorId = id;
   renderBoardList();
+}
+
+function selectBoardRange(fromId: string, toId: string) {
+  const ids = boards.map((b) => b.id);
+  const a = ids.indexOf(fromId);
+  const b = ids.indexOf(toId);
+  if (a < 0 || b < 0) return;
+  const lo = Math.min(a, b);
+  const hi = Math.max(a, b);
+  selectedBoardIds.clear();
+  for (let i = lo; i <= hi; i++) selectedBoardIds.add(ids[i]!);
+}
+
+function selectAllBoardsInList() {
+  for (const board of boards) selectedBoardIds.add(board.id);
+  boardListMultiMode = true;
+  document.body.classList.toggle("clue-board-multiselect", true);
+  renderBoardList();
+}
+
+function isBoardListPanelFocused(): boolean {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement)) return false;
+  return Boolean(
+    active.closest("#notes-clue-board-list, #notes-clue-sidebar")
+  );
+}
+
+function boardWhenMs(board: ClueBoard): number {
+  const u = board.updated_at;
+  const c = board.created_at;
+  if (u != null && Number.isFinite(u) && u > 0) return u;
+  if (c != null && Number.isFinite(c) && c > 0) return c;
+  return 0;
+}
+
+function boardNoteCount(board: ClueBoard): number {
+  return board.nodes?.length ?? 0;
+}
+
+function boardEdgeCount(board: ClueBoard): number {
+  return board.edges?.length ?? 0;
+}
+
+function clearBoardHoverTimers() {
+  if (boardHoverShowTimer) {
+    window.clearTimeout(boardHoverShowTimer);
+    boardHoverShowTimer = 0;
+  }
+  if (boardHoverHideTimer) {
+    window.clearTimeout(boardHoverHideTimer);
+    boardHoverHideTimer = 0;
+  }
+}
+
+function hideBoardHoverPopover() {
+  clearBoardHoverTimers();
+  boardHoverBoardId = null;
+  boardHoverFetchGen += 1;
+  const el = boardHoverPopEl;
+  if (!el) return;
+  hideFloat(el);
+}
+
+function boardHoverRow(label: string, value: string): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.className = "notes-wire-origin-row";
+  const lab = document.createElement("span");
+  lab.className = "notes-wire-origin-label";
+  lab.textContent = label;
+  const val = document.createElement("span");
+  val.className = "notes-wire-origin-value";
+  val.textContent = value;
+  wrap.append(lab, val);
+  return wrap;
+}
+
+function ensureBoardHoverPopover(): HTMLElement {
+  if (!boardHoverPopEl) {
+    boardHoverPopEl = document.createElement("div");
+    boardHoverPopEl.id = "notes-clue-board-hover-pop";
+    boardHoverPopEl.className =
+      "omni-float notes-wire-origin-pop notes-clue-board-hover-pop hidden";
+    boardHoverPopEl.setAttribute("role", "tooltip");
+    boardHoverPopEl.setAttribute("aria-hidden", "true");
+    boardHoverPopEl.addEventListener("mouseenter", () => {
+      if (boardHoverHideTimer) {
+        window.clearTimeout(boardHoverHideTimer);
+        boardHoverHideTimer = 0;
+      }
+    });
+    boardHoverPopEl.addEventListener("mouseleave", () => {
+      boardHoverHideTimer = window.setTimeout(
+        () => hideBoardHoverPopover(),
+        BOARD_HOVER_HIDE_MS
+      );
+    });
+    document.body.appendChild(boardHoverPopEl);
+  }
+  return boardHoverPopEl;
+}
+
+async function showBoardHoverPopover(anchor: HTMLElement, board: ClueBoard) {
+  hideGroupMetaPopover();
+  const el = ensureBoardHoverPopover();
+  boardHoverBoardId = board.id;
+  const gen = ++boardHoverFetchGen;
+  const name = boardDisplayTitle(board);
+  const created = formatGroupMetaTime(board.created_at);
+  const updated = formatGroupMetaTime(board.updated_at);
+  el.innerHTML = "";
+  const head = document.createElement("div");
+  head.className = "notes-wire-origin-head";
+  const strong = document.createElement("strong");
+  strong.textContent = name;
+  head.appendChild(strong);
+  const body = document.createElement("div");
+  body.className = "notes-wire-origin-body";
+  body.append(
+    boardHoverRow(
+      shellT("notes.clue.boards.hoverNotes"),
+      String(boardNoteCount(board))
+    ),
+    boardHoverRow(
+      shellT("notes.clue.boards.hoverEdges"),
+      String(boardEdgeCount(board))
+    ),
+    boardHoverRow(
+      shellT("notes.groupMeta.created"),
+      created.rel ? `${created.abs} · ${created.rel}` : created.abs
+    ),
+    boardHoverRow(
+      shellT("notes.groupMeta.modified"),
+      updated.rel ? `${updated.abs} · ${updated.rel}` : updated.abs
+    )
+  );
+
+  const activityHead = document.createElement("div");
+  activityHead.className = "notes-clue-board-hover-activity-head";
+  activityHead.textContent = shellT("notes.clue.boards.hoverActivity");
+  const activityList = document.createElement("ul");
+  activityList.className = "notes-clue-board-hover-activity";
+  const activityLoading = document.createElement("li");
+  activityLoading.className = "notes-clue-board-hover-activity-empty";
+  activityLoading.textContent = shellT("notes.clue.boards.hoverActivityLoading");
+  activityList.appendChild(activityLoading);
+  body.append(activityHead, activityList);
+  el.append(head, body);
+  revealFloat(el);
+  const rect = anchor.getBoundingClientRect();
+  placeFloatInViewport(el, rect, "right", 300);
+  requestAnimationFrame(() => placeFloatInViewport(el, rect, "right", 300));
+
+  const items = await fetchClueHistoryActivity(
+    board.id,
+    BOARD_HOVER_ACTIVITY_LIMIT
+  );
+  if (gen !== boardHoverFetchGen || boardHoverBoardId !== board.id) return;
+  activityList.replaceChildren();
+  if (!items.length) {
+    const empty = document.createElement("li");
+    empty.className = "notes-clue-board-hover-activity-empty";
+    empty.textContent = shellT("notes.clue.boards.hoverActivityEmpty");
+    activityList.appendChild(empty);
+    return;
+  }
+  // Newest first for scanability
+  for (const item of [...items].reverse()) {
+    const li = document.createElement("li");
+    li.className = "notes-clue-board-hover-activity-item";
+    const when = document.createElement("span");
+    when.className = "notes-clue-board-hover-activity-time";
+    when.textContent = formatClueHistoryActivityTime(item.ts);
+    const act = document.createElement("span");
+    act.className = "notes-clue-board-hover-activity-label";
+    act.textContent = `${item.actorLabel} · ${item.label}`;
+    li.append(when, act);
+    activityList.appendChild(li);
+  }
+  placeFloatInViewport(el, rect, "right", 300);
+}
+
+function scheduleBoardHover(anchor: HTMLElement, board: ClueBoard) {
+  clearBoardHoverTimers();
+  if (
+    boardHoverBoardId === board.id &&
+    boardHoverPopEl &&
+    !boardHoverPopEl.classList.contains("hidden")
+  ) {
+    return;
+  }
+  boardHoverShowTimer = window.setTimeout(() => {
+    boardHoverShowTimer = 0;
+    void showBoardHoverPopover(anchor, board);
+  }, BOARD_HOVER_SHOW_MS);
+}
+
+function scheduleHideBoardHover() {
+  if (boardHoverShowTimer) {
+    window.clearTimeout(boardHoverShowTimer);
+    boardHoverShowTimer = 0;
+  }
+  boardHoverHideTimer = window.setTimeout(
+    () => hideBoardHoverPopover(),
+    BOARD_HOVER_HIDE_MS
+  );
 }
 
 function hideBoardListMenu() {
@@ -436,6 +692,7 @@ function hideBoardListMenu() {
 
 function showBoardListMenu(clientX: number, clientY: number, board: ClueBoard) {
   hideBoardListMenu();
+  hideBoardHoverPopover();
   hideClueContextMenu();
   hideGroupMetaPopover();
   if (boardListMultiMode && !selectedBoardIds.has(board.id)) {
@@ -478,6 +735,7 @@ function showBoardListMenu(clientX: number, clientY: number, board: ClueBoard) {
       setBoardListMultiMode(false);
     } else {
       selectedBoardIds.add(board.id);
+      boardListAnchorId = board.id;
       setBoardListMultiMode(true);
     }
   });
@@ -529,14 +787,19 @@ function renderBoardList() {
   const host = boardListEl();
   if (!host) return;
   hideBoardListMenu();
+  hideBoardHoverPopover();
   host.replaceChildren();
+  host.tabIndex = 0;
   for (const board of boards) {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "notes-clue-board-item";
     item.dataset.boardId = board.id;
     item.setAttribute("role", "option");
-    item.setAttribute("aria-selected", board.id === activeBoardId ? "true" : "false");
+    item.setAttribute(
+      "aria-selected",
+      board.id === activeBoardId ? "true" : "false"
+    );
     item.title = shellT("notes.clue.boards.renameHint");
     item.classList.toggle("is-active", board.id === activeBoardId);
     const checked = selectedBoardIds.has(board.id);
@@ -547,10 +810,34 @@ function renderBoardList() {
     check.setAttribute("aria-hidden", "true");
     item.appendChild(check);
 
+    const body = document.createElement("span");
+    body.className = "notes-clue-board-item-body";
+
     const name = document.createElement("span");
     name.className = "notes-clue-board-item-name";
     name.textContent = boardDisplayTitle(board);
-    item.appendChild(name);
+    body.appendChild(name);
+
+    const meta = document.createElement("span");
+    meta.className = "notes-clue-board-item-meta";
+    const counts = document.createElement("span");
+    counts.className = "notes-clue-board-item-counts";
+    counts.textContent = shellT("notes.clue.boards.tileMeta", {
+      notes: String(boardNoteCount(board)),
+      edges: String(boardEdgeCount(board)),
+    });
+    const when = document.createElement("span");
+    when.className = "notes-clue-board-item-when";
+    const whenMs = boardWhenMs(board);
+    when.textContent = whenMs
+      ? formatArchiveListWhen(whenMs)
+      : shellT("notes.groupMeta.unknownTime");
+    meta.append(counts, when);
+    body.appendChild(meta);
+    item.appendChild(body);
+
+    item.addEventListener("mouseenter", () => scheduleBoardHover(item, board));
+    item.addEventListener("mouseleave", () => scheduleHideBoardHover());
 
     host.appendChild(item);
   }
@@ -698,6 +985,7 @@ async function deleteSelectedBoards() {
 function beginRenameBoard(id: string, item: HTMLElement) {
   const board = boards.find((b) => b.id === id);
   if (!board) return;
+  hideBoardHoverPopover();
   const nameEl = item.querySelector(".notes-clue-board-item-name");
   if (!(nameEl instanceof HTMLElement)) return;
   const input = document.createElement("input");
@@ -737,21 +1025,40 @@ function onBoardListClick(e: MouseEvent) {
   ) as HTMLElement | null;
   const id = item?.dataset.boardId;
   if (!id) return;
+  hideBoardHoverPopover();
+
+  if (e.shiftKey) {
+    e.preventDefault();
+    const anchor =
+      boardListAnchorId && boards.some((b) => b.id === boardListAnchorId)
+        ? boardListAnchorId
+        : activeBoardId || boards[0]?.id || id;
+    selectBoardRange(anchor, id);
+    boardListMultiMode = true;
+    document.body.classList.toggle("clue-board-multiselect", true);
+    renderBoardList();
+    return;
+  }
+
   if (e.ctrlKey || e.metaKey) {
     e.preventDefault();
     if (!boardListMultiMode) {
       selectedBoardIds.add(activeBoardId);
       if (id !== activeBoardId) selectedBoardIds.add(id);
+      boardListAnchorId = id;
       setBoardListMultiMode(true);
       return;
     }
     toggleBoardListSelection(id);
     return;
   }
+
   if (boardListMultiMode) {
     toggleBoardListSelection(id);
     return;
   }
+
+  boardListAnchorId = id;
   void switchBoard(id);
 }
 
@@ -1482,6 +1789,13 @@ function normalizeLoadedNodes(
     if (kind) node.kind = kind;
     const image = normalizeClueImageRef(n.image);
     if (image) node.image = image;
+    const glyphs = normalizeGlyphs((n as ClueNode & { glyphs?: unknown }).glyphs);
+    if (glyphs.length) node.glyphs = glyphs.map((g) => ({
+      ch: g.ch,
+      dt_ms: Math.round(g.dtMs),
+      deleted: !!g.deleted,
+      ts: g.ts ?? null,
+    }));
     return node;
   });
   const ids = new Set(out.map((n) => n.id));
@@ -2343,7 +2657,16 @@ function applyGripPanDelta(dpx: number, dpy: number) {
   // 相机动、便签跟手：补偿 start，世界相对位置不变
   gripPress.startX += dpx;
   gripPress.startY += dpy;
-  if (gripPan) gripPan.didPan = true;
+  if (gripPan) {
+    gripPan.totalDx += dpx;
+    gripPan.totalDy += dpy;
+    if (
+      gripPan.totalDx * gripPan.totalDx + gripPan.totalDy * gripPan.totalDy >
+      PAN_CLICK_SLOP * PAN_CLICK_SLOP
+    ) {
+      gripPan.didPan = true;
+    }
+  }
   applyPanTransform();
   refreshPendingPt();
 }
@@ -2351,9 +2674,6 @@ function applyGripPanDelta(dpx: number, dpy: number) {
 function endGripPan() {
   if (!gripPan) return;
   const didPan = gripPan.didPan;
-  window.removeEventListener("pointermove", onGripPanPointerMove);
-  window.removeEventListener("pointerup", onGripPanPointerUp);
-  window.removeEventListener("pointercancel", onGripPanPointerUp);
   gripPan = null;
   if (!panState) boardEl()?.classList.remove("is-panning");
   if (didPan) extendSuppressNativeMenu();
@@ -2361,15 +2681,14 @@ function endGripPan() {
 
 function cancelGripPress() {
   endGripPan();
-  window.removeEventListener("pointerdown", onGripAuxPointerDown, true);
+  detachGripAuxListeners();
   if (!gripPress) return;
   gripPress.gripEl.classList.remove("is-grabbing");
   gripPress = null;
 }
 
-function beginGripPan(e: PointerEvent) {
+function startGripPanAt(clientX: number, clientY: number) {
   if (!gripPress || gripPan) return;
-  if (e.button !== 2) return;
   extendSuppressNativeMenu();
   stopPanInertia();
   clearRightPressState();
@@ -2377,54 +2696,90 @@ function beginGripPan(e: PointerEvent) {
   hideClueContextMenu();
   hideTextareaContextMenu();
   gripPan = {
-    pointerId: e.pointerId,
-    lastX: e.clientX,
-    lastY: e.clientY,
+    lastX: clientX,
+    lastY: clientY,
     didPan: false,
+    totalDx: 0,
+    totalDy: 0,
   };
   boardEl()?.classList.add("is-panning");
-  window.addEventListener("pointermove", onGripPanPointerMove);
-  window.addEventListener("pointerup", onGripPanPointerUp);
-  window.addEventListener("pointercancel", onGripPanPointerUp);
 }
 
-/** 拖便签期间：任意目标上的 RMB 接管空白处 LMB 平移（capture，避开 textarea stopPropagation）。 */
-function onGripAuxPointerDown(e: PointerEvent) {
-  if (!gripPress || e.button !== 2) return;
-  if (!clueModeActive) return;
-  const target = e.target as HTMLElement;
-  if (
-    !isClueBoardSurfaceTarget(target) &&
-    !target.closest(".notes-clue-node, .notes-clue-wire-layer")
-  ) {
+function beginGripPan(e: PointerEvent) {
+  if (!gripPress || gripPan) return;
+  if (!isAuxPanButton(e.button)) return;
+  startGripPanAt(e.clientX, e.clientY);
+}
+
+/**
+ * 拖便签期间用 buttons 位图开/停辅键平移。
+ * 不要求先收到 button=2 的 pointerdown（LMB setPointerCapture 时 WebView2 常丢该事件）。
+ */
+function syncGripPanFromButtons(clientX: number, clientY: number, buttons: number) {
+  if (!gripPress) return;
+  if (!wantAuxPanFromButtons(buttons)) {
+    if (gripPan) endGripPan();
     return;
   }
+  if (!gripPan) {
+    startGripPanAt(clientX, clientY);
+    return;
+  }
+  // pointermove + 兼容 mousemove 同帧去重，避免双倍平移
+  if (clientX === gripPan.lastX && clientY === gripPan.lastY) return;
+  const step = auxPanStep(gripPan.lastX, gripPan.lastY, clientX, clientY);
+  gripPan.lastX = step.nextX;
+  gripPan.lastY = step.nextY;
+  applyGripPanDelta(step.dpx, step.dpy);
+}
+
+/** pointerdown 若能到达则尽早 preventDefault；真正平移仍以 buttons 为准。 */
+function onGripAuxPointerDown(e: PointerEvent) {
+  if (!gripPress || !isAuxPanButton(e.button)) return;
+  if (!clueModeActive) return;
   e.preventDefault();
   e.stopPropagation();
   beginGripPan(e);
 }
 
-function onGripPanPointerMove(e: PointerEvent) {
-  if (!gripPan || e.pointerId !== gripPan.pointerId) return;
-  const dpx = e.clientX - gripPan.lastX;
-  const dpy = e.clientY - gripPan.lastY;
-  gripPan.lastX = e.clientX;
-  gripPan.lastY = e.clientY;
-  applyGripPanDelta(dpx, dpy);
+/** 鼠标事件后备：部分 WebView 在 capture 下只更新 buttons / 只走 mouse*。 */
+function onGripAuxMouseDown(e: MouseEvent) {
+  if (!gripPress || !isAuxPanButton(e.button)) return;
+  if (!clueModeActive) return;
+  e.preventDefault();
+  e.stopPropagation();
+  startGripPanAt(e.clientX, e.clientY);
 }
 
-function onGripPanPointerUp(e: PointerEvent) {
-  if (!gripPan || e.pointerId !== gripPan.pointerId) return;
-  if (e.button !== 2 && e.type !== "pointercancel") return;
-  endGripPan();
+function onGripAuxMouseMove(e: MouseEvent) {
+  if (!gripPress) return;
+  syncGripPanFromButtons(e.clientX, e.clientY, e.buttons);
+}
+
+function onGripAuxMouseUp(e: MouseEvent) {
+  if (!gripPress || !gripPan) return;
+  if (!isAuxPanButton(e.button) && e.type !== "mouseup") return;
+  if (!wantAuxPanFromButtons(e.buttons)) endGripPan();
+}
+
+function attachGripAuxListeners() {
+  window.addEventListener("pointerdown", onGripAuxPointerDown, true);
+  window.addEventListener("mousedown", onGripAuxMouseDown, true);
+  window.addEventListener("mousemove", onGripAuxMouseMove, true);
+  window.addEventListener("mouseup", onGripAuxMouseUp, true);
+}
+
+function detachGripAuxListeners() {
+  window.removeEventListener("pointerdown", onGripAuxPointerDown, true);
+  window.removeEventListener("mousedown", onGripAuxMouseDown, true);
+  window.removeEventListener("mousemove", onGripAuxMouseMove, true);
+  window.removeEventListener("mouseup", onGripAuxMouseUp, true);
 }
 
 function onGripPointerMove(e: PointerEvent) {
   if (!gripPress || e.pointerId !== gripPress.pointerId) return;
-  // 鼠标同 pointerId：RMB 已由 onGripPanPointerMove 平移；这里只侦测松右键
-  if (gripPan && e.pointerId === gripPan.pointerId && !(e.buttons & 2)) {
-    endGripPan();
-  }
+  // 先按 buttons 处理辅键平移（与便签拖同帧；相机补偿后再算便签位移）
+  syncGripPanFromButtons(e.clientX, e.clientY, e.buttons);
   const dx = e.clientX - gripPress.startX;
   const dy = e.clientY - gripPress.startY;
   if (Math.abs(dx) > 3 || Math.abs(dy) > 3) gripPress.moved = true;
@@ -2481,15 +2836,15 @@ function beginNodeDrag(
   window.addEventListener("pointermove", onGripPointerMove);
   window.addEventListener("pointerup", onGripPointerUp);
   window.addEventListener("pointercancel", onGripPointerUp);
-  // capture：拖便签期间 RMB 在 textarea/图片上也能开平移
-  window.addEventListener("pointerdown", onGripAuxPointerDown, true);
+  // capture + mouse 后备：拖便签期间辅键平移（含 textarea/图片上）
+  attachGripAuxListeners();
   return true;
 }
 
 function onGripPointerUp(e: PointerEvent) {
   if (!gripPress) return;
-  // 同 pointer 上松右键：只结束把手期间的视口平移（鼠标常共用 pointerId）
-  if (e.pointerId === gripPress.pointerId && e.button === 2) {
+  // 同 pointer 上松右键/中键：只结束辅键视口平移（鼠标常共用 pointerId）
+  if (e.pointerId === gripPress.pointerId && isAuxPanButton(e.button)) {
     endGripPan();
     return;
   }
@@ -2498,7 +2853,7 @@ function onGripPointerUp(e: PointerEvent) {
   window.removeEventListener("pointermove", onGripPointerMove);
   window.removeEventListener("pointerup", onGripPointerUp);
   window.removeEventListener("pointercancel", onGripPointerUp);
-  window.removeEventListener("pointerdown", onGripAuxPointerDown, true);
+  detachGripAuxListeners();
   try {
     gripPress.gripEl.releasePointerCapture(e.pointerId);
   } catch {
@@ -2565,6 +2920,8 @@ function onResizePointerUp(e: PointerEvent) {
 function renderNodes() {
   const host = nodesHost();
   if (!host) return;
+  for (const h of glyphFieldById.values()) h.destroy();
+  glyphFieldById.clear();
   const hidden = hiddenNodeIdSet();
   for (const id of [...selectedIds]) {
     if (hidden.has(id)) selectedIds.delete(id);
@@ -2610,6 +2967,11 @@ function renderNodes() {
     del.setAttribute("aria-label", t("删除", "Delete"));
     del.textContent = "×";
 
+    const textWrap = document.createElement("div");
+    textWrap.className = "notes-clue-text-wrap";
+    const tape = document.createElement("div");
+    tape.className = "notes-clue-temp-live notes-temp-tape";
+    tape.setAttribute("aria-hidden", "true");
     const ta = document.createElement("textarea");
     ta.className = "notes-clue-text";
     ta.value = n.text;
@@ -2617,6 +2979,7 @@ function renderNodes() {
       ? t("说明…", "Caption…")
       : t("写下线索…", "Write a clue…");
     ta.rows = n.image ? 1 : 3;
+    textWrap.append(tape, ta);
 
     const imageRef = normalizeClueImageRef(n.image);
     let imgEl: HTMLImageElement | null = null;
@@ -2629,6 +2992,20 @@ function renderNodes() {
       imgEl.addEventListener("dragstart", (ev) => ev.preventDefault());
       void fillClueImage(imgEl, imageRef);
     }
+
+    const glyphHandle = attachGlyphField({
+      input: ta,
+      tape,
+      wrap: textWrap,
+      initial: n.glyphs,
+      onChange: (wire) => {
+        const hit = nodeById(n.id);
+        if (!hit) return;
+        if (wire.length) hit.glyphs = wire;
+        else delete hit.glyphs;
+      },
+    });
+    glyphFieldById.set(n.id, glyphHandle);
 
     const resizeHandle = document.createElement("div");
     resizeHandle.className = "notes-clue-resize";
@@ -2651,6 +3028,7 @@ function renderNodes() {
         scheduleSave();
         scheduleTextHistory();
       }
+      glyphHandle.onInput();
       dotLabel.textContent = clueDotLabel(ta.value, hit ?? n);
     });
     ta.addEventListener("pointerdown", (e) => {
@@ -2815,9 +3193,9 @@ function renderNodes() {
       meta.appendChild(fold);
     }
     if (meta.childNodes.length > 0) {
-      wrap.append(port, grip, del, ...(imgEl ? [imgEl] : []), ta, meta, resizeHandle, dotEl, dotLabel);
+      wrap.append(port, grip, del, ...(imgEl ? [imgEl] : []), textWrap, meta, resizeHandle, dotEl, dotLabel);
     } else {
-      wrap.append(port, grip, del, ...(imgEl ? [imgEl] : []), ta, resizeHandle, dotEl, dotLabel);
+      wrap.append(port, grip, del, ...(imgEl ? [imgEl] : []), textWrap, resizeHandle, dotEl, dotLabel);
     }
     applyNodeLayout(wrap, n);
     host.appendChild(wrap);
@@ -3087,6 +3465,59 @@ async function addImageFilesAt(files: File[], origin: { x: number; y: number }) 
   scheduleDrawClueWires();
 }
 
+/** Note id when `el` is (inside) a clue note body textarea; else null. */
+function clueNoteIdFromField(el: EventTarget | null): string | null {
+  if (!(el instanceof HTMLElement)) return null;
+  const ta = el.closest("textarea.notes-clue-text");
+  if (!ta) return null;
+  const node = ta.closest(".notes-clue-node");
+  const id = node instanceof HTMLElement ? node.dataset.clueId?.trim() : "";
+  return id || null;
+}
+
+/** Save clipboard/file image onto an existing note (`image` path ref only). */
+async function attachImageBlobToNote(nodeId: string, blob: Blob) {
+  const hit = nodeById(nodeId);
+  if (!hit) return;
+  const active = document.activeElement;
+  const restoreFocus =
+    active instanceof HTMLTextAreaElement &&
+    active.classList.contains("notes-clue-text") &&
+    clueNoteIdFromField(active) === nodeId;
+  const selStart = restoreFocus ? active.selectionStart : null;
+  const selEnd = restoreFocus ? active.selectionEnd : null;
+  try {
+    const image = await saveClueImageBlob(blob);
+    hit.image = image;
+    if (hit.w == null || !Number.isFinite(hit.w)) hit.w = CLUE_IMAGE_W;
+    if (hit.h == null || !Number.isFinite(hit.h)) hit.h = CLUE_IMAGE_H;
+    selectNode(nodeId);
+    renderNodes();
+    recordClueHistory(CLUE_HISTORY_LABELS.addImage);
+    scheduleSave();
+    scheduleDrawClueWires();
+    if (restoreFocus) {
+      const ta = document.querySelector(
+        `.notes-clue-node[data-clue-id="${CSS.escape(nodeId)}"] .notes-clue-text`
+      ) as HTMLTextAreaElement | null;
+      if (ta) {
+        ta.focus();
+        if (selStart != null && selEnd != null) {
+          try {
+            ta.setSelectionRange(selStart, selEnd);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    }
+    showHint(t("已贴图到便签", "Image attached to note"));
+  } catch (err) {
+    console.error(err);
+    showHint(t("图片未能保存", "Could not save image"));
+  }
+}
+
 function ensureImageFileInput(): HTMLInputElement {
   if (imageFileInput) return imageFileInput;
   const input = document.createElement("input");
@@ -3231,6 +3662,17 @@ function pastePayload(payload: ClueClipboardPayload, anchor: { x: number; y: num
     if (kind) node.kind = kind;
     const image = normalizeClueImageRef(n.image);
     if (image) node.image = image;
+    if (n.glyphs?.length) {
+      const glyphs = normalizeGlyphs(n.glyphs);
+      if (glyphs.length) {
+        node.glyphs = glyphs.map((g) => ({
+          ch: g.ch,
+          dt_ms: Math.round(g.dtMs),
+          deleted: !!g.deleted,
+          ts: g.ts ?? null,
+        }));
+      }
+    }
     added.push(node);
   }
   if (!added.length) {
@@ -3273,13 +3715,35 @@ function applyClipboardRead(
 function onCluePaste(e: ClipboardEvent) {
   if (!clueModeActive) return;
   const target = e.target instanceof Element ? e.target : null;
-  if (isTextEditingField(document.activeElement) || isTextEditingField(target)) return;
   const data = e.clipboardData;
+  const imageItem = [...(data?.items ?? [])].find((item) => item.type.startsWith("image/"));
+  const imageFile = imageItem?.getAsFile() ?? null;
+  const noteId =
+    clueNoteIdFromField(target) ?? clueNoteIdFromField(document.activeElement);
+  if (noteId) {
+    if (
+      clueNoteFieldPasteIntent({
+        noteFieldFocused: true,
+        hasClipboardImage: !!imageFile,
+      }) === "attach-image" &&
+      imageFile
+    ) {
+      pendingPasteFallback = false;
+      pendingFieldImagePaste = null;
+      e.preventDefault();
+      void attachImageBlobToNote(noteId, imageFile);
+      return;
+    }
+    // Text paste stays with the browser; clear async image fallback if text is present.
+    const plain = data?.getData("text/plain") ?? "";
+    const html = data?.getData("text/html") ?? "";
+    if (plain || html) pendingFieldImagePaste = null;
+    return;
+  }
+  if (isTextEditingField(document.activeElement) || isTextEditingField(target)) return;
   const html = data?.getData("text/html") ?? "";
   const plain = data?.getData("text/plain") ?? "";
   let payload = decodeClueClipboardHtml(html);
-  const imageItem = [...(data?.items ?? [])].find((item) => item.type.startsWith("image/"));
-  const imageFile = imageItem?.getAsFile() ?? null;
   if (
     !payload &&
     memoryClipboard &&
@@ -3539,13 +4003,14 @@ function onBoardPointerDown(e: PointerEvent) {
   hideTextareaContextMenu();
   const target = e.target as HTMLElement;
 
-  if (e.button === 2) {
+  if (e.button === 2 || e.button === 1) {
     e.preventDefault();
     e.stopPropagation();
     if (gripPress) {
       beginGripPan(e);
       return;
     }
+    if (e.button === 1) return;
     if (isClueTextarea(target)) return;
     if (isBoardInteractiveTarget(target)) return;
     if (edgeHitFromTarget(e.target)) return;
@@ -3688,6 +4153,17 @@ function onKeyDown(e: KeyboardEvent) {
     redoClueHistory();
     return;
   }
+  if (
+    clueModeActive &&
+    mod &&
+    e.key.toLowerCase() === "a" &&
+    isBoardListPanelFocused() &&
+    !isTextEditingField(document.activeElement)
+  ) {
+    e.preventDefault();
+    selectAllBoardsInList();
+    return;
+  }
   const active = document.activeElement;
   const shortcut = clueShortcutAction({
     clueMode: clueModeActive,
@@ -3700,6 +4176,20 @@ function onKeyDown(e: KeyboardEvent) {
   if (shortcut === "copy-notes") {
     e.preventDefault();
     void copySelectedNotes();
+    return;
+  }
+  if (shortcut === "paste-field") {
+    const noteId = clueNoteIdFromField(active);
+    if (!noteId) return;
+    pendingFieldImagePaste = noteId;
+    requestAnimationFrame(() => {
+      if (pendingFieldImagePaste !== noteId) return;
+      pendingFieldImagePaste = null;
+      void (async () => {
+        const read = await readClipboardForClue();
+        if (read.image) await attachImageBlobToNote(noteId, read.image);
+      })();
+    });
     return;
   }
   if (shortcut === "paste-board") {
@@ -3722,6 +4212,14 @@ function onKeyDown(e: KeyboardEvent) {
     }
     if (boardListMenuEl) {
       hideBoardListMenu();
+      return;
+    }
+    if (boardHoverPopEl && !boardHoverPopEl.classList.contains("hidden")) {
+      hideBoardHoverPopover();
+      return;
+    }
+    if (boardListMultiMode) {
+      setBoardListMultiMode(false);
       return;
     }
     if (pendingFrom) {
@@ -3747,6 +4245,11 @@ function onKeyDown(e: KeyboardEvent) {
   }
 }
 
+/** 色温 / 退格开关变化时重绘线索便签字形带。 */
+export function repaintClueGlyphFields() {
+  for (const h of glyphFieldById.values()) h.paint();
+}
+
 export function initClueBoard() {
   if (inited) return;
   inited = true;
@@ -3766,12 +4269,18 @@ export function initClueBoard() {
 
   $("notes-clue-add")?.addEventListener("click", () => addClueNode());
   $("notes-clue-add-image")?.addEventListener("click", () => openImageFilePicker(null));
+  bindColorTempAnchor($("notes-clue-color-temp-btn"));
   $("notes-clue-clear-links")?.addEventListener("click", () => deleteEdgesForSelected());
   $("notes-clue-reset-view")?.addEventListener("click", () => resetClueView());
   $("notes-clue-board-new")?.addEventListener("click", () => void createBoard());
   boardListEl()?.addEventListener("click", onBoardListClick);
   boardListEl()?.addEventListener("dblclick", onBoardListDblClick);
   boardListEl()?.addEventListener("contextmenu", onBoardListContextMenu);
+  boardListEl()?.addEventListener(
+    "scroll",
+    () => hideBoardHoverPopover(),
+    { passive: true }
+  );
 
   const board = boardEl();
   const canvas = canvasEl();
