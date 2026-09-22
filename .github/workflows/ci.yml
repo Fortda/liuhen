@@ -1,0 +1,115 @@
+# PR / main checks. Windows setup.exe / zip / update.zip stay on
+# release-windows (.github/workflows/release.yml) — too heavy for every PR.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  omniplayer-web:
+    name: omniplayer-web
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: omniplayer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: omniplayer/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build (tsc + vite)
+        run: npm run build
+
+  recorder:
+    name: recorder
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+
+      # Root crate omnitrace_input is Windows-first (windows crate + rdev).
+      # Unit tests in src/ are pure; this also typechecks bins.
+      - name: cargo test
+        run: cargo test --locked --all-targets
+
+  mcp:
+    name: mcp
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mcp/**/package-lock.json
+
+      # Each mcp/*/package.json with a build script. npm ci when a lockfile
+      # exists, otherwise npm install. Run test:smoke when present.
+      - name: Build and smoke each MCP package
+        env:
+          OMNI_DATABASE: ${{ runner.temp }}/OmniDatabase
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          found=0
+          for pkg_json in mcp/*/package.json; do
+            dir=$(dirname "$pkg_json")
+            if ! node -e 'const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).scripts||{}; process.exit(s.build?0:1)' "$pkg_json"; then
+              echo "skip $dir (no build script)"
+              continue
+            fi
+            found=1
+            echo "::group::$dir"
+            (
+              cd "$dir"
+              if [[ -f package-lock.json ]]; then
+                npm ci
+              else
+                npm install
+              fi
+              npm run build
+              if node -e 'const s=JSON.parse(require("fs").readFileSync("package.json","utf8")).scripts||{}; process.exit(s["test:smoke"]?0:1)'; then
+                npm run test:smoke
+              fi
+            )
+            echo "::endgroup::"
+          done
+          if [[ "$found" -eq 0 ]]; then
+            echo "no mcp packages with a build script" >&2
+            exit 1
+          fi
