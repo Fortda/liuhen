@@ -1706,10 +1706,20 @@ function applyNodeLayout(el: HTMLElement, n: ClueNode) {
     grip.style.right = "-1px";
   }
 
+  const fontPx = clueTextFontPx();
+  const minH = `${layoutPx(CLUE_TEXT_MIN_H_PX)}px`;
   const ta = el.querySelector(".notes-clue-text") as HTMLTextAreaElement | null;
   if (ta) {
-    ta.style.fontSize = `${clueTextFontPx()}px`;
-    ta.style.minHeight = `${layoutPx(CLUE_TEXT_MIN_H_PX)}px`;
+    ta.style.fontSize = `${fontPx}px`;
+    ta.style.minHeight = minH;
+  }
+  const tape = el.querySelector(".notes-clue-temp-live") as HTMLElement | null;
+  if (tape) {
+    tape.style.fontSize = `${fontPx}px`;
+  }
+  const textWrap = el.querySelector(".notes-clue-text-wrap") as HTMLElement | null;
+  if (textWrap) {
+    textWrap.style.minHeight = minH;
   }
 }
 

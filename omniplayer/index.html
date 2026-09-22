@@ -3921,6 +3921,8 @@
     .notes-clue-board.is-dot-mode .notes-clue-grip,
     .notes-clue-board.is-dot-mode .notes-clue-del,
     .notes-clue-board.is-dot-mode .notes-clue-text,
+    .notes-clue-board.is-dot-mode .notes-clue-text-wrap,
+    .notes-clue-board.is-dot-mode .notes-clue-temp-live,
     .notes-clue-board.is-dot-mode .notes-clue-image,
     .notes-clue-board.is-dot-mode .notes-clue-resize,
     .notes-clue-board.is-dot-mode .notes-clue-meta {
@@ -5668,7 +5670,7 @@
       overflow: hidden;
       pointer-events: none;
       font: inherit;
-      font-size: 13px;
+      /* font-size set in applyNodeLayout to match .notes-clue-text (layout zoom) */
       line-height: 1.45;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
