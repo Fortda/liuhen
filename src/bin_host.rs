@@ -135,18 +135,21 @@ fn read_pid_file() -> Option<u32> {
     s.trim().parse().ok()
 }
 
-/// `tasklist` 一行里 PID 是独立字段。子串匹配会把 pid 12 当成活着，
-/// 只要同一行里出现 `1234` 或内存列 `12,345 K`。
+/// CSV `/FO CSV` 的第二列才是 PID。按空白切词会把 Session# `1`
+/// 或内存列 `12,345 K` 当成进程号。
 fn tasklist_contains_pid(text: &str, pid: u32) -> bool {
     let needle = pid.to_string();
-    text.split_whitespace().any(|tok| tok == needle)
+    text.lines().any(|line| {
+        let cols: Vec<&str> = line.split(',').collect();
+        cols.get(1).map(|c| c.trim().trim_matches('"')) == Some(needle.as_str())
+    })
 }
 
 fn pid_alive(pid: u32) -> bool {
     #[cfg(windows)]
     {
         let out = Command::new("tasklist")
-            .args(["/FI", &format!("PID eq {pid}"), "/NH"])
+            .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
             .output()
             .ok();
         if let Some(o) = out {
@@ -230,7 +233,7 @@ mod tests {
 
     #[test]
     fn pid_token_does_not_match_memory_or_longer_pid() {
-        let row = "omnitrace_input.exe          1234 Console                    1     12,345 K";
+        let row = "\"omnitrace_input.exe\",\"1234\",\"Console\",\"1\",\"12,345 K\"";
         assert!(tasklist_contains_pid(row, 1234));
         assert!(!tasklist_contains_pid(row, 12));
         assert!(!tasklist_contains_pid(row, 123));
