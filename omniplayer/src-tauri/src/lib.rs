@@ -804,6 +804,10 @@ fn set_webview_default_context_menus(
     Ok(())
 }
 
+// `generate_context!` requires `frontendDist` (`../dist`). Library tests do not
+// build the Vite bundle, so the process entry stays out of `cfg(test)`.
+// Release and `cargo build` still compile this function.
+#[cfg(not(test))]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     webview_loopback::apply_webview_direct_env();
