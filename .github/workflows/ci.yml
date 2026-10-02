@@ -93,6 +93,11 @@ jobs:
         working-directory: omniplayer
         run: npm ci
 
+      # generate_context! requires frontendDist (../dist) when custom-protocol is on.
+      - name: Build frontend
+        working-directory: omniplayer
+        run: npm run build
+
       # tauri-build compiles icons/icon.ico with rc.exe. rust-toolchain does not
       # put the Windows SDK on PATH.
       - name: MSVC developer environment
