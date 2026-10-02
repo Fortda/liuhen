@@ -772,6 +772,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             shell_launch::handle_second_instance(app, argv);
         }))
@@ -867,8 +869,7 @@ pub fn run() {
             apps_ctl::apps_list_dir,
             portable_update::apply_portable_update,
             portable_update::probe_portable_update,
-            portable_update::github_check_update,
-            portable_update::github_download_update,
+            portable_update::updater_install_kind,
             portable_update::quit_for_update,
         ])
         .build(tauri::generate_context!())

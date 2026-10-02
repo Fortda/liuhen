@@ -123,7 +123,7 @@ const ZH: StringTable = {
   "settings.about.back": "← 设置",
   "settings.update.label": "检查更新",
   "settings.update.desc":
-    "应用内从 GitHub Release 下载增量包（优先 *-windows-x64-update.zip）并替换程序文件，不改 OmniDatabase。无需打开浏览器。首次安装或重装向导请用 setup.exe。",
+    "已安装的版本从 GitHub Release 下载签名过的完整安装包并安装，不改 OmniDatabase。便携 zip 请到发布页下载新包。首次安装仍用 setup.exe。",
   "settings.update.check": "检查更新",
   "settings.update.apply": "立即更新",
   "settings.update.checking": "正在检查…",
@@ -131,18 +131,27 @@ const ZH: StringTable = {
   "settings.update.applying": "正在准备替换…",
   "settings.update.uptodate": "已是最新版本 {version}",
   "settings.update.available": "发现新版本 {latest}（当前 {current}）",
+  "settings.update.availablePortable":
+    "发现新版本 {latest}（当前 {current}）。便携包不会原地安装，请下载新的 setup.exe 或 zip。",
   "settings.update.incoming": "安装目录 incoming 已有新程序，可立即替换。",
   "settings.update.confirm":
-    "将在应用内下载并替换 OmniPlayer 与采集器（不打开浏览器）。数据目录 OmniDatabase 不会被改动。完成后会退出并自动重启。继续？",
+    "将下载完整安装包并安装（播放器 + 采集器）。OmniDatabase 不会被改动。安装程序会关闭并重启留痕。继续？",
+  "settings.update.confirmPortable":
+    "这是便携目录，不能在原地套用安装包。打开发布页下载新的 setup.exe 或 zip？",
   "settings.update.confirmIncoming":
     "将用 incoming 里的程序替换当前 OmniPlayer。OmniDatabase 不会被改动。完成后会退出并自动重启。继续？",
   "settings.update.relaunch": "已准备更新，即将退出并重启（数据目录不会被改动）",
-  "settings.update.err.network": "检查更新失败（网络）。",
-  "settings.update.err.download": "下载失败。",
+  "settings.update.err.network": "检查更新失败（网络或离线）。启动不受影响。",
+  "settings.update.err.norelease": "还没有可安装的发布包（latest.json）。启动不受影响。",
+  "settings.update.err.ratelimit": "GitHub 暂时限流，请稍后再试。启动不受影响。",
+  "settings.update.err.key": "更新签名公钥尚未配置。请维护者换成 tauri signer generate 的公钥后再发版。",
+  "settings.update.err.download": "下载或安装失败。",
   "settings.update.launchCheck": "启动时检查更新",
-  "settings.update.launchCheck.desc": "每次启动安静检查一次；已是最新不会打扰。发现新版本时请到设置点「检查更新」下载安装。",
+  "settings.update.launchCheck.desc":
+    "每次启动检查一次。已安装的版本会询问是否下载安装；便携 zip 只提示。离线、还没有 Release、或接口限流都不会挡住启动。",
   "settings.update.launchCheck.switchTitle": "启动时检查更新",
-  "settings.update.launchNewer": "有新版本 {latest}，可在设置里点「检查更新」直接下载安装。",
+  "settings.update.launchNewer":
+    "有新版本 {latest}。便携包请到发布页下载 setup.exe 或 zip；已安装的版本可在设置里更新。",
   "settings.update.meta.idle": "当前版本 {version}",
   "settings.archiveAi.label": "对话存档由当时 AI 写名字和备注",
   "settings.archiveAi.desc":
@@ -516,7 +525,7 @@ const EN: StringTable = {
   "settings.about.back": "← Settings",
   "settings.update.label": "Check for updates",
   "settings.update.desc":
-    "In-app download from GitHub Release (prefers *-windows-x64-update.zip), then swap program files only. OmniDatabase is untouched. No browser needed. Use setup.exe for first install or a full wizard reinstall.",
+    "Installed copies download a signed full installer from the GitHub Release. OmniDatabase is untouched. Portable zips should download a new setup.exe or zip. First install still uses setup.exe.",
   "settings.update.check": "Check for updates",
   "settings.update.apply": "Update now",
   "settings.update.checking": "Checking…",
@@ -524,22 +533,33 @@ const EN: StringTable = {
   "settings.update.applying": "Preparing the swap…",
   "settings.update.uptodate": "You are on the latest version ({version})",
   "settings.update.available": "Version {latest} is available (you have {current})",
+  "settings.update.availablePortable":
+    "Version {latest} is available (you have {current}). A portable folder is not updated in place — download a new setup.exe or zip.",
   "settings.update.incoming":
     "A newer program is already in the install folder incoming — you can apply it now.",
   "settings.update.confirm":
-    "This downloads in-app (no browser) and replaces OmniPlayer and the recorder. OmniDatabase will not be changed. The app will quit and relaunch. Continue?",
+    "This downloads the full installer (player + recorder) and installs it. OmniDatabase will not be changed. The installer will quit and restart 留痕. Continue?",
+  "settings.update.confirmPortable":
+    "This folder is portable, so the installer will not be applied here. Open the release page to download a new setup.exe or zip?",
   "settings.update.confirmIncoming":
     "Replace the running OmniPlayer with the program in incoming. OmniDatabase will not be changed. The app will quit and relaunch. Continue?",
   "settings.update.relaunch":
     "Update is staged. Quitting so the new program can start (data folder untouched).",
-  "settings.update.err.network": "Could not check for updates (network).",
-  "settings.update.err.download": "Download failed.",
+  "settings.update.err.network":
+    "Could not check for updates (offline or network). Startup is not blocked.",
+  "settings.update.err.norelease":
+    "No installable release yet (latest.json). Startup is not blocked.",
+  "settings.update.err.ratelimit":
+    "GitHub rate-limited the check. Try again later. Startup is not blocked.",
+  "settings.update.err.key":
+    "The update public key is not configured yet. The maintainer must paste the tauri signer public key before a signed release will verify.",
+  "settings.update.err.download": "Download or install failed.",
   "settings.update.launchCheck": "Check for updates at launch",
   "settings.update.launchCheck.desc":
-    "Quietly check once each launch. No prompt if you are already current. When a newer build exists, use Check for updates in Settings to download and install.",
+    "Check once each launch. Installed copies ask before download; a portable zip only notifies. Offline, no release yet, or a rate limit does not block startup.",
   "settings.update.launchCheck.switchTitle": "Check for updates at launch",
   "settings.update.launchNewer":
-    "Version {latest} is available — open Settings → Check for updates to download and install.",
+    "Version {latest} is available. Portable copies: download setup.exe or the zip from the release page. Installed copies can update in Settings.",
   "settings.update.meta.idle": "Current version {version}",
   "settings.archiveAi.label": "Let this chat’s AI write archive name and note",
   "settings.archiveAi.desc":

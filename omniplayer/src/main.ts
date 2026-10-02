@@ -7,10 +7,16 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath, openUrl } from "@tauri-apps/plugin-opener";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check, type Update } from "@tauri-apps/plugin-updater";
 import { initTheme } from "./theme";
 import { initMotionStyle } from "./omni_float";
 import { initLang, shellT } from "./shell_i18n";
-import { GITHUB_ISSUES_NEW_URL, GITHUB_REPO_URL } from "./shell_links";
+import {
+  GITHUB_ISSUES_NEW_URL,
+  GITHUB_RELEASES_LATEST_URL,
+  GITHUB_REPO_URL,
+} from "./shell_links";
 import { initCostDisplaySettings } from "./notes_cost_display";
 import { flushShellApps, initShellApps } from "./shell_apps";
 import { initPlaybackSettings } from "./playback_prefs";
@@ -236,13 +242,11 @@ let APP_VERSION = "0.1.5";
 
 const UPDATE_LAUNCH_KEY = "omnitrace.update.checkOnLaunch.v1";
 
-type GithubUpdateInfo = {
-  current_version: string;
-  latest_tag: string;
-  latest_version: string;
+type UpdateView = {
+  current: string;
+  latest: string;
   newer: boolean;
-  asset_name: string;
-  asset_size: number;
+  portable: boolean;
   incoming: { path: string; source: string } | null;
 };
 
@@ -668,7 +672,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   const updateLaunchToggle = document.getElementById(
     "toggle-update-launch"
   ) as HTMLInputElement | null;
-  let lastUpdateInfo: GithubUpdateInfo | null = null;
+  let lastUpdateInfo: UpdateView | null = null;
+  let pendingUpdate: Update | null = null;
   let updateBusy = false;
 
   function readLaunchCheck(): boolean {
@@ -700,7 +705,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     updateApplyBtn?.classList.toggle("hidden", !show);
   }
 
-  function renderUpdateMeta(info: GithubUpdateInfo | null, extra?: string) {
+  function renderUpdateMeta(info: UpdateView | null, extra?: string) {
     if (!updateMeta) return;
     if (extra) {
       updateMeta.textContent = extra;
@@ -713,10 +718,15 @@ window.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     if (info.newer) {
-      updateMeta.textContent = shellT("settings.update.available", {
-        latest: info.latest_version,
-        current: info.current_version,
-      });
+      updateMeta.textContent = shellT(
+        info.portable
+          ? "settings.update.availablePortable"
+          : "settings.update.available",
+        {
+          latest: info.latest,
+          current: info.current,
+        }
+      );
       return;
     }
     if (info.incoming) {
@@ -724,11 +734,65 @@ window.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     updateMeta.textContent = shellT("settings.update.uptodate", {
-      version: info.current_version,
+      version: info.current,
     });
   }
 
-  async function checkGithubUpdate(opts?: { quiet?: boolean }) {
+  function updateErrorText(err: unknown): string {
+    const raw = err instanceof Error ? err.message : String(err);
+    const m = raw.toLowerCase();
+    if (
+      m.includes("replace_with_output") ||
+      m.includes("pubkey") ||
+      m.includes("public key") ||
+      m.includes("base64") ||
+      m.includes("minisign") ||
+      m.includes("invalid symbol") ||
+      (m.includes("signature") && (m.includes("key") || m.includes("decode")))
+    ) {
+      return shellT("settings.update.err.key");
+    }
+    if (m.includes("429") || m.includes("rate limit")) {
+      return shellT("settings.update.err.ratelimit");
+    }
+    if (
+      m.includes("404") ||
+      m.includes("not found") ||
+      m.includes("latest.json") ||
+      m.includes("could not fetch a valid release") ||
+      m.includes("release json")
+    ) {
+      return shellT("settings.update.err.norelease");
+    }
+    if (
+      m.includes("403") ||
+      m.includes("network") ||
+      m.includes("offline") ||
+      m.includes("timed out") ||
+      m.includes("timeout") ||
+      m.includes("dns") ||
+      m.includes("connection") ||
+      m.includes("fetch") ||
+      m.includes("error sending request")
+    ) {
+      return shellT("settings.update.err.network");
+    }
+    return raw || shellT("settings.update.err.network");
+  }
+
+  async function releasePendingUpdate() {
+    const pending = pendingUpdate;
+    pendingUpdate = null;
+    if (pending) {
+      try {
+        await pending.close();
+      } catch {
+        /* already installed or closed */
+      }
+    }
+  }
+
+  async function checkForUpdate(opts?: { quiet?: boolean; prompt?: boolean }) {
     if (updateBusy) return;
     setUpdateBusy(true);
     if (!opts?.quiet) {
@@ -736,105 +800,139 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
     let handoffApply = false;
     try {
-      const info = await invoke<GithubUpdateInfo>("github_check_update");
-      lastUpdateInfo = info;
-      if (info.current_version) APP_VERSION = info.current_version;
-      const canApply = info.newer || !!info.incoming;
+      await releasePendingUpdate();
+      let kind = "portable";
+      try {
+        kind = await invoke<string>("updater_install_kind");
+      } catch {
+        kind = "portable";
+      }
+      const portable = kind !== "installed";
+      let update: Update | null = null;
+      let checkError = "";
+      try {
+        update = await check({ timeout: 20000 });
+      } catch (err) {
+        checkError = updateErrorText(err);
+      }
+      let incoming: { path: string; source: string } | null = null;
+      try {
+        incoming = await invoke<{ path: string; source: string } | null>(
+          "probe_portable_update"
+        );
+      } catch {
+        incoming = null;
+      }
+      if (update?.currentVersion) APP_VERSION = update.currentVersion;
+      const view: UpdateView = {
+        current: update?.currentVersion || APP_VERSION,
+        latest: update?.version || "",
+        newer: !!update,
+        portable,
+        incoming,
+      };
+      lastUpdateInfo = view;
+      pendingUpdate = update;
+      const canApply = view.newer || !!incoming;
       showApplyButton(canApply);
-      renderUpdateMeta(info);
-      if (opts?.quiet) {
-        if (info.newer) {
+      if (checkError && !canApply) {
+        renderUpdateMeta(null, checkError);
+        if (!opts?.quiet) showSettingsToast(checkError);
+        return;
+      }
+      renderUpdateMeta(view);
+      if (!canApply) {
+        if (!opts?.quiet) {
           showSettingsToast(
-            shellT("settings.update.launchNewer", {
-              latest: info.latest_version,
-            }),
+            shellT("settings.update.uptodate", { version: view.current }),
             true
           );
         }
         return;
       }
-      if (!canApply) {
+      if (opts?.quiet && portable && view.newer) {
         showSettingsToast(
-          shellT("settings.update.uptodate", { version: info.current_version }),
+          shellT("settings.update.launchNewer", { latest: view.latest }),
           true
         );
         return;
       }
-      // 手动点「检查更新」发现可更新：直接进入确认 → 应用内下载 → 替换重启（不打开浏览器）
-      handoffApply = true;
-    } catch (err) {
-      lastUpdateInfo = null;
-      showApplyButton(false);
-      const msg = err instanceof Error ? err.message : String(err);
-      try {
-        const incoming = await invoke<{ path: string; source: string } | null>(
-          "probe_portable_update"
-        );
-        if (incoming) {
-          lastUpdateInfo = {
-            current_version: APP_VERSION,
-            latest_tag: "",
-            latest_version: "",
-            newer: false,
-            asset_name: "",
-            asset_size: 0,
-            incoming,
-          };
-          showApplyButton(true);
-          renderUpdateMeta(lastUpdateInfo);
-          if (!opts?.quiet) {
-            handoffApply = true;
-          }
-          return;
-        }
-      } catch {
-        /* ignore probe */
-      }
-      renderUpdateMeta(null, msg || shellT("settings.update.err.network"));
-      if (!opts?.quiet) {
-        showSettingsToast(msg || shellT("settings.update.err.network"));
+      if (opts?.prompt && view.newer && !portable) {
+        handoffApply = true;
+      } else if (!opts?.quiet && canApply) {
+        handoffApply = true;
       }
     } finally {
       setUpdateBusy(false);
     }
     if (handoffApply) {
-      await applyGithubOrIncoming();
+      await applyUpdate();
     }
   }
 
-  async function applyGithubOrIncoming() {
+  async function applyUpdate() {
     if (updateBusy) return;
     const info = lastUpdateInfo;
-    const fromGithub = !!info?.newer;
+    const update = pendingUpdate;
     const incomingPath = info?.incoming?.path;
-    if (!fromGithub && !incomingPath) {
-      await checkGithubUpdate();
+    if (!update && !incomingPath) {
+      await checkForUpdate();
+      return;
+    }
+    if (update && info?.portable) {
+      const ok = window.confirm(shellT("settings.update.confirmPortable"));
+      if (!ok) return;
+      try {
+        await openUrl(GITHUB_RELEASES_LATEST_URL);
+      } catch {
+        showSettingsToast(shellT("settings.update.err.download"));
+      }
       return;
     }
     const ok = window.confirm(
-      shellT(
-        fromGithub
-          ? "settings.update.confirm"
-          : "settings.update.confirmIncoming"
-      )
+      shellT(update ? "settings.update.confirm" : "settings.update.confirmIncoming")
     );
     if (!ok) return;
     setUpdateBusy(true);
     try {
-      let exePath = incomingPath ?? "";
-      if (fromGithub) {
-        renderUpdateMeta(info, shellT("settings.update.downloading", {
-          name: info?.asset_name || "update.zip",
-          pct: 0,
-        }));
-        const pending = await invoke<{ path: string; source: string }>(
-          "github_download_update"
+      if (update) {
+        let downloaded = 0;
+        let total = 0;
+        renderUpdateMeta(
+          info,
+          shellT("settings.update.downloading", { name: "setup.exe", pct: 0 })
         );
-        exePath = pending.path;
+        await update.downloadAndInstall((event) => {
+          if (event.event === "Started") {
+            total = event.data.contentLength ?? 0;
+          } else if (event.event === "Progress") {
+            downloaded += event.data.chunkLength;
+            const pct =
+              total > 0
+                ? Math.min(100, Math.round((downloaded / total) * 100))
+                : 0;
+            renderUpdateMeta(
+              info,
+              shellT("settings.update.downloading", {
+                name: "setup.exe",
+                pct,
+              })
+            );
+          }
+        });
+        pendingUpdate = null;
+        renderUpdateMeta(info, shellT("settings.update.relaunch"));
+        showSettingsToast(shellT("settings.update.relaunch"), true);
+        try {
+          await relaunch();
+        } catch {
+          /* Windows installer already exits the app */
+        }
+        return;
       }
       renderUpdateMeta(info, shellT("settings.update.applying"));
       const msg = await invoke<string>("apply_portable_update", {
-        newExePath: exePath,
+        newExePath: incomingPath,
       });
       showSettingsToast(msg || shellT("settings.update.relaunch"), true);
       renderUpdateMeta(info, shellT("settings.update.relaunch"));
@@ -844,7 +942,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         });
       }, 400);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = updateErrorText(err);
       renderUpdateMeta(info, msg || shellT("settings.update.err.download"));
       showSettingsToast(msg || shellT("settings.update.err.download"));
       setUpdateBusy(false);
@@ -858,28 +956,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
   updateCheckBtn?.addEventListener("click", () => {
-    void checkGithubUpdate();
+    void checkForUpdate();
   });
   updateApplyBtn?.addEventListener("click", () => {
-    void applyGithubOrIncoming();
-  });
-  void listen<{
-    downloaded: number;
-    total: number;
-    asset_name: string;
-  }>("github-update-progress", (ev) => {
-    const { downloaded, total, asset_name } = ev.payload;
-    const pct =
-      total > 0 ? Math.min(100, Math.round((downloaded / total) * 100)) : 0;
-    renderUpdateMeta(
-      lastUpdateInfo,
-      shellT("settings.update.downloading", {
-        name: asset_name || "update.zip",
-        pct,
-      })
-    );
-  }).catch(() => {
-    /* 非 Tauri */
+    void applyUpdate();
   });
   renderUpdateMeta(null);
   void resolveAppVersion().then(() => {
@@ -890,7 +970,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
   if (!SHELL_NOTES && readLaunchCheck()) {
     window.setTimeout(() => {
-      void checkGithubUpdate({ quiet: true });
+      void checkForUpdate({ quiet: true, prompt: true }).catch(() => {
+        /* 离线 / 尚无 Release / 限流：不挡启动 */
+      });
     }, 1800);
   }
 

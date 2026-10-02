@@ -129,7 +129,7 @@ For everyday use you do not need a developer toolchain. You need **Windows 10 or
 
 Data lives under your user folder `OmniTrace\OmniDatabase`. It is **not uploaded** and is **not** inside the installer. Uninstall (Settings → Apps → Liuhen / 留痕) removes the program only, not that folder.
 
-Friends who already installed can use **Settings → Check for updates** instead of downloading the full setup.exe in a browser each time (setup.exe is still the first-install path).
+After setup.exe is installed, 留痕 checks for updates on startup and, if you confirm, downloads and installs the full installer (the library is not modified). A portable zip does not update itself in place. First install is still setup.exe.
 
 A **zip** is still attached: unzip and run **安装到本机.bat** (Install on this PC) for the same result.
 

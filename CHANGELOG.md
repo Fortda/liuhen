@@ -6,7 +6,12 @@
 
 ### Added
 
+- OmniPlayer 桌面壳接入 Tauri 官方 updater：已安装副本在启动时对照 GitHub Release 的 `latest.json`，确认后下载并安装签名过的完整 NSIS（播放器 + 采集器）。便携 zip 只提示去发布页。签名私钥走 GitHub Secrets `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，公钥在 `tauri.conf.json`。发版步骤见 `docs/releasing.md`。
 - PR / `main` 检查：GitHub Actions `ci`（OmniPlayer 前端 `tsc`+Vite、Windows 采集器 `cargo test`、MCP 构建；线索板带 smoke）。完整 Windows setup.exe / zip 仍只在 `release-windows` / `v*` tag 上打。
+
+### Changed
+
+- Windows 自动更新改为完整安装包。Tauri 官方 updater 没有可交付的二进制差分，因此不再把 `*-windows-x64-update.zip` 当作更新通道；便携 zip 与 setup.exe 仍会挂到 Release。
 
 ### Fixed
 

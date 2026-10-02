@@ -1,0 +1,21 @@
+{
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
+    "publisher": "Fortda",
+    "homepage": "https://github.com/Fortda/liuhen",
+    "licenseFile": "../../LICENSE",
+    "resources": {
+      "resources/omnitrace_input.exe": "omnitrace_input.exe"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "installerHooks": "./windows/hooks.nsh",
+        "languages": ["SimpChinese", "English"],
+        "startMenuFolder": "留痕"
+      }
+    }
+  }
+}
