@@ -31,6 +31,10 @@ jobs:
           cache: npm
           cache-dependency-path: omniplayer/package-lock.json
 
+      # package.ps1's tauri build embeds icon.ico with rc.exe.
+      - name: MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Require updater signing key
         shell: pwsh
         env:

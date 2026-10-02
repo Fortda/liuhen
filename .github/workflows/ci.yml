@@ -93,6 +93,11 @@ jobs:
         working-directory: omniplayer
         run: npm ci
 
+      # tauri-build compiles icons/icon.ico with rc.exe. rust-toolchain does not
+      # put the Windows SDK on PATH.
+      - name: MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+
       # Typecheck the Tauri shell (updater plugin included). Does not bundle NSIS.
       - name: cargo check omniplayer
         working-directory: omniplayer/src-tauri
