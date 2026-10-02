@@ -438,10 +438,16 @@ fn read_jsonl_file(file_path: String) -> Result<String, String> {
         .map_err(|e| format!("读取环境流失败：{} ({})", file_path, e))
 }
 
-/// 从 offset 读新增字节（直播 tail）。
+/// 单次读盘上限。直播 tail 以前用 `u64::MAX`，暂停一小时再回来会把整段增量一次读进 WebView。
+const READ_CHUNK_MAX: u64 = 8 * 1024 * 1024;
+const LIVE_TAIL_MAX: u64 = 1024 * 1024;
+const DATA_URL_MAX: u64 = 40 * 1024 * 1024;
+const BIN_ADVANCE_MAX: u64 = 8 * 1024 * 1024;
+
+/// 从 offset 读新增字节（直播 tail）。一次最多 1MB，下一帧继续。
 #[tauri::command]
 fn read_file_from_offset(file_path: String, offset: u64) -> Result<FileChunk, String> {
-    read_file_chunk(file_path, offset, u64::MAX)
+    read_file_chunk(file_path, offset, LIVE_TAIL_MAX)
 }
 
 /// 限长分块读取（播放器渐进加载，避免一次拉整文件卡死 UI）。
@@ -460,7 +466,8 @@ fn read_file_chunk(file_path: String, offset: u64, max_len: u64) -> Result<FileC
     }
     file.seek(SeekFrom::Start(offset))
         .map_err(|e| e.to_string())?;
-    let want = (len - offset).min(max_len.max(1)) as usize;
+    let capped = max_len.min(READ_CHUNK_MAX).max(1);
+    let want = (len - offset).min(capped) as usize;
     let mut buf = vec![0u8; want];
     let n = file.read(&mut buf).map_err(|e| e.to_string())?;
     buf.truncate(n);
@@ -508,7 +515,7 @@ fn advance_bin_decode(
     let mut dec_y = seed_y;
     let mut samples: Vec<BinMouseSample> = Vec::new();
     let mut cur = offset;
-    let budget = max_bytes.max(1) as usize;
+    let budget = max_bytes.max(1).min(BIN_ADVANCE_MAX) as usize;
     let mut read_total = 0usize;
     const MAX_SAMPLES: usize = 6_000;
 
@@ -642,6 +649,11 @@ fn get_file_size(file_path: String) -> Result<u64, String> {
 
 #[tauri::command]
 fn read_file_as_data_url(file_path: String) -> Result<String, String> {
+    let meta = std::fs::metadata(&file_path)
+        .map_err(|e| format!("读文件失败 {}: {}", file_path, e))?;
+    if meta.len() > DATA_URL_MAX {
+        return Err(format!("文件过大 ({} bytes)", meta.len()));
+    }
     let bytes = std::fs::read(&file_path)
         .map_err(|e| format!("读文件失败 {}: {}", file_path, e))?;
     let lower = file_path.to_lowercase();
@@ -661,17 +673,45 @@ fn read_file_as_data_url(file_path: String) -> Result<String, String> {
     Ok(format!("data:{};base64,{}", mime, b64))
 }
 
+/// Relative path under `ModuleData/win_map`. Rejects absolutes and `..`.
+fn sanitize_win_map_rel(rel: &str) -> Result<PathBuf, String> {
+    let rel = rel.trim().replace('\\', "/");
+    if rel.is_empty() || rel.len() > 512 {
+        return Err("非法资源路径".into());
+    }
+    if rel.starts_with('/') || rel.contains(':') || rel.contains('\0') {
+        return Err("非法资源路径".into());
+    }
+    let mut out = PathBuf::new();
+    for seg in rel.split('/') {
+        if seg.is_empty() || seg == "." || seg == ".." {
+            return Err("非法资源路径".into());
+        }
+        out.push(seg);
+    }
+    Ok(out)
+}
+
+fn resolved_is_inside(base: &Path, candidate: &Path) -> bool {
+    let Ok(base_c) = base.canonicalize() else {
+        return false;
+    };
+    let Ok(cand_c) = candidate.canonicalize() else {
+        return false;
+    };
+    cand_c.starts_with(&base_c)
+}
+
 #[tauri::command]
 fn resolve_win_map_asset(rel: String) -> Result<String, String> {
-    let root = resolve_data_root()
-        .join("ModuleData")
-        .join("win_map")
-        .join(rel.replace('/', std::path::MAIN_SEPARATOR_STR));
-    if root.is_file() {
-        Ok(root.to_string_lossy().into_owned())
-    } else {
-        Err(format!("资源不存在: {}", root.display()))
+    let rel_path = sanitize_win_map_rel(&rel)?;
+    let base = resolve_data_root().join("ModuleData").join("win_map");
+    let path = base.join(&rel_path);
+    if !path.is_file() || !resolved_is_inside(&base, &path) {
+        return Err(format!("资源不存在: {}", path.display()));
     }
+    let canon = path.canonicalize().unwrap_or(path);
+    Ok(canon.to_string_lossy().into_owned())
 }
 
 /// 本机系统指针桌面像素尺寸（与录制侧 cursor_metrics 对齐思路）。
@@ -881,4 +921,42 @@ pub fn run() {
                 llm_sidecar_ctl::stop_owned_silent();
             }
         });
+}
+
+#[cfg(test)]
+mod win_map_rel_tests {
+    use super::{resolved_is_inside, sanitize_win_map_rel};
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn rel_rejects_escape_and_keeps_icons() {
+        assert!(sanitize_win_map_rel("../x.png").is_err());
+        assert!(sanitize_win_map_rel("icons/../../x.png").is_err());
+        assert!(sanitize_win_map_rel("/etc/passwd").is_err());
+        assert!(sanitize_win_map_rel(r"C:\Windows\notepad.exe").is_err());
+        assert!(sanitize_win_map_rel("icons/a.png").is_ok());
+        assert!(sanitize_win_map_rel(r"wallpapers\wp.png").is_ok());
+        assert!(sanitize_win_map_rel("").is_err());
+    }
+
+    #[test]
+    fn resolved_path_must_stay_under_base() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let root = std::env::temp_dir().join(format!("liuhen-winmap-{nonce}"));
+        let base = root.join("win_map");
+        let outside = root.join("outside");
+        fs::create_dir_all(base.join("icons")).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        let inside = base.join("icons").join("a.png");
+        let leaked = outside.join("secret.png");
+        fs::write(&inside, b"png").unwrap();
+        fs::write(&leaked, b"no").unwrap();
+        assert!(resolved_is_inside(&base, &inside));
+        assert!(!resolved_is_inside(&base, &leaked));
+        let _ = fs::remove_dir_all(&root);
+    }
 }

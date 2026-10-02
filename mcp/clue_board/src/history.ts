@@ -154,48 +154,47 @@ export async function listHistory(boardId?: string) {
 }
 
 export async function rollbackHistory(boardId: string | undefined, seq: number) {
-  const data = await readClueBoards();
-  const bid = (boardId?.trim() || data.active_id).trim();
-  const entries = loadHistoryEntries(bid);
-  const target = entries.find((e) => e.seq === seq);
-  if (!target) throw new Error(`history seq not found: ${seq}`);
-  const last = entries[entries.length - 1];
-  if (last && last.seq === seq) {
-    return {
-      board_id: bid,
-      restored_seq: seq,
-      new_seq: last.seq,
-      active_id: data.active_id,
-      entry: {
-        seq: last.seq,
-        actor: last.actor,
-        action: last.action,
-        rollback_to_seq: last.rollback_to_seq ?? null,
-      },
-    };
-  }
-
-  const entry = await withClueBoards((file) => {
+  // History lookup stays inside the board lock so a concurrent edit cannot
+  // land between the snapshot read and the restore write.
+  return withClueBoards((file) => {
+    const bid = (boardId?.trim() || file.active_id).trim();
+    const entries = loadHistoryEntries(bid);
+    const target = entries.find((e) => e.seq === seq);
+    if (!target) throw new Error(`history seq not found: ${seq}`);
     const board = findBoard(file, bid);
     if (!board) throw new Error(`board not found: ${bid}`);
+    const last = entries[entries.length - 1];
+    if (last && last.seq === seq) {
+      return {
+        board_id: bid,
+        restored_seq: seq,
+        new_seq: last.seq,
+        active_id: file.active_id,
+        entry: {
+          seq: last.seq,
+          actor: last.actor,
+          action: last.action,
+          rollback_to_seq: last.rollback_to_seq ?? null,
+        },
+      };
+    }
     applySnapshot(board, target.snapshot);
-    return appendHistoryEntry(bid, "ai", "rollback", target.snapshot, {
+    const entry = appendHistoryEntry(bid, "ai", "rollback", target.snapshot, {
       tool: "clue_board_rollback",
       label_key: "notes.clue.history.rollback",
       rollback_to_seq: seq,
     });
+    return {
+      board_id: bid,
+      restored_seq: seq,
+      new_seq: entry.seq,
+      active_id: file.active_id,
+      entry: {
+        seq: entry.seq,
+        actor: entry.actor,
+        action: entry.action,
+        rollback_to_seq: entry.rollback_to_seq ?? null,
+      },
+    };
   });
-
-  return {
-    board_id: bid,
-    restored_seq: seq,
-    new_seq: entry.seq,
-    active_id: data.active_id,
-    entry: {
-      seq: entry.seq,
-      actor: entry.actor,
-      action: entry.action,
-      rollback_to_seq: entry.rollback_to_seq ?? null,
-    },
-  };
 }

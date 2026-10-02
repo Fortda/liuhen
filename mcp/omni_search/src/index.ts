@@ -10,9 +10,19 @@ server.tool(
   "web_search",
   "Search the web using user-configured engine in notes settings.",
   { query: z.string() },
-  async ({ query }) => ({
-    content: [{ type: "text" as const, text: JSON.stringify(await webSearch(query), null, 2) }],
-  })
+  async ({ query }) => {
+    try {
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(await webSearch(query), null, 2) }],
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify({ error: message }) }],
+        isError: true,
+      };
+    }
+  }
 );
 
 await server.connect(new StdioServerTransport());

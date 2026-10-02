@@ -5,6 +5,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { resolveDataRoot } from "./paths.js";
+import { artifactPath, assertArtifactSize } from "./safe_path.js";
 
 const server = new McpServer({ name: "omnitrace-omni-artifact", version: "0.1.0" });
 
@@ -18,10 +19,10 @@ server.tool(
   },
   async ({ filename, format, content }) => {
     const ext = format === "html" ? "html" : "md";
-    const safe = filename.replace(/[^a-zA-Z0-9._-]+/g, "_");
+    assertArtifactSize(content);
     const dir = join(resolveDataRoot(), "notes", "artifacts");
     mkdirSync(dir, { recursive: true });
-    const path = join(dir, safe.endsWith(`.${ext}`) ? safe : `${safe}.${ext}`);
+    const path = artifactPath(dir, filename, ext);
     writeFileSync(path, content, "utf8");
     return {
       content: [{ type: "text" as const, text: JSON.stringify({ written: path }, null, 2) }],

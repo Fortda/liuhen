@@ -37,12 +37,54 @@ fn truncate(s: String) -> String {
     format!("{kept}\n…(truncated)")
 }
 
-fn read_pipe(mut pipe: impl Read + Send + 'static) -> thread::JoinHandle<String> {
+const MAX_PIPE_BYTES: usize = 256 * 1024;
+
+/// Keep the first `max_bytes` and drop the pipe. Closing it unblocks a writer
+/// that would otherwise fill the OS buffer and hang `wait`.
+fn read_capped(mut pipe: impl Read, max_bytes: usize) -> (String, bool) {
+    let mut buf = Vec::new();
+    let mut tmp = [0u8; 8192];
+    let mut truncated = false;
+    loop {
+        match pipe.read(&mut tmp) {
+            Ok(0) => break,
+            Ok(n) => {
+                if buf.len() >= max_bytes {
+                    truncated = true;
+                    break;
+                }
+                let room = max_bytes - buf.len();
+                if n > room {
+                    buf.extend_from_slice(&tmp[..room]);
+                    truncated = true;
+                    break;
+                }
+                buf.extend_from_slice(&tmp[..n]);
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(_) => break,
+        }
+    }
+    (String::from_utf8_lossy(&buf).into_owned(), truncated)
+}
+
+fn read_pipe(pipe: impl Read + Send + 'static) -> thread::JoinHandle<String> {
     thread::spawn(move || {
-        let mut buf = Vec::new();
-        let _ = pipe.read_to_end(&mut buf);
-        String::from_utf8_lossy(&buf).into_owned()
+        let (text, truncated) = read_capped(pipe, MAX_PIPE_BYTES);
+        if truncated {
+            format!("{text}\n…(truncated)")
+        } else {
+            text
+        }
     })
+}
+
+fn join_output(handle: thread::JoinHandle<String>, wait: Duration) -> String {
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let _ = tx.send(handle.join().unwrap_or_default());
+    });
+    rx.recv_timeout(wait).unwrap_or_default()
 }
 
 /// One-shot PowerShell command for the apps Terminal pane (not an interactive PTY).
@@ -92,8 +134,8 @@ pub fn apps_run_shell(command: String) -> Result<AppsShellResult, String> {
 
     match rx.recv_timeout(Duration::from_millis(DEFAULT_TIMEOUT_MS)) {
         Ok(Ok(status)) => {
-            let stdout = truncate(stdout_h.join().unwrap_or_default());
-            let stderr = truncate(stderr_h.join().unwrap_or_default());
+            let stdout = truncate(join_output(stdout_h, Duration::from_secs(2)));
+            let stderr = truncate(join_output(stderr_h, Duration::from_secs(2)));
             Ok(AppsShellResult {
                 ok: status.success(),
                 code: status.code(),
@@ -112,10 +154,10 @@ pub fn apps_run_shell(command: String) -> Result<AppsShellResult, String> {
             Ok(AppsShellResult {
                 ok: false,
                 code: None,
-                stdout: truncate(stdout_h.join().unwrap_or_default()),
+                stdout: truncate(join_output(stdout_h, Duration::from_millis(1500))),
                 stderr: format!(
                     "{}\n超时（{DEFAULT_TIMEOUT_MS}ms）",
-                    truncate(stderr_h.join().unwrap_or_default())
+                    truncate(join_output(stderr_h, Duration::from_millis(1500)))
                 ),
                 timed_out: true,
                 elapsed_ms: started.elapsed().as_millis() as u64,
@@ -154,4 +196,26 @@ pub fn apps_list_dir(path: String) -> Result<Vec<AppsDirEntry>, String> {
         _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
     });
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::read_capped;
+    use std::io::Cursor;
+
+    #[test]
+    fn capped_read_stops_before_the_rest_of_the_stream() {
+        let data = vec![b'a'; 100];
+        let (text, truncated) = read_capped(Cursor::new(data), 16);
+        assert!(truncated);
+        assert_eq!(text.len(), 16);
+        assert!(text.chars().all(|c| c == 'a'));
+    }
+
+    #[test]
+    fn short_read_is_not_truncated() {
+        let (text, truncated) = read_capped(Cursor::new(b"ok".to_vec()), 16);
+        assert!(!truncated);
+        assert_eq!(text, "ok");
+    }
 }
