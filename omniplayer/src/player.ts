@@ -25,6 +25,13 @@ import {
 } from "./modules";
 import { cancelPlayerHeavyIpc, runHeavyIpc } from "./heavy_ipc";
 import { getPlaybackPrefs } from "./playback_prefs";
+import {
+  binStreamStopKind,
+  findLastAbsoluteMouseIndex,
+  findLastAbsoluteMouseOffset,
+  liveChunkCursor,
+} from "./bin_sync";
+import { splitJsonlChunk } from "./jsonl_tail";
 
 export type RecordingDay = {
   date: string;
@@ -1160,8 +1167,14 @@ let liveWinMapPath = "";
 let liveWinMapOffset = 0;
 let liveImePath = "";
 let liveImeOffset = 0;
+let liveJsonlCarry = new Uint8Array(0);
+let liveWinMapCarry = new Uint8Array(0);
+let liveImeCarry = new Uint8Array(0);
 let livePollBusy = false;
 let lastLivePollMs = 0;
+let liveDayKey = "";
+let livePathCheckAt = 0;
+const LIVE_BIN_TAIL = 8 * 1024 * 1024;
 
 /** 增量解码状态（直播追加用） */
 let decTs = 0;
@@ -1301,26 +1314,6 @@ function appendBinBytes(chunk: Uint8Array) {
     }
   }
   decCarry = new Uint8Array(0);
-}
-
-/** 从后往前找最近一条绝对鼠标帧 0xFF（直播用，避开被写坏的相对坐标段） */
-function findLastAbsoluteMouseOffset(data: Uint8Array): number {
-  if (data.length < 13) return 0;
-  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-  const now = Date.now();
-  for (let i = data.length - 13; i >= 0; i--) {
-    if (data[i] !== 0xff) continue;
-    try {
-      const ts = Number(view.getBigUint64(i + 1, false));
-      // 合理 Unix ms：约 2001–2100，且不超过「现在 + 1 分钟」
-      if (ts > 1_000_000_000_000 && ts < now + 60_000) {
-        return i;
-      }
-    } catch {
-      /* continue */
-    }
-  }
-  return 0;
 }
 
 function calculateTimeBounds(opts?: { keepPlayhead?: boolean }) {
@@ -2284,12 +2277,28 @@ async function streamBinUntil(
       }
     }
     ticks++;
-
-    // 无字节进度且声称到达 → 停，避免死循环
-    if (r.next_offset <= prevOff && !r.samples.length && (r.reached || r.eof)) {
+    let fileSize = stream.binTotal;
+    if (r.next_offset <= prevOff && r.samples.length === 0 && !r.eof && !r.reached) {
+      try {
+        fileSize = await invoke<number>("get_file_size", { filePath: path });
+        stream.binTotal = fileSize;
+      } catch {
+        /* keep the last known size */
+      }
+    }
+    const step = binStreamStopKind({
+      nextOffset: r.next_offset,
+      prevOffset: prevOff,
+      sampleCount: r.samples.length,
+      eof: r.eof,
+      reached: r.reached,
+      fileSize,
+    });
+    if (step === "eof") {
       stream.binEof = stream.binEof || r.eof;
       break;
     }
+    if (step === "stall") break;
 
     const now = performance.now();
     if (now - lastUi > (racing ? 60 : 400)) {
@@ -2805,10 +2814,81 @@ function showError(e: unknown) {
   }, 4000);
 }
 
+async function refreshLivePathsIfNeeded() {
+  const day = dateKeyFromTs(Date.now());
+  const missing = !liveBinPath && !liveJsonlPath && !liveWinMapPath && !liveImePath;
+  const now = performance.now();
+  if (day === liveDayKey && !missing) return;
+  if (day === liveDayKey && missing && now - livePathCheckAt < 2000) return;
+  livePathCheckAt = now;
+  let today: {
+    bin_path: string | null;
+    jsonl_path: string | null;
+    focus_events_path: string | null;
+    win_map_events_path: string | null;
+    ime_events_path: string | null;
+  };
+  try {
+    today = await invoke<{
+      bin_path: string | null;
+      jsonl_path: string | null;
+      focus_events_path: string | null;
+      win_map_events_path: string | null;
+      ime_events_path: string | null;
+    }>("find_today_traces");
+  } catch {
+    return;
+  }
+  liveDayKey = day;
+  const nextBin = today.bin_path ?? "";
+  const nextJsonl = today.focus_events_path ?? today.jsonl_path ?? "";
+  const nextWin = today.win_map_events_path ?? "";
+  const nextIme = today.ime_events_path ?? "";
+  if (nextBin !== liveBinPath) {
+    liveBinPath = nextBin;
+    liveBinOffset = 0;
+    decCarry = new Uint8Array(0);
+  }
+  if (nextJsonl !== liveJsonlPath) {
+    liveJsonlPath = nextJsonl;
+    liveJsonlOffset = 0;
+    liveJsonlCarry = new Uint8Array(0);
+  }
+  if (nextWin !== liveWinMapPath) {
+    liveWinMapPath = nextWin;
+    liveWinMapOffset = 0;
+    liveWinMapCarry = new Uint8Array(0);
+  }
+  if (nextIme !== liveImePath) {
+    liveImePath = nextIme;
+    liveImeOffset = 0;
+    liveImeCarry = new Uint8Array(0);
+  }
+}
+
+async function readLiveBinSnapshot(
+  path: string
+): Promise<{ bytes: Uint8Array; fileLen: number }> {
+  const fileLen = await invoke<number>("get_file_size", { filePath: path });
+  const start = fileLen > LIVE_BIN_TAIL ? fileLen - LIVE_BIN_TAIL : 0;
+  const chunk = await invoke<{ data_b64: string }>("read_file_chunk", {
+    filePath: path,
+    offset: start,
+    maxLen: Math.max(1, fileLen - start),
+  });
+  const tail = b64ToU8(chunk.data_b64);
+  if (start === 0 || findLastAbsoluteMouseIndex(tail) >= 0) {
+    return { bytes: tail, fileLen };
+  }
+  const all = await invoke<number[]>("read_trace_file", { filePath: path });
+  return { bytes: new Uint8Array(all), fileLen: all.length };
+}
+
 async function livePollOnce() {
   if (!liveMode || livePollBusy) return;
   livePollBusy = true;
   try {
+    await refreshLivePathsIfNeeded();
     if (liveBinPath) {
       const chunk = await invoke<{
         data_b64: string;
@@ -2818,47 +2898,68 @@ async function livePollOnce() {
         offset: liveBinOffset,
       });
       const bytes = b64ToU8(chunk.data_b64);
-      if (bytes.length > 0) {
+      const cursor = liveChunkCursor(liveBinOffset, chunk.next_offset, bytes.length);
+      if (cursor.reset) {
+        liveBinOffset = cursor.offset;
+        decCarry = new Uint8Array(0);
+      } else if (cursor.ingest) {
         appendBinBytes(bytes);
-        liveBinOffset = chunk.next_offset;
+        liveBinOffset = cursor.offset;
       }
     }
-    for (const [path, getOff, setOff] of [
-      [
-        liveJsonlPath,
-        () => liveJsonlOffset,
-        (n: number) => {
+    for (const stream of [
+      {
+        path: liveJsonlPath,
+        getOff: () => liveJsonlOffset,
+        setOff: (n: number) => {
           liveJsonlOffset = n;
         },
-      ],
-      [
-        liveWinMapPath,
-        () => liveWinMapOffset,
-        (n: number) => {
+        getCarry: () => liveJsonlCarry,
+        setCarry: (b: Uint8Array) => {
+          liveJsonlCarry = b;
+        },
+      },
+      {
+        path: liveWinMapPath,
+        getOff: () => liveWinMapOffset,
+        setOff: (n: number) => {
           liveWinMapOffset = n;
         },
-      ],
-      [
-        liveImePath,
-        () => liveImeOffset,
-        (n: number) => {
+        getCarry: () => liveWinMapCarry,
+        setCarry: (b: Uint8Array) => {
+          liveWinMapCarry = b;
+        },
+      },
+      {
+        path: liveImePath,
+        getOff: () => liveImeOffset,
+        setOff: (n: number) => {
           liveImeOffset = n;
         },
-      ],
-    ] as const) {
-      if (!path) continue;
+        getCarry: () => liveImeCarry,
+        setCarry: (b: Uint8Array) => {
+          liveImeCarry = b;
+        },
+      },
+    ]) {
+      if (!stream.path) continue;
       const chunk = await invoke<{
         data_b64: string;
         next_offset: number;
       }>("read_file_from_offset", {
-        filePath: path,
-        offset: getOff(),
+        filePath: stream.path,
+        offset: stream.getOff(),
       });
       const bytes = b64ToU8(chunk.data_b64);
-      if (bytes.length > 0) {
-        const text = new TextDecoder().decode(bytes);
-        ingestJsonlText(text, true);
-        setOff(chunk.next_offset);
+      const cursor = liveChunkCursor(stream.getOff(), chunk.next_offset, bytes.length);
+      if (cursor.reset) {
+        stream.setOff(cursor.offset);
+        stream.setCarry(new Uint8Array(0));
+      } else if (cursor.ingest) {
+        const split = splitJsonlChunk(stream.getCarry(), bytes);
+        stream.setCarry(split.carry);
+        if (split.text) ingestJsonlText(split.text, true);
+        stream.setOff(cursor.offset);
       }
     }
     // 播放头取「鼠标 / 焦点 / 窗口事件」里最晚的时间，避免只跟鼠标时窗轨迹被卡住
@@ -2911,17 +3012,19 @@ async function startLive() {
 
   stashCurrentDaySession();
   clearPlaybackBuffers();
+  pendingSeekTs = null;
+  mouseKeepFloorTs = 0;
+  liveJsonlCarry = new Uint8Array(0);
+  liveWinMapCarry = new Uint8Array(0);
+  liveImeCarry = new Uint8Array(0);
 
   if (liveBinPath) {
-    const all = await invoke<number[]>("read_trace_file", {
-      filePath: liveBinPath,
-    });
-    const bytes = new Uint8Array(all);
+    const snap = await readLiveBinSnapshot(liveBinPath);
     // 只从最近绝对坐标关键帧解起，丢掉此前可能已错乱的相对位移链
-    const syncAt = findLastAbsoluteMouseOffset(bytes);
+    const syncAt = findLastAbsoluteMouseOffset(snap.bytes);
     resetDecoder(Date.now());
-    appendBinBytes(bytes.subarray(syncAt));
-    liveBinOffset = bytes.length;
+    appendBinBytes(snap.bytes.subarray(syncAt));
+    liveBinOffset = snap.fileLen;
   }
   windowHistory = [];
   winMapMod?.load([]);
@@ -2967,6 +3070,7 @@ async function startLive() {
   syncSpeedSelectUi();
   updateTimeDisplay();
   lastLivePollMs = 0;
+  liveDayKey = dateKeyFromTs(Date.now());
   return true;
 }
 

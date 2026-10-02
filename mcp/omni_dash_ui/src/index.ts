@@ -4,6 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { dashUiPath } from "./paths.js";
+import { applyUniquePatch } from "./patch.js";
 
 const server = new McpServer({ name: "omnitrace-omni-dash-ui", version: "0.1.0" });
 const fileId = z.enum([
@@ -36,8 +37,7 @@ server.tool(
   async ({ file_id, old_string, new_string }) => {
     const path = dashUiPath(file_id);
     const text = readFileSync(path, "utf8");
-    if (!text.includes(old_string)) throw new Error("old_string not found");
-    writeFileSync(path, text.replace(old_string, new_string), "utf8");
+    writeFileSync(path, applyUniquePatch(text, old_string, new_string), "utf8");
     return jsonText({ patched: path });
   }
 );

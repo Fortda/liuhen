@@ -7,7 +7,8 @@
   "bin": { "mcp-omni-data": "./dist/index.js" },
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test:smoke": "node --test scripts/read.test.mjs"
   },
   "engines": { "node": ">=18" },
   "dependencies": {

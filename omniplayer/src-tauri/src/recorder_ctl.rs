@@ -203,15 +203,23 @@ fn pid_alive(pid: u32) -> bool {
     }
 }
 
+fn tasklist_text_has_pid(text: &str, pid: u32) -> bool {
+    let needle = pid.to_string();
+    text.lines().any(|line| {
+        let cols: Vec<&str> = line.split(',').collect();
+        cols.get(1).map(|c| c.trim().trim_matches('"')) == Some(needle.as_str())
+    })
+}
+
 #[cfg(not(windows))]
 fn pid_alive(pid: u32) -> bool {
     let out = Command::new("tasklist")
-        .args(["/FI", &format!("PID eq {pid}"), "/NH"])
+        .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
         .output()
         .ok();
     out.map(|o| {
         let text = String::from_utf8_lossy(&o.stdout);
-        text.contains(&pid.to_string())
+        tasklist_text_has_pid(&text, pid)
     })
     .unwrap_or(false)
 }
@@ -580,4 +588,18 @@ pub fn autostart_set(enabled: bool) -> Result<RecorderStatus, String> {
         ));
     }
     Ok(recorder_status())
+}
+
+#[cfg(test)]
+mod pid_text_tests {
+    use super::tasklist_text_has_pid;
+
+    #[test]
+    fn pid_is_a_whole_token() {
+        let row = "\"omnitrace_input.exe\",\"1234\",\"Console\",\"1\",\"12,345 K\"";
+        assert!(tasklist_text_has_pid(row, 1234));
+        assert!(!tasklist_text_has_pid(row, 12));
+        assert!(!tasklist_text_has_pid(row, 123));
+        assert!(!tasklist_text_has_pid(row, 1));
+    }
 }

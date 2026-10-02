@@ -44,6 +44,9 @@ jobs:
       - name: Build (tsc + vite)
         run: npm run build
 
+      - name: Unit tests
+        run: npm run test:unit
+
   recorder:
     name: recorder
     runs-on: windows-latest
@@ -62,6 +65,9 @@ jobs:
       # Unit tests in src/ are pure; this also typechecks bins.
       - name: cargo test
         run: cargo test --locked --all-targets
+
+      - name: cargo test omniplayer lib
+        run: cargo test --locked --manifest-path omniplayer/src-tauri/Cargo.toml --lib
 
   mcp:
     name: mcp

@@ -34,13 +34,11 @@ pub fn run_with_args(args: &[String]) {
         return;
     }
 
-    // 尽早占坑：start_all 较慢时防止第二个实例挤进来
-    write_pid();
-
     let mut reg = ModuleRegistry::new();
     register_builtin_modules(&mut reg);
 
     if args.iter().any(|a| a == "--list" || a == "-l") {
+        // 只查询，不占 pid。否则 --list 被杀掉后会留下死 pid，pid 复用时下次启动会误判已在运行。
         println!("已注册插件（同进程融合，不是独立软件）：");
         for info in reg.list_info() {
             println!(
@@ -54,6 +52,9 @@ pub fn run_with_args(args: &[String]) {
         }
         return;
     }
+
+    // 尽早占坑：start_all 较慢时防止第二个实例挤进来
+    write_pid();
 
     let enable =
         parse_enable(args).unwrap_or_else(|| {
@@ -134,16 +135,26 @@ fn read_pid_file() -> Option<u32> {
     s.trim().parse().ok()
 }
 
+/// CSV `/FO CSV` 的第二列才是 PID。按空白切词会把 Session# `1`
+/// 或内存列 `12,345 K` 当成进程号。
+fn tasklist_contains_pid(text: &str, pid: u32) -> bool {
+    let needle = pid.to_string();
+    text.lines().any(|line| {
+        let cols: Vec<&str> = line.split(',').collect();
+        cols.get(1).map(|c| c.trim().trim_matches('"')) == Some(needle.as_str())
+    })
+}
+
 fn pid_alive(pid: u32) -> bool {
     #[cfg(windows)]
     {
         let out = Command::new("tasklist")
-            .args(["/FI", &format!("PID eq {pid}"), "/NH"])
+            .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
             .output()
             .ok();
         if let Some(o) = out {
             let text = String::from_utf8_lossy(&o.stdout);
-            return text.contains(&pid.to_string());
+            return tasklist_contains_pid(&text, pid);
         }
         false
     }
@@ -213,6 +224,24 @@ fn print_status() {
     match read_live_pid() {
         Some(pid) => println!("running pid={pid}"),
         None => println!("stopped"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::tasklist_contains_pid;
+
+    #[test]
+    fn pid_token_does_not_match_memory_or_longer_pid() {
+        let row = "\"omnitrace_input.exe\",\"1234\",\"Console\",\"1\",\"12,345 K\"";
+        assert!(tasklist_contains_pid(row, 1234));
+        assert!(!tasklist_contains_pid(row, 12));
+        assert!(!tasklist_contains_pid(row, 123));
+        assert!(!tasklist_contains_pid(row, 1));
+        assert!(!tasklist_contains_pid(
+            "INFO: No tasks are running which match the specified criteria.",
+            1234
+        ));
     }
 }
 
