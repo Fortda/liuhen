@@ -7,10 +7,12 @@ OmniDatabase/
 # Prompt originals — private, never publish
 versions/**/PROMPT.md
 
-# Secrets
+# Secrets. Updater public key lives in tauri.conf.json; the private key does not.
 .env
 .env.*
 *.pem
+*.key
+omniplayer/src-tauri/resources/*.exe
 
 # Dependencies & build output
 **/node_modules/

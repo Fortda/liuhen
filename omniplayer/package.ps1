@@ -4,8 +4,10 @@
 # - 产出目录只放程序与说明（OmniPlayer.exe、采集 exe、bat、使用说明等）
 # - 切勿把运行时数据根 OmniDatabase 打进发布包（发布物与数据根分离）
 # - 稳定版：-Install → %LOCALAPPDATA%\OmniTrace（磁盘目录名兼容旧版）+ 桌面「留痕」快捷方式 + HKCU 卸载项（DisplayName=留痕）
-# - 增量：覆盖 dist 后，若稳定版在跑则写入 incoming；另打 *-update.zip（两 exe + ico）
-#   设置「检查更新」从 GitHub 拉 zip 写入 incoming，再换 exe（不改 OmniDatabase）
+# - 签名更新：tauri build 叠加 tauri.updater.json，把采集 exe 打进 NSIS，
+#   并用 TAURI_SIGNING_PRIVATE_KEY 签出 setup.exe + latest.json（完整包，不是差分）。
+#   没配私钥时仍打便携 zip，并用旧的 omnitrace.nsi 打 setup.exe（那一份不能当 updater 载荷）。
+# - 本机 -Install：若稳定版在跑则写入 incoming（不改 OmniDatabase）
 #
 param(
   [switch]$Install,
@@ -153,38 +155,41 @@ function Publish-PortableZip([string]$Version) {
   Write-Host "  $zip"
 }
 
-function Publish-UpdateZip([string]$Version) {
+function Publish-SignedNsis([string]$Version) {
+  $nsisDir = Join-Path $Root "src-tauri\target\release\bundle\nsis"
+  if (-not (Test-Path -LiteralPath $nsisDir)) { return $false }
+  $setup = Get-ChildItem -LiteralPath $nsisDir -File -Filter "*-setup.exe" |
+    Where-Object { $_.Extension -eq ".exe" } |
+    Select-Object -First 1
+  if (-not $setup) { return $false }
+  $sigPath = $setup.FullName + ".sig"
+  if (-not (Test-Path -LiteralPath $sigPath)) {
+    Write-Host "NSIS installer has no .sig. Set TAURI_SIGNING_PRIVATE_KEY to publish updater artifacts." -ForegroundColor Yellow
+    return $false
+  }
   $distRoot = Join-Path $Repo "dist"
-  $wrap = Join-Path $distRoot "_update_zip_stage"
-  if (Test-Path -LiteralPath $wrap) {
-    Remove-Item -LiteralPath $wrap -Recurse -Force
-  }
-  New-Item -ItemType Directory -Force -Path $wrap | Out-Null
-  $copied = 0
-  foreach ($name in @("OmniPlayer.exe", "omnitrace_input.exe", "OmniTrace.ico")) {
-    $src = Join-Path $Dist $name
-    if (Test-Path -LiteralPath $src) {
-      Copy-Item -LiteralPath $src -Destination (Join-Path $wrap $name) -Force
-      $copied++
-    }
-  }
-  if (-not (Test-Path -LiteralPath (Join-Path $wrap "OmniPlayer.exe"))) {
-    Write-Error "update zip: OmniPlayer.exe missing under $Dist"
+  New-Item -ItemType Directory -Force -Path $distRoot | Out-Null
+  $name = "Liuhen-" + $Version + "-windows-x64-setup.exe"
+  $dest = Join-Path $distRoot $name
+  Copy-Item -LiteralPath $setup.FullName -Destination $dest -Force
+  Copy-Item -LiteralPath $sigPath -Destination ($dest + ".sig") -Force
+  $url = "https://github.com/Fortda/liuhen/releases/download/v" + $Version + "/" + $name
+  $manifest = Join-Path $distRoot "latest.json"
+  $notes = "Full Windows installer (player + recorder). OmniDatabase is not modified."
+  & node (Join-Path $Root "scripts\write-updater-manifest.mjs") `
+    --version $Version `
+    --signature-file ($dest + ".sig") `
+    --url $url `
+    --out $manifest `
+    --notes $notes
+  if ($LASTEXITCODE -ne 0) {
+    Write-Error "failed to write latest.json"
     exit 1
   }
-  if (-not (Test-Path -LiteralPath (Join-Path $wrap "omnitrace_input.exe"))) {
-    Write-Error "update zip: omnitrace_input.exe missing — incremental payload must include the recorder"
-    exit 1
-  }
-  $zip = Join-Path $distRoot ("Liuhen-" + $Version + "-windows-x64-update.zip")
-  if (Test-Path -LiteralPath $zip) {
-    Remove-Item -LiteralPath $zip -Force
-  }
-  Add-Type -AssemblyName System.IO.Compression.FileSystem
-  [System.IO.Compression.ZipFile]::CreateFromDirectory($wrap, $zip)
-  Remove-Item -LiteralPath $wrap -Recurse -Force
-  Write-Host "incremental update zip ($copied files: two exes + ico):" -ForegroundColor Green
-  Write-Host "  $zip"
+  Write-Host "signed updater NSIS + latest.json:" -ForegroundColor Green
+  Write-Host "  $dest"
+  Write-Host "  $manifest"
+  return $true
 }
 
 function Resolve-Makensis {
@@ -329,12 +334,42 @@ if (-not $SkipBuild) {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   }
 
-  Write-Host "==> tauri build (force feature custom-protocol)..." -ForegroundColor Cyan
+  Write-Host "==> cargo build --release omnitrace_input (bundled into the NSIS installer)..." -ForegroundColor Cyan
+  Push-Location $Repo
+  try {
+    $env:CARGO_TARGET_DIR = Join-Path $Repo "target"
+    cargo build --release --bin omnitrace_input
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  } finally {
+    Pop-Location
+  }
+  $stagedRecorder = Join-Path $Repo "target\release\omnitrace_input.exe"
+  if (-not (Test-Path -LiteralPath $stagedRecorder)) {
+    Write-Error "omnitrace_input.exe missing; the installer must include the recorder"
+    exit 1
+  }
+  $resDir = Join-Path $Root "src-tauri\resources"
+  New-Item -ItemType Directory -Force -Path $resDir | Out-Null
+  Copy-Item -LiteralPath $stagedRecorder -Destination (Join-Path $resDir "omnitrace_input.exe") -Force
+
+  $confText = Get-Content (Join-Path $Root "src-tauri\tauri.conf.json") -Raw -Encoding UTF8
+  $pubkeyPlaceholder = $confText -match "REPLACE_WITH_OUTPUT_OF_tauri_signer_generate"
+  if ($pubkeyPlaceholder -and $env:TAURI_SIGNING_PRIVATE_KEY) {
+    Write-Error "plugins.updater.pubkey is still the placeholder. Paste the public key from ``tauri signer generate`` before a signed build. See docs/releasing.md."
+    exit 1
+  }
+  if ($pubkeyPlaceholder) {
+    Write-Host "updater pubkey is still the placeholder; this build will not emit a signed latest.json." -ForegroundColor Yellow
+  }
+
+  Write-Host "==> tauri build (custom-protocol + NSIS updater overlay)..." -ForegroundColor Cyan
   # CLI 有时 --no-default-features，Cargo.toml default 的 custom-protocol 不会生效，
   # 编出的 release 仍 cfg(dev) → 双击去连 Vite 1420。显式 -f 保证嵌入 UI。
-  npm run tauri build -- --features custom-protocol
+  # 没设 TAURI_SIGNING_PRIVATE_KEY 时签名步骤会失败；下面仍会编出 exe，并退回旧 setup.exe。
+  $env:CARGO_TARGET_DIR = Join-Path $Root "src-tauri\target"
+  npm run tauri build -- --features custom-protocol --config src-tauri/tauri.updater.json
   if ($LASTEXITCODE -ne 0) {
-    Write-Host "tauri build exit $LASTEXITCODE (NSIS fail is OK if OmniPlayer.exe exists)" -ForegroundColor Yellow
+    Write-Host "tauri build exit $LASTEXITCODE (signed NSIS needs TAURI_SIGNING_PRIVATE_KEY; exe-only build can still continue)" -ForegroundColor Yellow
   }
 
   # 双保险：若 CLI 仍没把 feature 传进 cargo，直接再编一次 release bin
@@ -342,16 +377,6 @@ if (-not $SkipBuild) {
   Push-Location (Join-Path $Root "src-tauri")
   try {
     cargo build --release --features custom-protocol
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-  } finally {
-    Pop-Location
-  }
-
-  Write-Host "==> cargo build --release omnitrace_input..." -ForegroundColor Cyan
-  Push-Location $Repo
-  try {
-    $env:CARGO_TARGET_DIR = Join-Path $Repo "target"
-    cargo build --release --bin omnitrace_input
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   } finally {
     Pop-Location
@@ -414,15 +439,19 @@ if (Test-Path $ico) {
   Copy-Item $ico (Join-Path $Dist "OmniTrace.ico") -Force
 }
 
-# Friend installer is our Dist-based NSIS (player + recorder), not Tauri's player-only bundle.
+# Signed release: Tauri NSIS (player + recorder resource) is the setup.exe the updater installs.
+# Without a signing key, fall back to package/omnitrace.nsi. That legacy exe is not an updater payload.
 
 Write-Host ""
 Write-Host "portable folder:" -ForegroundColor Green
 Write-Host "  $Dist"
 $appVer = Get-AppVersion
 Publish-PortableZip $appVer
-Publish-UpdateZip $appVer
-Publish-SetupExe $appVer
+$signed = Publish-SignedNsis $appVer
+if (-not $signed) {
+  Write-Host "No signed updater artifact. Building the legacy setup.exe (player + recorder). It is not an updater payload and will not get a latest.json." -ForegroundColor Yellow
+  Publish-SetupExe $appVer
+}
 
 if (-not $Install) {
   Write-Host "To install stable + desktop shortcut:  .\package.ps1 -Install  or  ..\scripts\install-stable.ps1"

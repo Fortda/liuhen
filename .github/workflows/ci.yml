@@ -1,4 +1,4 @@
-# PR / main checks. Windows setup.exe / zip / update.zip stay on
+# PR / main checks. Windows setup.exe / zip / latest.json stay on
 # release-windows (.github/workflows/release.yml) — too heavy for every PR.
 name: ci
 
@@ -44,6 +44,9 @@ jobs:
       - name: Build (tsc + vite)
         run: npm run build
 
+      - name: Updater manifest self-test
+        run: node scripts/write-updater-manifest.mjs --self-test
+
   recorder:
     name: recorder
     runs-on: windows-latest
@@ -62,6 +65,48 @@ jobs:
       # Unit tests in src/ are pure; this also typechecks bins.
       - name: cargo test
         run: cargo test --locked --all-targets
+
+  omniplayer-shell:
+    name: omniplayer-shell
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: omniplayer/package-lock.json
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: omniplayer/src-tauri
+
+      - name: Install frontend deps
+        working-directory: omniplayer
+        run: npm ci
+
+      # generate_context! requires frontendDist (../dist) when custom-protocol is on.
+      - name: Build frontend
+        working-directory: omniplayer
+        run: npm run build
+
+      # tauri-build compiles icons/icon.ico with rc.exe. rust-toolchain does not
+      # put the Windows SDK on PATH.
+      - name: MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      # Typecheck the Tauri shell (updater plugin included). Does not bundle NSIS.
+      - name: cargo check omniplayer
+        working-directory: omniplayer/src-tauri
+        run: cargo check --locked --features custom-protocol
 
   mcp:
     name: mcp
@@ -113,3 +158,16 @@ jobs:
             echo "no mcp packages with a build script" >&2
             exit 1
           fi
+
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check workflow syntax
+        uses: rhysd/actionlint@v1.7.12
+        with:
+          args: -color

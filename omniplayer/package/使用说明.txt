@@ -13,6 +13,8 @@
   程序位置：%LOCALAPPDATA%\OmniTrace
   数据位置：%USERPROFILE%\OmniTrace\OmniDatabase
   卸载（Windows 设置 → 应用 → 留痕）不会删除数据。
+  装好之后，留痕启动时会检查更新。确认后下载完整安装包并安装，不改上面的数据目录。
+  便携 zip 不会在原地自动安装。
 
 若你拿的是 zip
   1. 解压整个文件夹（不要只拿出一个 exe）

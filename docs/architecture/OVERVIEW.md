@@ -28,7 +28,7 @@ OmniPlayer (Tauri 单实例) ──recorder_ctl──► omnitrace_input.exe (�
         └── notes ──llm_sidecar──► LiteLLM (:4000)
 ```
 
-- **稳定版入口**：`%LOCALAPPDATA%\OmniTrace\OmniPlayer.exe`（磁盘程序目录名未改，兼容自动更新）；旁路 `data_root.json` 指数据根。**设置页可改数据存放位置**（写 exe 旁同一指针，不搬移已有库；采集运行中拒绝改）；该开关只在设置。开发机 `-Install` 指仓库 `OmniDatabase/`。公开 **setup.exe**（`Liuhen-*-windows-x64-setup.exe`）= 每用户向导（默认 `%LOCALAPPDATA%\OmniTrace`、HKCU 卸载、桌面/开始菜单「留痕」快捷方式）+ 壳与采集 exe + 写指针到 `%USERPROFILE%\OmniTrace\OmniDatabase`；**包内仍无库**。zip 仍提供（同内容便携位 + `安装到本机.bat`）。无指针时 candidate 仍认仓库/已有库（含用户目录与旧的下载目录路径），否则新库落用户目录。壳一律 `resolve_data_root`；禁止 cwd 相对另起空库。正式包须 `custom-protocol`（`package.ps1` 校验）。设置可检查 GitHub Release 并只换程序文件（`incoming\`），不改库。安装：朋友用 setup.exe；zip 内 `安装到本机.bat`；开发机 `omniplayer/package.ps1 -Install` / `scripts/install-stable.ps1`。卸载只删程序目录，不删用户库。
+- **稳定版入口**：`%LOCALAPPDATA%\OmniTrace\OmniPlayer.exe`（磁盘程序目录名未改，兼容自动更新）；旁路 `data_root.json` 指数据根。**设置页可改数据存放位置**（写 exe 旁同一指针，不搬移已有库；采集运行中拒绝改）；该开关只在设置。开发机 `-Install` 指仓库 `OmniDatabase/`。公开 **setup.exe**（`Liuhen-*-windows-x64-setup.exe`）= 每用户向导（默认 `%LOCALAPPDATA%\OmniTrace`、HKCU 卸载、桌面/开始菜单「留痕」快捷方式）+ 壳与采集 exe + 写指针到 `%USERPROFILE%\OmniTrace\OmniDatabase`；**包内仍无库**。zip 仍提供（同内容便携位 + `安装到本机.bat`）。无指针时 candidate 仍认仓库/已有库（含用户目录与旧的下载目录路径），否则新库落用户目录。壳一律 `resolve_data_root`；禁止 cwd 相对另起空库。正式包须 `custom-protocol`（`package.ps1` 校验）。已安装到 `%LOCALAPPDATA%\OmniTrace`（或带 `uninstall.exe`）的壳，启动时用 Tauri updater 读 GitHub Release 的 `latest.json`，确认后安装签名过的完整 NSIS，不改库。便携 zip 只提示下载。官方 updater 不做二进制差分。本地 `package.ps1 -Install` 在程序正运行时仍可写 `incoming\`。安装：朋友用 setup.exe；zip 内 `安装到本机.bat`；开发机 `omniplayer/package.ps1 -Install` / `scripts/install-stable.ps1`。卸载只删程序目录，不删用户库。
 - **开发**：`scripts/run-app.bat` 或 `cd omniplayer && npm run tauri dev`。笔记快捷：`scripts/run-app.bat --page=notes`。
 - **CLI**：`--page=notes|settings|player|dashboard`；`notes` 时另开 `label=notes` WebView。
 - **笔记 XOR 摘窗**：嵌主窗或独立窗，禁止双开同编；摘出/关窗/收回前 `flushNotesPersist`。
@@ -136,7 +136,7 @@ OmniPlayer (Tauri 单实例) ──recorder_ctl──► omnitrace_input.exe (�
 
 **壳应用栏（MVP）**：展开钮与横向标签同处应用列顶栏扁平标签条（底 1px 发丝线；`+` / 展开钮无描边框。收起时展开钮在 `#body` 右上，不挨窗控）；`+` 可加对话窗 / 线索板 / Canvas / Browser / Terminal / File。对话窗/线索板：`+` 悬停子菜单选档/选板，点选则在标签条打开该实例（已开则聚焦）；标签=已打开的混合种类窗口。同一 DOM 时切标签会 `switchBoard` / `applyWirePreset`。布局 `localStorage omnitrace.shell.apps.v1`。**细节** → [notes.md](notes.md)。
 
-关于/反馈在设置子页「关于与反馈」（仪表盘口径链到此）。**发布物与数据根分离**；设置可检查 GitHub Release 并只换程序文件（incoming），不改库。`main.ts` 只管壳（导航、设置、XOR 摘窗、dynamic import、seek 桥接、应用栏）。Tab：设置|播放器|仪表盘|笔记；仅舞台黑底。笔记浮层 `.omni-float`（细节见 notes）。
+关于/反馈在设置子页「关于与反馈」（仪表盘口径链到此）。**发布物与数据根分离**；已安装到 `%LOCALAPPDATA%\OmniTrace`（或带 `uninstall.exe`）的壳，启动时用 Tauri updater 读 GitHub Release 的 `latest.json`，确认后安装签名过的完整 NSIS，不改库。便携 zip 只提示下载。官方 updater 不做二进制差分。本地 `package.ps1 -Install` 在程序正运行时仍可写 `incoming\`。`main.ts` 只管壳（导航、设置、XOR 摘窗、dynamic import、seek 桥接、应用栏）。Tab：设置|播放器|仪表盘|笔记；仅舞台黑底。笔记浮层 `.omni-float`（细节见 notes）。
 
 ### 5.2 Tauri 命令（要点）
 

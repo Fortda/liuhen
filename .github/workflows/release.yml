@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build signed artifacts but do not publish the GitHub Release
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -26,9 +31,41 @@ jobs:
           cache: npm
           cache-dependency-path: omniplayer/package-lock.json
 
-      - name: Build setup.exe and portable zip
+      # package.ps1's tauri build embeds icon.ico with rc.exe.
+      - name: MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Require updater signing key
         shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) {
+            throw "Missing GitHub Actions secret TAURI_SIGNING_PRIVATE_KEY. Run ``npm run tauri signer generate`` and add the secret before cutting a release. See docs/releasing.md."
+          }
+
+      - name: Build setup.exe, portable zip, and latest.json
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: ./omniplayer/package.ps1
+
+      - name: Require signed updater artifacts
+        shell: pwsh
+        run: |
+          $missing = @()
+          if (-not (Test-Path -LiteralPath "dist/latest.json")) { $missing += "dist/latest.json" }
+          $setup = @(Get-ChildItem dist -File -Filter "Liuhen-*-windows-x64-setup.exe")
+          $sig = @(Get-ChildItem dist -File -Filter "Liuhen-*-windows-x64-setup.exe.sig")
+          $zip = @(Get-ChildItem dist -File -Filter "Liuhen-*-windows-x64.zip" | Where-Object { $_.Name -notlike "*-update.zip" -and $_.Name -notlike "*.sig" })
+          if ($setup.Count -lt 1) { $missing += "setup.exe" }
+          if ($sig.Count -lt 1) { $missing += "setup.exe.sig" }
+          if ($zip.Count -lt 1) { $missing += "portable zip" }
+          if ($missing.Count -gt 0) {
+            throw ("missing updater artifacts: " + ($missing -join ", "))
+          }
+          Get-Content -LiteralPath "dist/latest.json" -Raw
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
@@ -36,33 +73,35 @@ jobs:
           name: liuhen-windows-x64
           path: |
             dist/Liuhen-*-windows-x64-setup.exe
+            dist/Liuhen-*-windows-x64-setup.exe.sig
             dist/Liuhen-*-windows-x64.zip
-            dist/Liuhen-*-windows-x64-update.zip
+            dist/latest.json
           if-no-files-found: error
 
       - name: Attach artifacts to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && github.event.inputs.dry_run != 'true'
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/Liuhen-*-windows-x64-setup.exe
+            dist/Liuhen-*-windows-x64-setup.exe.sig
             dist/Liuhen-*-windows-x64.zip
-            dist/Liuhen-*-windows-x64-update.zip
+            dist/latest.json
           generate_release_notes: true
           body: |
-            **给朋友：** 首次安装下载 **`Liuhen-…-windows-x64-setup.exe`**，下一步下一步即可（当前用户，一般不用管理员）。里面是播放器 + 采集器。已装过的可在设置里「检查更新」，不必再下完整包。
+            **给朋友：** 首次安装下载 **`Liuhen-…-windows-x64-setup.exe`**，下一步下一步即可（当前用户，一般不用管理员）。里面是播放器 + 采集器。装好后，留痕会在启动时检查更新；确认后下载这个安装包并安装。更新是完整安装包，不是差分。
 
             数据在本机 `%USERPROFILE%\OmniTrace\OmniDatabase`，不进安装包（磁盘目录名未改）。卸载（设置 → 应用 → 留痕）不删库。
 
             Windows 提示「未知应用」：选 **更多信息 → 仍要运行**（目前没有代码签名）。
 
-            也可以下 zip，解压后双击「安装到本机.bat」。
+            也可以下 zip，解压后双击「安装到本机.bat」。zip 不会在原地自动安装；要自动更新请用 setup.exe。
 
-            **For friends:** first install: download **`Liuhen-…-windows-x64-setup.exe`**, Next Next Next (per-user, usually no UAC). Player + recorder included. Later updates: Settings → Check for updates (program files only).
+            **For friends:** first install: download **`Liuhen-…-windows-x64-setup.exe`**, Next Next Next (per-user, usually no UAC). Player + recorder included. After that, 留痕 checks for updates on startup and, if you confirm, downloads and installs this full installer (not a delta).
 
             Data stays in `%USERPROFILE%\OmniTrace\OmniDatabase` and is not in the package (folder name unchanged for compatibility). Uninstall keeps the library.
 
-            SmartScreen: **More info → Run anyway** (unsigned). Zip is still attached.
+            SmartScreen: **More info → Run anyway** (unsigned). The portable zip is still attached; it does not auto-update in place.
 
             若本页还有 **`Liuhen-…-android.apk`**：手机打开文件边载。几乎没法用；数据只留在手机；调试证书，系统会提示未知来源。没有 APK 不代表 Windows 包坏了（Android 任务是可选的）。
 
@@ -105,7 +144,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Attach APK to GitHub Release
-        if: success() && startsWith(github.ref, 'refs/tags/')
+        if: success() && startsWith(github.ref, 'refs/tags/') && github.event.inputs.dry_run != 'true'
         uses: softprops/action-gh-release@v2
         with:
           files: dist/Liuhen-*-android.apk

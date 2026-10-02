@@ -1,0 +1,2 @@
+# Staged at package time: package.ps1 copies omnitrace_input.exe here
+# before `tauri build`. The exe is gitignored.

@@ -464,7 +464,7 @@ export async function reloadClueHistoryFromDisk(boardId = activeBoardId) {
   if (boardId === activeBoardId) updateHistoryUi();
 }
 
-function formatHistoryTime(ts: number): string {
+export function formatClueHistoryActivityTime(ts: number): string {
   const d = new Date(ts);
   return d.toLocaleString(undefined, {
     month: "2-digit",
@@ -473,6 +473,45 @@ function formatHistoryTime(ts: number): string {
     minute: "2-digit",
     second: "2-digit",
   });
+}
+
+function formatHistoryTime(ts: number): string {
+  return formatClueHistoryActivityTime(ts);
+}
+
+export type ClueHistoryActivityItem = {
+  ts: number;
+  actorLabel: string;
+  label: string;
+};
+
+/** Recent content edits for the board-list hover. Read-only; does not seed history. */
+export async function fetchClueHistoryActivity(
+  boardId: string,
+  limit: number
+): Promise<ClueHistoryActivityItem[]> {
+  const cap = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 0;
+  if (!boardId || cap === 0) return [];
+  try {
+    const list = await invoke<{ entries?: PersistedEntry[] }>("notes_clue_history_list", {
+      boardId,
+    });
+    const entries = (list.entries ?? []).filter((e) => !isNavigationHistoryEntry(e));
+    return entries.slice(-cap).map((entry) => {
+      let label = historyLabelText(labelForEntry(entry));
+      if (entry.rollback_to_seq != null) {
+        label = `${label} → #${entry.rollback_to_seq}`;
+      }
+      return {
+        ts: entry.ts,
+        actorLabel: actorLabel(entry.actor),
+        label,
+      };
+    });
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
 }
 
 function actorLabel(actor: string): string {
